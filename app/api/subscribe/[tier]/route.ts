@@ -8,11 +8,12 @@ const PLANS: Record<string, string> = {
   prime: process.env.PAYSTACK_PRIME_PLAN_CODE!,
 }
 
-export async function POST(req: NextRequest, { params }: { params: { tier: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
+  const { tier: tierParam } = await params
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const tier = params.tier.toLowerCase()
+  const tier = tierParam.toLowerCase()
   const planCode = PLANS[tier]
   if (!planCode) return NextResponse.json({ error: "Invalid tier." }, { status: 400 })
 
@@ -21,9 +22,9 @@ export async function POST(req: NextRequest, { params }: { params: { tier: strin
   await prisma.transaction.create({
     data: {
       userId: user.id,
-      kind: tier, // "plus" | "prime"
+      kind: tier,
       reference,
-      amount: 0, // Paystack knows the real amount from the plan
+      amount: 0,
       metadata: { tier },
     },
   })

@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 
-const BOOST_PRICE_PESEWAS = 500 // GHS 5.00 — adjust as you like
+const BOOST_PRICE_PESEWAS = 500
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const reference = `boost_${params.id}_${Date.now()}`
+  const reference = `boost_${id}_${Date.now()}`
 
   await prisma.transaction.create({
     data: {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       kind: "boost",
       reference,
       amount: BOOST_PRICE_PESEWAS,
-      metadata: { postId: params.id },
+      metadata: { postId: id },
     },
   })
 

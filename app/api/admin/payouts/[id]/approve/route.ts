@@ -3,16 +3,16 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { createTransferRecipient, initiateTransfer } from "@/lib/paystack"
 
-// Simple admin check for now — swap for a real isAdmin flag/role later
 const ADMIN_EMAILS = [process.env.ADMIN_EMAIL || ""]
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const user = await getCurrentUser(req)
   if (!user || !ADMIN_EMAILS.includes(user.email)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   }
 
-  const payout = await prisma.payout.findUnique({ where: { id: params.id } })
+  const payout = await prisma.payout.findUnique({ where: { id } })
   if (!payout || payout.status !== "pending") {
     return NextResponse.json({ error: "Invalid or already-processed payout." }, { status: 400 })
   }
