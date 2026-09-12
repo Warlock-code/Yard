@@ -12,13 +12,39 @@ export async function GET(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: payload.userId } })
   if (!user) return NextResponse.json({ user: null })
 
+  const postCount = await prisma.post.count({ where: { userId: user.id } })
+
+  const earningsSum = await prisma.earning.aggregate({
+    where: { userId: user.id },
+    _sum: { amount: true },
+  })
+
+  const paidOutSum = await prisma.payout.aggregate({
+    where: { userId: user.id, status: { in: ["approved", "paid"] } },
+    _sum: { amount: true },
+  })
+
+  const pendingPayout = await prisma.payout.findFirst({
+    where: { userId: user.id, status: "pending" },
+  })
+
+  const totalEarned = earningsSum._sum.amount || 0
+  const totalPaidOut = paidOutSum._sum.amount || 0
+
   return NextResponse.json({
     user: {
       id: user.id,
+      email: user.email,
       ghostId: user.ghostId,
+      avatarEmoji: user.avatarEmoji,
       campus: user.campus,
       tier: user.tier,
       streakCount: user.streakCount,
+      ghostCoins: user.ghostCoins,
+      postCount,
+      totalEarnedPesewas: totalEarned,
+      availableBalancePesewas: totalEarned - totalPaidOut,
+      hasPendingPayout: !!pendingPayout,
     },
   })
 }
