@@ -1,9 +1,5 @@
 import type { NextConfig } from "next"
 
-const nextConfig: NextConfig = {
-  outputFileTracingIncludes: {
-    "/api/**/*": ["./app/generated/prisma/**/*"],
-  },
-}
+const nextConfig: NextConfig = {}
 
 export default nextConfig
