@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ user: null })
 
   const postCount = await prisma.post.count({ where: { userId: user.id } })
+  const followersCount = await prisma.follow.count({ where: { followingId: user.id } })
+  const followingCount = await prisma.follow.count({ where: { followerId: user.id } })
 
   const earningsSum = await prisma.earning.aggregate({
     where: { userId: user.id },
@@ -42,6 +44,8 @@ export async function GET(req: NextRequest) {
       streakCount: user.streakCount,
       ghostCoins: user.ghostCoins,
       postCount,
+      followersCount,
+      followingCount,
       totalEarnedPesewas: totalEarned,
       availableBalancePesewas: totalEarned - totalPaidOut,
       hasPendingPayout: !!pendingPayout,

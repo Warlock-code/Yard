@@ -21,22 +21,32 @@ type Post = {
 type Me = {
   id: string
   ghostId: string
+  avatarEmoji: string
   campus: string
   tier: string
   streakCount: number
+  followersCount: number
+  followingCount: number
 }
+
+const TABS = [
+  { key: "program", label: "For You" },
+  { key: "following", label: "Following" },
+  { key: "campus", label: "All" },
+]
 
 export default function FeedPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
-  const [mode, setMode] = useState("campus")
+  const [mode, setMode] = useState("program")
   const [loading, setLoading] = useState(true)
   const [composeText, setComposeText] = useState("")
   const [composeImage, setComposeImage] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
   const [newName, setNewName] = useState("")
+  const [showDrawer, setShowDrawer] = useState(false)
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
     onClientUploadComplete: (res) => {
@@ -106,9 +116,7 @@ export default function FeedPage() {
   async function handleBoost(postId: string) {
     try {
       const data = await apiPost(`/api/boost/${postId}`, {})
-      if (data.data?.authorization_url) {
-        window.location.href = data.data.authorization_url
-      }
+      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
     } catch (err: any) {
       alert(err.message)
     }
@@ -118,6 +126,7 @@ export default function FeedPage() {
     try {
       const data = await apiPost("/api/follow", { targetUserId })
       alert(data.following ? "Followed." : "Unfollowed.")
+      loadMe()
     } catch (err: any) {
       alert(err.message)
     }
@@ -139,12 +148,15 @@ export default function FeedPage() {
     if (!newName.trim()) return
     try {
       const data = await apiPost("/api/shop/custom-name", { newName })
-      if (data.data?.authorization_url) {
-        window.location.href = data.data.authorization_url
-      }
+      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
     } catch (err: any) {
       alert(err.message)
     }
+  }
+
+  async function handleLogout() {
+    document.cookie = "yard_token=; Max-Age=0; path=/"
+    router.push("/login")
   }
 
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -154,40 +166,27 @@ export default function FeedPage() {
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-24">
-      {me && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="avatar-circle">👻</div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{me.ghostId}</span>
-                {me.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-              </div>
-              <p className="text-xs text-white/40">
-                {me.campus} · 🔥 {me.streakCount} day streak
-              </p>
-            </div>
-          </div>
-          <button className="btn-ghost" onClick={() => setShowNameModal(true)}>
-            Edit name
-          </button>
-        </div>
-      )}
+      {/* X-style minimal top bar */}
+      <div className="flex items-center px-4 py-3">
+        <button onClick={() => setShowDrawer(true)}>
+          <div className="avatar-circle">{me?.avatarEmoji || "👻"}</div>
+        </button>
+      </div>
 
-      <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 flex gap-5 z-10">
-        {["campus", "program", "following", "all"].map((m) => (
+      {/* Tabs */}
+      <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 flex gap-6 z-10">
+        {TABS.map((tab) => (
           <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`text-sm font-semibold capitalize py-3 ${
-              mode === m ? "tab-active" : "tab-inactive"
-            }`}
+            key={tab.key}
+            onClick={() => setMode(tab.key)}
+            className={`text-sm py-3 ${mode === tab.key ? "tab-active" : "tab-inactive"}`}
           >
-            {m === "campus" ? "My Campus" : m}
+            {tab.label}
           </button>
         ))}
       </div>
 
+      {/* Compose box */}
       <div className="card mx-4 mt-4 p-4">
         <textarea
           className="input resize-none"
@@ -224,6 +223,7 @@ export default function FeedPage() {
         </div>
       </div>
 
+      {/* Feed */}
       {loading ? (
         <p className="text-center text-white/40 mt-10">Loading feed...</p>
       ) : posts.length === 0 ? (
@@ -274,6 +274,61 @@ export default function FeedPage() {
         </div>
       )}
 
+      {/* Side drawer — X style */}
+      {showDrawer && me && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="w-72 bg-black border-r border-white/10 p-5 flex flex-col">
+            <div className="avatar-circle text-xl w-14 h-14 mb-3">{me.avatarEmoji}</div>
+            <p className="font-bold">{me.ghostId}</p>
+            <p className="text-xs text-white/40 mb-4">{me.campus}</p>
+
+            <div className="flex gap-4 mb-5 text-sm">
+              <div>
+                <span className="font-bold">{me.followingCount}</span>{" "}
+                <span className="text-white/40">Following</span>
+              </div>
+              <div>
+                <span className="font-bold">{me.followersCount}</span>{" "}
+                <span className="text-white/40">Followers</span>
+              </div>
+            </div>
+
+            <button
+              className="text-left py-2 text-sm"
+              onClick={() => {
+                setShowDrawer(false)
+                router.push("/lair")
+              }}
+            >
+              👻 My Lair
+            </button>
+            <button
+              className="text-left py-2 text-sm"
+              onClick={() => {
+                setShowDrawer(false)
+                setShowNameModal(true)
+              }}
+            >
+              ✏️ Edit ghost name
+            </button>
+            <button className="text-left py-2 text-sm text-white/40" disabled>
+              🏘️ Communities <span className="text-xs">(soon)</span>
+            </button>
+            <button className="text-left py-2 text-sm text-white/40" disabled>
+              👑 Prime Beta List <span className="text-xs">(soon — Prime only)</span>
+            </button>
+
+            <div className="mt-auto">
+              <button className="btn-ghost w-full" onClick={handleLogout}>
+                Log out
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
+        </div>
+      )}
+
+      {/* Name change modal */}
       {showNameModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
