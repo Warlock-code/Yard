@@ -42,6 +42,9 @@ followers  Follow[] @relation("Followers")
   streakFreezeUntil DateTime?
   lastPostedAt      DateTime?
 
+  lastStreakCount   Int?
+streakBrokenAt    DateTime?
+
   ghostCoins      Int       @default(0)
   freeBoosts      Int       @default(0)
 

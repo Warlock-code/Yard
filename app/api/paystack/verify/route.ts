@@ -47,6 +47,28 @@ export async function POST(req: NextRequest) {
       break
   }
 
+      case "restore": {
+      const brokenUser = await prisma.user.findUnique({ where: { id: tx.userId } })
+      if (brokenUser?.lastStreakCount) {
+        await prisma.user.update({
+          where: { id: tx.userId },
+          data: {
+            streakCount: brokenUser.lastStreakCount,
+            lastStreakCount: null,
+            streakBrokenAt: null,
+          },
+        })
+      }
+      break
+    }
+
+    case "cosmetic":
+      await prisma.user.update({
+        where: { id: tx.userId },
+        data: { ownedCosmetics: { push: meta.cosmeticId } },
+      })
+      break
+
   await prisma.transaction.update({ where: { reference }, data: { status: "success" } })
 
   return NextResponse.json({ success: true })

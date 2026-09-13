@@ -35,17 +35,22 @@ export async function POST(req: NextRequest) {
 
   const alreadyPostedToday = lastPosted && lastPosted.getTime() === today.getTime()
 
-  if (!alreadyPostedToday) {
+    if (!alreadyPostedToday) {
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
     const postedYesterday = lastPosted && lastPosted.getTime() === yesterday.getTime()
     const frozen = user.streakFreezeUntil && new Date(user.streakFreezeUntil) > new Date()
+    const streakBroke = !postedYesterday && !frozen && user.streakCount > 0
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
         lastPostedAt: new Date(),
         streakCount: postedYesterday || frozen ? user.streakCount + 1 : 1,
+        ...(streakBroke && {
+          lastStreakCount: user.streakCount,
+          streakBrokenAt: new Date(),
+        }),
       },
     })
   }
@@ -80,7 +85,7 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
   const now = new Date()

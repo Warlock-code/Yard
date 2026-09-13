@@ -15,7 +15,7 @@ type Post = {
   commentsCount: number
   boosted: boolean
   createdAt: string
-  user: { ghostId: string; avatarEmoji: string; tier: string }
+  user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
 }
 
 type Me = {
@@ -98,6 +98,38 @@ export default function FeedPage() {
     try {
       await apiPost(`/api/posts/${postId}/vote`, {})
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs: p.yeahs + 1 } : p)))
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+    async function handleBoost(postId: string) {
+    try {
+      const data = await apiPost(`/api/boost/${postId}`, {})
+      if (data.data?.authorization_url) {
+        window.location.href = data.data.authorization_url
+      }
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+    async function handleFollow(targetUserId: string) {
+    try {
+      const data = await apiPost("/api/follow", { targetUserId })
+      alert(data.following ? "Followed." : "Unfollowed.")
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  async function handleReport(postId: string) {
+    const reason = prompt("Why are you reporting this post?")
+    if (!reason?.trim()) return
+    try {
+      await apiPost("/api/reports", { postId, reason })
+      alert("Reported — this post is now hidden pending review.")
+      loadFeed()
     } catch (err: any) {
       alert(err.message)
     }
@@ -221,7 +253,7 @@ export default function FeedPage() {
                 <img src={post.imageUrl} className="rounded-lg mb-3 w-full max-h-96 object-cover" alt="" />
               )}
 
-              <div className="flex gap-5 text-sm text-white/50 pt-1">
+                            <div className="flex gap-5 text-sm text-white/50 pt-1">
                 <button onClick={() => handleVote(post.id)} className="hover:text-white flex items-center gap-1">
                   🔥 {post.yeahs}
                 </button>
@@ -231,8 +263,16 @@ export default function FeedPage() {
                 >
                   💬 {post.commentsCount}
                 </button>
+                <button onClick={() => handleBoost(post.id)} className="hover:text-white flex items-center gap-1">
+                  🚀
+                </button>
+                                <button onClick={() => handleFollow(post.user.id)} className="hover:text-white flex items-center gap-1">
+                  ➕
+                </button>
+                <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
+                  ⚑ Report
+                </button>
               </div>
-            </div>
           ))}
         </div>
       )}
