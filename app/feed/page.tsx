@@ -103,7 +103,7 @@ export default function FeedPage() {
     }
   }
 
-    async function handleBoost(postId: string) {
+  async function handleBoost(postId: string) {
     try {
       const data = await apiPost(`/api/boost/${postId}`, {})
       if (data.data?.authorization_url) {
@@ -114,7 +114,7 @@ export default function FeedPage() {
     }
   }
 
-    async function handleFollow(targetUserId: string) {
+  async function handleFollow(targetUserId: string) {
     try {
       const data = await apiPost("/api/follow", { targetUserId })
       alert(data.following ? "Followed." : "Unfollowed.")
@@ -139,8 +139,8 @@ export default function FeedPage() {
     if (!newName.trim()) return
     try {
       const data = await apiPost("/api/shop/custom-name", { newName })
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url
+      if (data.data?.authorization_url) {
+        window.location.href = data.data.authorization_url
       }
     } catch (err: any) {
       alert(err.message)
@@ -154,7 +154,6 @@ export default function FeedPage() {
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-24">
-      {/* Top bar — identity */}
       {me && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -175,7 +174,6 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* Header tabs */}
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 flex gap-5 z-10">
         {["campus", "program", "following", "all"].map((m) => (
           <button
@@ -190,7 +188,6 @@ export default function FeedPage() {
         ))}
       </div>
 
-      {/* Compose box */}
       <div className="card mx-4 mt-4 p-4">
         <textarea
           className="input resize-none"
@@ -227,7 +224,6 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Feed */}
       {loading ? (
         <p className="text-center text-white/40 mt-10">Loading feed...</p>
       ) : posts.length === 0 ? (
@@ -253,7 +249,7 @@ export default function FeedPage() {
                 <img src={post.imageUrl} className="rounded-lg mb-3 w-full max-h-96 object-cover" alt="" />
               )}
 
-                            <div className="flex gap-5 text-sm text-white/50 pt-1">
+              <div className="flex gap-5 text-sm text-white/50 pt-1">
                 <button onClick={() => handleVote(post.id)} className="hover:text-white flex items-center gap-1">
                   🔥 {post.yeahs}
                 </button>
@@ -266,18 +262,18 @@ export default function FeedPage() {
                 <button onClick={() => handleBoost(post.id)} className="hover:text-white flex items-center gap-1">
                   🚀
                 </button>
-                                <button onClick={() => handleFollow(post.user.id)} className="hover:text-white flex items-center gap-1">
+                <button onClick={() => handleFollow(post.user.id)} className="hover:text-white flex items-center gap-1">
                   ➕
                 </button>
                 <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
                   ⚑ Report
                 </button>
               </div>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Name change modal */}
       {showNameModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">

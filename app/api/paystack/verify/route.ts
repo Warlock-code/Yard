@@ -45,9 +45,8 @@ export async function POST(req: NextRequest) {
         data: { storageLimit: { increment: meta.mb } },
       })
       break
-  }
 
-      case "restore": {
+    case "restore": {
       const brokenUser = await prisma.user.findUnique({ where: { id: tx.userId } })
       if (brokenUser?.lastStreakCount) {
         await prisma.user.update({
@@ -68,6 +67,7 @@ export async function POST(req: NextRequest) {
         data: { ownedCosmetics: { push: meta.cosmeticId } },
       })
       break
+  }
 
   await prisma.transaction.update({ where: { reference }, data: { status: "success" } })
 
