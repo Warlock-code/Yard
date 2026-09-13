@@ -51,10 +51,17 @@ export default function LoginPage() {
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
 
-        <button className="btn-primary w-full" type="submit" disabled={loading}>
+                <button className="btn-primary w-full" type="submit" disabled={loading}>
           {loading ? "Logging in..." : "Log in"}
         </button>
       </form>
+
+      <p className="text-center text-white/40 text-sm mt-5">
+        New here?{" "}
+        <a href="/signup" className="text-white font-semibold">
+          Create an account
+        </a>
+      </p>
     </main>
   )
 }
