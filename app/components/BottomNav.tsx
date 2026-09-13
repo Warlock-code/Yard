@@ -25,8 +25,8 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex-1 flex flex-col items-center py-2.5 text-xs ${
-                active ? "text-white" : "text-white/40"
+                          className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${
+                active ? "text-[#baff39]" : "text-white/40"
               }`}
             >
               <span className="text-lg">{tab.icon}</span>
