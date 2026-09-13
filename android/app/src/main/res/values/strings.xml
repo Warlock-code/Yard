@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Yard</string>
+    <string name="title_activity_main">Yard</string>
+    <string name="package_name">me.yardapp.app</string>
+    <string name="custom_url_scheme">me.yardapp.app</string>
+</resources>
