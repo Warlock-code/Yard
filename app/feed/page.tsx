@@ -29,20 +29,31 @@ type Me = {
 }
 
 const TABS = [
-  { key: "program", label: "For You" },
+  { key: "campus", label: "For You" },
   { key: "following", label: "Following" },
-  { key: "campus", label: "All" },
+  { key: "all", label: "All" },
+  { key: "program", label: "Class" },
+]
+
+const UPCOMING_FEATURES = [
+  "Direct Messages",
+  "Voice Notes",
+  "Anonymous Polls 2.0",
+  "Custom Themes",
+  "Group Chats",
 ]
 
 export default function FeedPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
-  const [mode, setMode] = useState("program")
+  const [mode, setMode] = useState("campus")
   const [loading, setLoading] = useState(true)
   const [showNameModal, setShowNameModal] = useState(false)
   const [newName, setNewName] = useState("")
   const [showDrawer, setShowDrawer] = useState(false)
+  const [showAvatarModal, setShowAvatarModal] = useState(false)
+  const [availableAvatars, setAvailableAvatars] = useState<string[]>([])
 
   async function loadMe() {
     try {
@@ -127,25 +138,49 @@ export default function FeedPage() {
     }
   }
 
-  async function handleLogout() {
-    document.cookie = "yard_token=; Max-Age=0; path=/"
-    router.push("/login")
+  async function openAvatarModal() {
+    try {
+      const data = await apiGet("/api/profile/avatar")
+      setAvailableAvatars(data.available)
+      setShowDrawer(false)
+      setShowAvatarModal(true)
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  async function handlePickAvatar(emoji: string) {
+    try {
+      await apiPost("/api/profile/avatar", { emoji })
+      setShowAvatarModal(false)
+      loadMe()
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  function goComingSoon(feature: string) {
+    setShowDrawer(false)
+    router.push(`/coming-soon?feature=${encodeURIComponent(feature)}`)
   }
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 relative">
-      <div className="flex items-center px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3">
         <button onClick={() => setShowDrawer(true)}>
           <div className="avatar-circle">{me?.avatarEmoji || "👻"}</div>
         </button>
+        <span className="font-black text-lg tracking-tight">
+          YARD<span className="text-[#baff39]">.</span>
+        </span>
       </div>
 
-      <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 flex gap-6 z-10">
+      <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-2 grid grid-cols-4 z-10">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setMode(tab.key)}
-            className={`text-sm py-3 ${mode === tab.key ? "tab-active" : "tab-inactive"}`}
+            className={`text-sm py-3 text-center ${mode === tab.key ? "tab-active" : "tab-inactive"}`}
           >
             {tab.label}
           </button>
@@ -204,7 +239,6 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* Floating compose button */}
       <button
         onClick={() => router.push("/compose")}
         className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-[#baff39] text-black text-2xl flex items-center justify-center shadow-[0_8px_24px_rgba(186,255,57,0.35)] z-20"
@@ -214,7 +248,7 @@ export default function FeedPage() {
 
       {showDrawer && me && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="w-72 bg-black border-r border-white/10 p-5 flex flex-col">
+          <div className="w-72 bg-black border-r border-white/10 p-5 flex flex-col overflow-y-auto">
             <div className="avatar-circle text-xl w-14 h-14 mb-3">{me.avatarEmoji}</div>
             <p className="font-bold">{me.ghostId}</p>
             <p className="text-xs text-white/40 mb-4">{me.campus}</p>
@@ -248,20 +282,57 @@ export default function FeedPage() {
             >
               ✏️ Edit ghost name
             </button>
-            <button className="text-left py-2 text-sm text-white/40" disabled>
-              🏘️ Communities <span className="text-xs">(soon)</span>
-            </button>
-            <button className="text-left py-2 text-sm text-white/40" disabled>
-              👑 Prime Beta List <span className="text-xs">(soon — Prime only)</span>
+            <button className="text-left py-2 text-sm" onClick={openAvatarModal}>
+              🎭 Edit avatar
             </button>
 
-            <div className="mt-auto">
-              <button className="btn-ghost w-full" onClick={handleLogout}>
-                Log out
+            <div className="h-px bg-white/10 my-3" />
+            <p className="text-xs text-white/30 uppercase mb-1">Coming up</p>
+
+            <button
+              className="text-left py-2 text-sm text-white/50"
+              onClick={() => goComingSoon("Communities")}
+            >
+              🏘️ Communities
+            </button>
+            {UPCOMING_FEATURES.map((f) => (
+              <button
+                key={f}
+                className="text-left py-2 text-sm text-white/50"
+                onClick={() => goComingSoon(f)}
+              >
+                🔒 {f}
               </button>
-            </div>
+            ))}
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
+        </div>
+      )}
+
+      {showAvatarModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="card p-5 w-full max-w-sm bg-black">
+            <h3 className="font-bold text-lg mb-1">Pick your avatar</h3>
+            <p className="text-white/50 text-sm mb-4">
+              {me?.tier === "FREE" && "Upgrade to Plus or Prime to unlock more."}
+              {me?.tier === "PLUS" && "Upgrade to Prime to unlock the full set."}
+              {me?.tier === "PRIME" && "Every avatar is unlocked for Prime."}
+            </p>
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              {availableAvatars.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handlePickAvatar(emoji)}
+                  className="avatar-circle text-2xl w-14 h-14 mx-auto hover:bg-[#baff39]/20"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <button className="btn-ghost w-full" onClick={() => setShowAvatarModal(false)}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
