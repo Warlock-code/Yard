@@ -75,17 +75,17 @@ export async function POST(req: NextRequest) {
       })
       break
 
-    case "plus":
+        case "plus":
       await prisma.user.update({
         where: { id: tx.userId },
-        data: { tier: "plus" },
+        data: { tier: "PLUS" },
       })
       break
 
     case "prime":
       await prisma.user.update({
         where: { id: tx.userId },
-        data: { tier: "prime" },
+        data: { tier: "PRIME" },
       })
       break
   }
