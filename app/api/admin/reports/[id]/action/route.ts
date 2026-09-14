@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/getCurrentUser"
-
-const ADMIN_EMAILS = [process.env.ADMIN_EMAIL || ""]
+import { isAdmin } from "@/lib/getAdmin"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const user = await getCurrentUser(req)
-  if (!user || !ADMIN_EMAILS.includes(user.email)) {
+  if (!isAdmin(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   }
 
+  const { id } = await params
   const { decision } = await req.json()
 
   const report = await prisma.report.findUnique({ where: { id } })

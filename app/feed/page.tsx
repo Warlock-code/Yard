@@ -43,6 +43,8 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [mode, setMode] = useState("campus")
   const [loading, setLoading] = useState(true)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
   const [newName, setNewName] = useState("")
   const [showDrawer, setShowDrawer] = useState(false)
@@ -63,6 +65,7 @@ export default function FeedPage() {
     try {
       const data = await apiGet(`/api/posts?mode=${mode}`)
       setPosts(data.posts)
+      setNextCursor(data.nextCursor)
     } catch (err: any) {
       if (err.message === "Not authenticated.") {
         router.push("/login")
@@ -74,6 +77,20 @@ export default function FeedPage() {
     }
   }
 
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}`)
+      setPosts((prev) => [...prev, ...data.posts])
+      setNextCursor(data.nextCursor)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
   useEffect(() => {
     loadMe()
   }, [])
@@ -81,6 +98,16 @@ export default function FeedPage() {
   useEffect(() => {
     loadFeed()
   }, [mode])
+
+  useEffect(() => {
+    function handleScroll() {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+        loadMore()
+      }
+    }
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [nextCursor, loadingMore, mode])
 
   async function handleVote(postId: string) {
     try {
@@ -273,6 +300,7 @@ export default function FeedPage() {
               </div>
             )
           })}
+          {loadingMore && <p className="text-center text-white/30 text-sm py-4">Loading more...</p>}
         </div>
       )}
 
@@ -355,12 +383,8 @@ export default function FeedPage() {
             <p className="text-white/50 text-sm mb-4">Costs GHS 3.00 via Paystack.</p>
             <input className="input mb-3" placeholder="New ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} />
             <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>
-                Cancel
-              </button>
-              <button className="btn-primary flex-1" onClick={handleNameChange}>
-                Pay & Change
-              </button>
+              <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>Cancel</button>
+              <button className="btn-primary flex-1" onClick={handleNameChange}>Pay & Change</button>
             </div>
           </div>
         </div>

@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/getCurrentUser"
+import { isAdmin } from "@/lib/getAdmin"
 import { createTransferRecipient, initiateTransfer } from "@/lib/paystack"
 
-const ADMIN_EMAILS = [process.env.ADMIN_EMAIL || ""]
-
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const user = await getCurrentUser(req)
-  if (!user || !ADMIN_EMAILS.includes(user.email)) {
+  if (!isAdmin(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   }
+
+  const { id } = await params
 
   const payout = await prisma.payout.findUnique({ where: { id } })
   if (!payout || payout.status !== "pending") {

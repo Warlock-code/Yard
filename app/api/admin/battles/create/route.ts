@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/getCurrentUser"
-
-const ADMIN_EMAILS = [process.env.ADMIN_EMAIL || ""]
+import { isAdmin } from "@/lib/getAdmin"
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  if (!user || !ADMIN_EMAILS.includes(user.email)) {
+  if (!isAdmin(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   }
 

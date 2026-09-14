@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get("mode") || "campus"
   const type = searchParams.get("type") || "all"
+  const cursor = searchParams.get("cursor")
 
   const where: any = { archived: false }
 
@@ -83,7 +84,8 @@ export async function GET(req: NextRequest) {
   const posts = await prisma.post.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 20,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
@@ -96,5 +98,8 @@ export async function GET(req: NextRequest) {
     return 0
   })
 
-  return NextResponse.json({ posts: sorted })
+  return NextResponse.json({
+    posts: sorted,
+    nextCursor: posts.length === 20 ? posts[posts.length - 1].id : null,
+  })
 }
