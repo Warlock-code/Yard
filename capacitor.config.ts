@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Yard',
   webDir: 'public',
  server: {
-  url: 'https://yard-khaki.vercel.app',
+  url: 'https://yardapp.me',
   cleartext: false
 }
 }

@@ -13,8 +13,9 @@ const TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname()
-  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
-  if (hideOn.includes(pathname)) return null
+    const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
+  const hidePrefixes = ["/post/"]
+  if (hideOn.includes(pathname) || hidePrefixes.some((p) => pathname.startsWith(p))) return null
 
   return (
     <nav className="fixed bottom-5 left-0 right-0 z-20 flex justify-center px-6">
