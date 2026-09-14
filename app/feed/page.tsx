@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { useUploadThing } from "@/lib/uploadthing"
 
 type Post = {
   id: string
@@ -41,19 +40,9 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [mode, setMode] = useState("program")
   const [loading, setLoading] = useState(true)
-  const [composeText, setComposeText] = useState("")
-  const [composeImage, setComposeImage] = useState<string | null>(null)
-  const [posting, setPosting] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
   const [newName, setNewName] = useState("")
   const [showDrawer, setShowDrawer] = useState(false)
-
-  const { startUpload, isUploading } = useUploadThing("postImage", {
-    onClientUploadComplete: (res) => {
-      if (res?.[0]?.url) setComposeImage(res[0].url)
-    },
-    onUploadError: (err) => alert(`Upload failed: ${err.message}`),
-  })
 
   async function loadMe() {
     try {
@@ -87,22 +76,6 @@ export default function FeedPage() {
   useEffect(() => {
     loadFeed()
   }, [mode])
-
-  async function handlePost() {
-    if (!composeText.trim() && !composeImage) return
-    setPosting(true)
-    try {
-      await apiPost("/api/posts", { text: composeText, imageUrl: composeImage, type: "confession" })
-      setComposeText("")
-      setComposeImage(null)
-      loadFeed()
-      loadMe()
-    } catch (err: any) {
-      alert(err.message)
-    } finally {
-      setPosting(false)
-    }
-  }
 
   async function handleVote(postId: string) {
     try {
@@ -159,21 +132,14 @@ export default function FeedPage() {
     router.push("/login")
   }
 
-  function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) startUpload([file])
-  }
-
   return (
-    <main className="min-h-screen max-w-lg mx-auto pb-24">
-      {/* X-style minimal top bar */}
+    <main className="min-h-screen max-w-lg mx-auto pb-28 relative">
       <div className="flex items-center px-4 py-3">
         <button onClick={() => setShowDrawer(true)}>
           <div className="avatar-circle">{me?.avatarEmoji || "👻"}</div>
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 flex gap-6 z-10">
         {TABS.map((tab) => (
           <button
@@ -186,95 +152,66 @@ export default function FeedPage() {
         ))}
       </div>
 
-      {/* Compose box */}
-      <div className="card mx-4 mt-4 p-4">
-        <textarea
-          className="input resize-none"
-          placeholder="What's the gist?"
-          rows={3}
-          value={composeText}
-          onChange={(e) => setComposeText(e.target.value)}
-        />
-
-        {composeImage && (
-          <div className="relative mt-3">
-            <img src={composeImage} className="rounded-lg w-full max-h-64 object-cover" alt="" />
-            <button
-              onClick={() => setComposeImage(null)}
-              className="absolute top-2 right-2 bg-black/70 rounded-full w-7 h-7 text-sm"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mt-3">
-          <label className="btn-ghost cursor-pointer">
-            {isUploading ? "Uploading..." : "📷 Add photo"}
-            <input type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
-          </label>
-          <button
-            className="btn-primary px-6"
-            onClick={handlePost}
-            disabled={posting || isUploading || (!composeText.trim() && !composeImage)}
-          >
-            {posting ? "Posting..." : "Post"}
-          </button>
-        </div>
-      </div>
-
-      {/* Feed */}
       {loading ? (
         <p className="text-center text-white/40 mt-10">Loading feed...</p>
       ) : posts.length === 0 ? (
         <p className="text-center text-white/40 mt-10">No posts yet — be the first ghost to post.</p>
       ) : (
-        <div className="space-y-3 px-4 mt-4">
+        <div>
           {posts.map((post) => (
-            <div key={post.id} className="card p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="avatar-circle text-base">{post.user.avatarEmoji}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{post.user.ghostId}</span>
+            <div key={post.id} className="px-4 py-3 border-b border-white/[0.06]">
+              <div className="flex items-start gap-3">
+                <div className="avatar-circle text-base flex-shrink-0">{post.user.avatarEmoji}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap text-sm">
+                    <span className="font-semibold">{post.user.ghostId}</span>
                     {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                     {post.boosted && <span className="badge badge-boosted">Boosted</span>}
+                    <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                   </div>
-                  <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
+
+                  {post.text && (
+                    <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">{post.text}</p>
+                  )}
+                  {post.imageUrl && (
+                    <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
+                  )}
+
+                  <div className="flex gap-5 text-sm text-white/40 pt-2">
+                    <button onClick={() => handleVote(post.id)} className="hover:text-[#baff39] flex items-center gap-1">
+                      🔥 {post.yeahs}
+                    </button>
+                    <button
+                      onClick={() => router.push(`/post/${post.id}`)}
+                      className="hover:text-[#baff39] flex items-center gap-1"
+                    >
+                      💬 {post.commentsCount}
+                    </button>
+                    <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
+                      🚀
+                    </button>
+                    <button onClick={() => handleFollow(post.user.id)} className="hover:text-[#baff39]">
+                      ➕
+                    </button>
+                    <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
+                      ⚑
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
-              {post.imageUrl && (
-                <img src={post.imageUrl} className="rounded-lg mb-3 w-full max-h-96 object-cover" alt="" />
-              )}
-
-              <div className="flex gap-5 text-sm text-white/50 pt-1">
-                <button onClick={() => handleVote(post.id)} className="hover:text-white flex items-center gap-1">
-                  🔥 {post.yeahs}
-                </button>
-                <button
-                  onClick={() => router.push(`/post/${post.id}`)}
-                  className="hover:text-white flex items-center gap-1"
-                >
-                  💬 {post.commentsCount}
-                </button>
-                <button onClick={() => handleBoost(post.id)} className="hover:text-white flex items-center gap-1">
-                  🚀
-                </button>
-                <button onClick={() => handleFollow(post.user.id)} className="hover:text-white flex items-center gap-1">
-                  ➕
-                </button>
-                <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
-                  ⚑ Report
-                </button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Side drawer — X style */}
+      {/* Floating compose button */}
+      <button
+        onClick={() => router.push("/compose")}
+        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-[#baff39] text-black text-2xl flex items-center justify-center shadow-[0_8px_24px_rgba(186,255,57,0.35)] z-20"
+      >
+        ✏️
+      </button>
+
       {showDrawer && me && (
         <div className="fixed inset-0 z-50 flex">
           <div className="w-72 bg-black border-r border-white/10 p-5 flex flex-col">
@@ -328,7 +265,6 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* Name change modal */}
       {showNameModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">

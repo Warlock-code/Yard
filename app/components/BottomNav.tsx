@@ -4,11 +4,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const TABS = [
-  { href: "/feed", label: "Feed", icon: "🏠" },
-  { href: "/battles", label: "Battles", icon: "⚔️" },
-  { href: "/leaderboard", label: "Ranks", icon: "🏆" },
-  { href: "/shop", label: "Shop", icon: "🛍️" },
-  { href: "/lair", label: "Lair", icon: "👻" },
+  { href: "/feed", icon: "🏠" },
+  { href: "/battles", icon: "⚔️" },
+  { href: "/leaderboard", icon: "🏆" },
+  { href: "/shop", icon: "🛍️" },
+  { href: "/lair", icon: "👻" },
 ]
 
 export default function BottomNav() {
@@ -17,20 +17,19 @@ export default function BottomNav() {
   if (hideOn.includes(pathname)) return null
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 z-20">
-      <div className="max-w-lg mx-auto flex">
+    <nav className="fixed bottom-5 left-0 right-0 z-20 flex justify-center px-6">
+      <div className="flex gap-1 bg-[#111]/95 backdrop-blur border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/")
           return (
             <Link
               key={tab.href}
               href={tab.href}
-                          className={`flex-1 flex flex-col items-center py-2.5 text-xs transition-colors ${
-                active ? "text-[#baff39]" : "text-white/40"
+              className={`w-11 h-11 flex items-center justify-center rounded-full text-lg transition-all ${
+                active ? "bg-[#baff39]/15 text-[#baff39]" : "text-white/40"
               }`}
             >
-              <span className="text-lg">{tab.icon}</span>
-              {tab.label}
+              {tab.icon}
             </Link>
           )
         })}
