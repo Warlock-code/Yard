@@ -67,13 +67,30 @@ export async function POST(req: NextRequest) {
         data: { ownedCosmetics: { push: meta.cosmeticId } },
       })
       break
+
+    case "boost_credit":
+      await prisma.user.update({
+        where: { id: tx.userId },
+        data: { freeBoosts: { increment: 1 } },
+      })
+      break
+
+    case "plus":
+      await prisma.user.update({
+        where: { id: tx.userId },
+        data: { tier: "plus" },
+      })
+      break
+
+    case "prime":
+      await prisma.user.update({
+        where: { id: tx.userId },
+        data: { tier: "prime" },
+      })
+      break
   }
 
   await prisma.transaction.update({ where: { reference }, data: { status: "success" } })
 
   return NextResponse.json({ success: true })
 }
-
-    case "boost_credit":
-      await prisma.user.update({ where: { id: tx.userId }, data: { freeBoosts: { increment: 1 } } })
-      break
