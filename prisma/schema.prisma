@@ -25,6 +25,7 @@ model User {
   verifyCode      String?
   campus          String
   programLevel    String?
+  pushToken String?
   program         String?
   programKey      String?
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { sendPush } from "@/lib/sendPush"
+
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -24,6 +26,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     data: { commentsCount: { increment: 1 } },
   })
+
+  const post = await prisma.post.findUnique({ where: { id }, include: { user: true } })
+if (post && post.user.pushToken && post.userId !== user.id) {
+  await sendPush(post.user.pushToken, "New comment", "Someone replied to your post")
+}
 
   return NextResponse.json({ comment })
 }

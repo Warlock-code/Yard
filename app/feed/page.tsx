@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
+import { PushNotifications } from '@capacitor/push-notifications'
 
 type Post = {
   id: string
@@ -94,6 +95,19 @@ export default function FeedPage() {
   useEffect(() => {
     loadMe()
   }, [])
+
+  useEffect(() => {
+  async function setupPush() {
+    const perm = await PushNotifications.requestPermissions()
+    if (perm.receive === 'granted') {
+      await PushNotifications.register()
+    }
+  }
+  PushNotifications.addListener('registration', async (token) => {
+    await apiPost("/api/notifications/register", { token: token.value })
+  })
+  setupPush()
+}, []) 
 
   useEffect(() => {
     loadFeed()

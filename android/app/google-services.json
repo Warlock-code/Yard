@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "669608431280",
+    "project_id": "yard-247",
+    "storage_bucket": "yard-247.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669608431280:android:07f235f70a8e757714f575",
+        "android_client_info": {
+          "package_name": "me.yardapp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXea6spVuMhM_g1j_hSSd-pVXC0SxP4L0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
