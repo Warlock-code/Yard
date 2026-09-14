@@ -9,7 +9,10 @@ const config: CapacitorConfig = {
     cleartext: false,
     allowNavigation: [
       'yardapp.me',
-      '*.yardapp.me'
+      '*.yardapp.me',
+      'checkout.paystack.com',
+      '*.paystack.co',
+      '*.paystack.com'
     ]
   },
   plugins: {

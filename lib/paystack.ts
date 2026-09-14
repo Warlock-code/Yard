@@ -1,4 +1,5 @@
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY!
+const CALLBACK_URL = "https://yardapp.me/payment/callback"
 
 export async function initializePaystack(email: string, amountKobo: number, reference: string) {
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -7,7 +8,7 @@ export async function initializePaystack(email: string, amountKobo: number, refe
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, amount: amountKobo, reference }),
+    body: JSON.stringify({ email, amount: amountKobo, reference, callback_url: CALLBACK_URL }),
   })
   return res.json()
 }
@@ -26,7 +27,7 @@ export async function initializeSubscription(email: string, planCode: string, re
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, plan: planCode, reference }),
+    body: JSON.stringify({ email, plan: planCode, reference, callback_url: CALLBACK_URL }),
   })
   return res.json()
 }
@@ -38,13 +39,7 @@ export async function createTransferRecipient(name: string, accountNumber: strin
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      type: "ghipss", // Ghana mobile money/bank transfer type
-      name,
-      account_number: accountNumber,
-      bank_code: bankCode,
-      currency: "GHS",
-    }),
+    body: JSON.stringify({ type: "ghipss", name, account_number: accountNumber, bank_code: bankCode, currency: "GHS" }),
   })
   return res.json()
 }
@@ -56,12 +51,7 @@ export async function initiateTransfer(amountPesewas: number, recipientCode: str
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      source: "balance",
-      amount: amountPesewas,
-      recipient: recipientCode,
-      reason,
-    }),
+    body: JSON.stringify({ source: "balance", amount: amountPesewas, recipient: recipientCode, reason }),
   })
   return res.json()
 }
