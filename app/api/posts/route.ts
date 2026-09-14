@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 
-// CREATE POST
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const { text, imageUrl, type, pollOptions } = await req.json()
+  const { text, imageUrl, type, pollOptions, visibility } = await req.json()
 
   if (!text && !imageUrl) {
     return NextResponse.json({ error: "Post needs text or an image." }, { status: 400 })
@@ -25,6 +24,7 @@ export async function POST(req: NextRequest) {
       programKey: user.programKey,
       pollOptions: pollOptions || [],
       isPrime: user.tier === "PRIME",
+      visibility: visibility === "program" ? "program" : "school",
     },
   })
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const alreadyPostedToday = lastPosted && lastPosted.getTime() === today.getTime()
 
-    if (!alreadyPostedToday) {
+  if (!alreadyPostedToday) {
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
     const postedYesterday = lastPosted && lastPosted.getTime() === yesterday.getTime()
@@ -47,10 +47,7 @@ export async function POST(req: NextRequest) {
       data: {
         lastPostedAt: new Date(),
         streakCount: postedYesterday || frozen ? user.streakCount + 1 : 1,
-        ...(streakBroke && {
-          lastStreakCount: user.streakCount,
-          streakBrokenAt: new Date(),
-        }),
+        ...(streakBroke && { lastStreakCount: user.streakCount, streakBrokenAt: new Date() }),
       },
     })
   }
@@ -58,7 +55,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ post })
 }
 
-// LIST FEED
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
@@ -67,25 +63,28 @@ export async function GET(req: NextRequest) {
   const mode = searchParams.get("mode") || "campus"
   const type = searchParams.get("type") || "all"
 
-  const where: any = {}
-  where.archived = false
+  const where: any = { archived: false }
 
-  if (mode === "campus") where.campus = user.campus
-  if (mode === "program") {
+  if (mode === "campus") {
+    where.campus = user.campus
+    where.visibility = "school"
+  } else if (mode === "program") {
     where.campus = user.campus
     where.programKey = user.programKey
-  }
-  if (mode === "following") {
+  } else if (mode === "following") {
     const follows = await prisma.follow.findMany({ where: { followerId: user.id } })
     where.userId = { in: follows.map((f) => f.followingId) }
+  } else if (mode === "all") {
+    where.visibility = "school"
   }
+
   if (type !== "all") where.type = type
 
   const posts = await prisma.post.findMany({
     where,
     orderBy: { createdAt: "desc" },
     take: 50,
-      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
   const now = new Date()

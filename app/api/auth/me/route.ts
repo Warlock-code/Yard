@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       tier: user.tier,
       streakCount: user.streakCount,
       ghostCoins: user.ghostCoins,
+      ownedCosmetics: user.ownedCosmetics,
       postCount,
       followersCount,
       followingCount,

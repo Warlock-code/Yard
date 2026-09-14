@@ -9,6 +9,7 @@ export default function ComposePage() {
   const router = useRouter()
   const [text, setText] = useState("")
   const [image, setImage] = useState<string | null>(null)
+  const [visibility, setVisibility] = useState<"school" | "program">("school")
   const [posting, setPosting] = useState(false)
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
@@ -27,7 +28,7 @@ export default function ComposePage() {
     if (!text.trim() && !image) return
     setPosting(true)
     try {
-      await apiPost("/api/posts", { text, imageUrl: image, type: "confession" })
+      await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
       router.push("/feed")
     } catch (err: any) {
       alert(err.message)
@@ -74,7 +75,26 @@ export default function ComposePage() {
         )}
       </div>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10 space-y-3">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setVisibility("school")}
+            className={`flex-1 text-xs py-2 rounded-full border ${
+              visibility === "school" ? "border-[#baff39] text-[#baff39]" : "border-white/15 text-white/40"
+            }`}
+          >
+            🏫 My School
+          </button>
+          <button
+            onClick={() => setVisibility("program")}
+            className={`flex-1 text-xs py-2 rounded-full border ${
+              visibility === "program" ? "border-[#baff39] text-[#baff39]" : "border-white/15 text-white/40"
+            }`}
+          >
+            🎓 My Program only
+          </button>
+        </div>
+
         <label className="btn-ghost cursor-pointer inline-block">
           {isUploading ? "Uploading..." : "📷 Add photo"}
           <input type="file" accept="image/*" className="hidden" onChange={handleImagePick} />

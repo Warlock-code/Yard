@@ -73,3 +73,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true })
 }
+
+    case "boost_credit":
+      await prisma.user.update({ where: { id: tx.userId }, data: { freeBoosts: { increment: 1 } } })
+      break

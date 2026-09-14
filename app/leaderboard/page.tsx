@@ -3,40 +3,41 @@
 import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
 
-type Ranked = {
-  id: string
-  ghostId: string
-  avatarEmoji: string
-  tier: string
-  score: number
-}
+type Ranked = { id: string; ghostId: string; avatarEmoji: string; tier: string; score: number }
 
 export default function LeaderboardPage() {
-  const [ranked, setRanked] = useState<Ranked[]>([])
+  const [top, setTop] = useState<Ranked[]>([])
+  const [myRank, setMyRank] = useState<number | null>(null)
+  const [me, setMe] = useState<Ranked | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     apiGet("/api/leaderboard")
-      .then((data) => setRanked(data.leaderboard))
+      .then((data) => {
+        setTop(data.leaderboard)
+        setMyRank(data.myRank)
+        setMe(data.me)
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 
   if (loading) return <p className="text-center text-white/40 mt-10">Loading leaderboard...</p>
 
-  return (
-    <main className="min-h-screen max-w-lg mx-auto pb-24 px-4">
-      <h1 className="text-2xl font-black mt-4 mb-4">🏆 Leaderboard</h1>
+  const iAmInTop10 = myRank !== null && myRank <= 10
 
-      {ranked.length === 0 ? (
+  return (
+    <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
+      <h1 className="text-2xl font-black mt-5 mb-1">🏆 Top 10</h1>
+      <p className="text-white/40 text-sm mb-4">Only the best ghosts make the cut.</p>
+
+      {top.length === 0 ? (
         <p className="text-white/40 text-center mt-8">No ranked ghosts yet.</p>
       ) : (
         <div className="space-y-2">
-          {ranked.map((r, i) => (
-            <div key={r.id} className="card p-3 flex items-center gap-3">
-              <span className={`font-black w-6 text-center ${i < 3 ? "text-yellow-400" : "text-white/40"}`}>
-                {i + 1}
-              </span>
+          {top.map((r, i) => (
+            <div key={r.id} className={`card p-3 flex items-center gap-3 ${i < 3 ? "border-[#facc15]/30" : ""}`}>
+              <span className={`font-black w-7 text-center ${i < 3 ? "text-[#facc15]" : "text-white/40"}`}>{i + 1}</span>
               <span className="text-xl">{r.avatarEmoji}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -48,6 +49,21 @@ export default function LeaderboardPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {!iAmInTop10 && me && myRank && (
+        <>
+          <div className="h-px bg-white/10 my-4" />
+          <p className="text-white/30 text-xs uppercase mb-2">Your position</p>
+          <div className="card p-3 flex items-center gap-3 border-[#baff39]/30">
+            <span className="font-black w-7 text-center text-[#baff39]">{myRank}</span>
+            <span className="text-xl">{me.avatarEmoji}</span>
+            <div className="flex-1">
+              <span className="font-semibold text-sm">{me.ghostId}</span>
+            </div>
+            <span className="text-sm text-white/50 font-semibold">{me.score} pts</span>
+          </div>
+        </>
       )}
     </main>
   )

@@ -83,6 +83,9 @@ model Post {
 
   archived  Boolean @default(false)
 
+
+visibility     String    @default("school") // "school" | "program"
+
   pollOptions    String[]  @default([])
   pollVotes      Json?
 

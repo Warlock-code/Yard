@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { apiGet, apiPost } from "@/lib/useApi"
+import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
 type Post = {
@@ -35,13 +35,7 @@ const TABS = [
   { key: "program", label: "Class" },
 ]
 
-const UPCOMING_FEATURES = [
-  "Direct Messages",
-  "Voice Notes",
-  "Anonymous Polls 2.0",
-  "Custom Themes",
-  "Group Chats",
-]
+const UPCOMING_FEATURES = ["Direct Messages", "Voice Notes", "Anonymous Polls 2.0", "Custom Themes", "Group Chats"]
 
 export default function FeedPage() {
   const router = useRouter()
@@ -99,10 +93,15 @@ export default function FeedPage() {
 
   async function handleBoost(postId: string) {
     try {
-      const data = await apiPost(`/api/boost/${postId}`, {})
-      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
+      await apiPost(`/api/boost/${postId}`, {})
+      alert("Boosted for 24h!")
+      loadFeed()
     } catch (err: any) {
-      alert(err.message)
+      if (err.message.includes("Buy")) {
+        if (confirm("No boost credits left. Go buy some in the Shop?")) router.push("/shop")
+      } else {
+        alert(err.message)
+      }
     }
   }
 
@@ -123,6 +122,27 @@ export default function FeedPage() {
       await apiPost("/api/reports", { postId, reason })
       alert("Reported — this post is now hidden pending review.")
       loadFeed()
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  async function handleDelete(postId: string) {
+    if (!confirm("Delete this post?")) return
+    try {
+      await apiDelete(`/api/posts/${postId}`)
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  async function handleEdit(postId: string, currentText: string | null) {
+    const newText = prompt("Edit your post:", currentText || "")
+    if (newText === null || !newText.trim()) return
+    try {
+      await apiPatch(`/api/posts/${postId}`, { text: newText })
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, text: newText } : p)))
     } catch (err: any) {
       alert(err.message)
     }
@@ -166,8 +186,8 @@ export default function FeedPage() {
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 relative">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button onClick={() => setShowDrawer(true)}>
+      <div className="relative flex items-center justify-center px-4 py-3">
+        <button onClick={() => setShowDrawer(true)} className="absolute left-4">
           <div className="avatar-circle">{me?.avatarEmoji || "👻"}</div>
         </button>
         <span className="font-black text-lg tracking-tight">
@@ -193,49 +213,66 @@ export default function FeedPage() {
         <p className="text-center text-white/40 mt-10">No posts yet — be the first ghost to post.</p>
       ) : (
         <div>
-          {posts.map((post) => (
-            <div key={post.id} className="px-4 py-3 border-b border-white/[0.06]">
-              <div className="flex items-start gap-3">
-                <div className="avatar-circle text-base flex-shrink-0">{post.user.avatarEmoji}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-semibold">{post.user.ghostId}</span>
-                    {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-                    {post.boosted && <span className="badge badge-boosted">Boosted</span>}
-                    <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
-                  </div>
+          {posts.map((post) => {
+            const isOwn = me && post.user.id === me.id
+            return (
+              <div key={post.id} className="px-4 py-3 border-b border-white/[0.06]">
+                <div className="flex items-start gap-3">
+                  <div className="avatar-circle text-base flex-shrink-0">{post.user.avatarEmoji}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap text-sm">
+                      <span className="font-semibold">{post.user.ghostId}</span>
+                      {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                      {post.boosted && <span className="badge badge-boosted">Boosted</span>}
+                      <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
+                    </div>
 
-                  {post.text && (
-                    <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">{post.text}</p>
-                  )}
-                  {post.imageUrl && (
-                    <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
-                  )}
+                    {post.text && <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">{post.text}</p>}
+                    {post.imageUrl && (
+                      <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
+                    )}
 
-                  <div className="flex gap-5 text-sm text-white/40 pt-2">
-                    <button onClick={() => handleVote(post.id)} className="hover:text-[#baff39] flex items-center gap-1">
-                      🔥 {post.yeahs}
-                    </button>
-                    <button
-                      onClick={() => router.push(`/post/${post.id}`)}
-                      className="hover:text-[#baff39] flex items-center gap-1"
-                    >
-                      💬 {post.commentsCount}
-                    </button>
-                    <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
-                      🚀
-                    </button>
-                    <button onClick={() => handleFollow(post.user.id)} className="hover:text-[#baff39]">
-                      ➕
-                    </button>
-                    <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
-                      ⚑
-                    </button>
+                    <div className="flex gap-4 text-sm text-white/40 pt-2">
+                      <button onClick={() => handleVote(post.id)} className="hover:text-[#baff39] flex items-center gap-1">
+                        🔥 {post.yeahs}
+                      </button>
+                      <button
+                        onClick={() => router.push(`/post/${post.id}`)}
+                        className="hover:text-[#baff39] flex items-center gap-1"
+                      >
+                        💬 {post.commentsCount}
+                      </button>
+                      {isOwn && (
+                        <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
+                          🚀
+                        </button>
+                      )}
+                      {!isOwn && (
+                        <button onClick={() => handleFollow(post.user.id)} className="hover:text-[#baff39]">
+                          ➕
+                        </button>
+                      )}
+                      {isOwn && me && me.tier !== "FREE" && (
+                        <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39]">
+                          ✎
+                        </button>
+                      )}
+                      {isOwn && (
+                        <button onClick={() => handleDelete(post.id)} className="hover:text-red-400">
+                          🗑
+                        </button>
+                      )}
+                      {!isOwn && (
+                        <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
+                          ⚑
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -255,31 +292,17 @@ export default function FeedPage() {
 
             <div className="flex gap-4 mb-5 text-sm">
               <div>
-                <span className="font-bold">{me.followingCount}</span>{" "}
-                <span className="text-white/40">Following</span>
+                <span className="font-bold">{me.followingCount}</span> <span className="text-white/40">Following</span>
               </div>
               <div>
-                <span className="font-bold">{me.followersCount}</span>{" "}
-                <span className="text-white/40">Followers</span>
+                <span className="font-bold">{me.followersCount}</span> <span className="text-white/40">Followers</span>
               </div>
             </div>
 
-            <button
-              className="text-left py-2 text-sm"
-              onClick={() => {
-                setShowDrawer(false)
-                router.push("/lair")
-              }}
-            >
+            <button className="text-left py-2 text-sm" onClick={() => { setShowDrawer(false); router.push("/lair") }}>
               👻 My Lair
             </button>
-            <button
-              className="text-left py-2 text-sm"
-              onClick={() => {
-                setShowDrawer(false)
-                setShowNameModal(true)
-              }}
-            >
+            <button className="text-left py-2 text-sm" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>
               ✏️ Edit ghost name
             </button>
             <button className="text-left py-2 text-sm" onClick={openAvatarModal}>
@@ -289,18 +312,11 @@ export default function FeedPage() {
             <div className="h-px bg-white/10 my-3" />
             <p className="text-xs text-white/30 uppercase mb-1">Coming up</p>
 
-            <button
-              className="text-left py-2 text-sm text-white/50"
-              onClick={() => goComingSoon("Communities")}
-            >
+            <button className="text-left py-2 text-sm text-white/50" onClick={() => goComingSoon("Communities")}>
               🏘️ Communities
             </button>
             {UPCOMING_FEATURES.map((f) => (
-              <button
-                key={f}
-                className="text-left py-2 text-sm text-white/50"
-                onClick={() => goComingSoon(f)}
-              >
+              <button key={f} className="text-left py-2 text-sm text-white/50" onClick={() => goComingSoon(f)}>
                 🔒 {f}
               </button>
             ))}
@@ -313,11 +329,7 @@ export default function FeedPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">Pick your avatar</h3>
-            <p className="text-white/50 text-sm mb-4">
-              {me?.tier === "FREE" && "Upgrade to Plus or Prime to unlock more."}
-              {me?.tier === "PLUS" && "Upgrade to Prime to unlock the full set."}
-              {me?.tier === "PRIME" && "Every avatar is unlocked for Prime."}
-            </p>
+            <p className="text-white/50 text-sm mb-4">Unlocked by tier or purchased in the Shop.</p>
             <div className="grid grid-cols-4 gap-3 mb-4">
               {availableAvatars.map((emoji) => (
                 <button
@@ -341,12 +353,7 @@ export default function FeedPage() {
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">Change your ghost name</h3>
             <p className="text-white/50 text-sm mb-4">Costs GHS 3.00 via Paystack.</p>
-            <input
-              className="input mb-3"
-              placeholder="New ghost name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
+            <input className="input mb-3" placeholder="New ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} />
             <div className="flex gap-2">
               <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>
                 Cancel

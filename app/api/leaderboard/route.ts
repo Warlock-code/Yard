@@ -6,7 +6,6 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  // simple ranking: total yeahs across all their posts + battle votes
   const users = await prisma.user.findMany({
     where: { campus: user.campus },
     select: {
@@ -25,11 +24,13 @@ export async function GET(req: NextRequest) {
       ghostId: u.ghostId,
       avatarEmoji: u.avatarEmoji,
       tier: u.tier,
-      score:
-        u.posts.reduce((sum, p) => sum + p.yeahs, 0) +
-        u.battleEntries.reduce((sum, e) => sum + e.votes, 0),
+      score: u.posts.reduce((s, p) => s + p.yeahs, 0) + u.battleEntries.reduce((s, e) => s + e.votes, 0),
     }))
     .sort((a, b) => b.score - a.score)
 
-  return NextResponse.json({ leaderboard: ranked })
+  const top10 = ranked.slice(0, 10)
+  const myRank = ranked.findIndex((r) => r.id === user.id) + 1
+  const me = ranked.find((r) => r.id === user.id)
+
+  return NextResponse.json({ leaderboard: top10, myRank, me })
 }

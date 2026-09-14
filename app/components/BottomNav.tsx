@@ -13,12 +13,12 @@ const TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname()
-  const hideOn = ["/", "/login", "/signup", "/verify-email"]
+  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
   if (hideOn.includes(pathname)) return null
 
   return (
     <nav className="fixed bottom-5 left-0 right-0 z-20 flex justify-center px-6">
-            <div className="flex gap-1 bg-[#0a0a0a]/55 backdrop-blur-md border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+      <div className="flex gap-1 bg-[#0a0a0a]/35 backdrop-blur-md border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/")
           return (
