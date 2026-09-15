@@ -32,7 +32,10 @@ function VerifyContent() {
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
       <h1 className="text-4xl font-black mb-2">Check your email</h1>
       <p className="text-white/60 mb-8">Enter the 6-digit code we sent you.</p>
-
+      <p className="text-white/30 text-xs text-center mt-6">
+        Check your school inbox — GCTU students, log into your Outlook mailbox.
+      </p>
+      
       <form onSubmit={handleVerify} className="space-y-4">
         <input
           className="input text-center text-2xl tracking-widest"

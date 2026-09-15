@@ -350,18 +350,7 @@ export default function FeedPage() {
             <button className="text-left py-2 text-sm" onClick={openAvatarModal}>
               🎭 Edit avatar
             </button>
-
-            <div className="h-px bg-white/10 my-3" />
-            <p className="text-xs text-white/30 uppercase mb-1">Coming up</p>
-
-            <button className="text-left py-2 text-sm text-white/50" onClick={() => goComingSoon("Communities")}>
-              🏘️ Communities
-            </button>
-            {UPCOMING_FEATURES.map((f) => (
-              <button key={f} className="text-left py-2 text-sm text-white/50" onClick={() => goComingSoon(f)}>
-                🔒 {f}
-              </button>
-            ))}
+            
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
         </div>

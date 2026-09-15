@@ -29,6 +29,7 @@ export default function LairPage() {
   const [bankCode, setBankCode] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
 
   async function load() {
     try {
@@ -48,6 +49,15 @@ export default function LairPage() {
       if (data.data?.authorization_url) window.location.href = data.data.authorization_url
     } catch (err: any) {
       alert(err.message)
+    }
+  }
+    async function openPayoutModal() {
+    try {
+      const data = await apiGet("/api/banks")
+      setBanks(data.banks)
+      setShowPayout(true)
+    } catch {
+      setShowPayout(true)
     }
   }
 
@@ -108,8 +118,8 @@ export default function LairPage() {
           <p className="font-semibold mb-1">Deeper in the shadows</p>
           <p className="text-sm text-white/50 mb-3">Plus gets perks. Prime gets perks + real earnings.</p>
           <div className="flex gap-2">
-            <button className="btn-ghost flex-1" onClick={() => handleSubscribe("plus")}>Get Plus</button>
-            <button className="btn-primary flex-1" onClick={() => handleSubscribe("prime")}>Get Prime</button>
+            <button className="btn-ghost flex-1" onClick={() => router.push("/upgrade")}>Get Plus</button>
+            <button className="btn-primary flex-1" onClick={() => router.push("/upgrade")}>Get Prime</button>
           </div>
         </div>
       )}
@@ -118,7 +128,7 @@ export default function LairPage() {
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">Go all the way</p>
           <p className="text-sm text-white/50 mb-3">Unlock real earnings from your posts and battles.</p>
-          <button className="btn-primary w-full" onClick={() => handleSubscribe("prime")}>Get Prime</button>
+          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>Get Prime</button>
         </div>
       )}
 
@@ -143,6 +153,9 @@ export default function LairPage() {
             >
               {me.availableBalancePesewas < 1000 ? "Min GHS 10.00 to withdraw" : "Request Payout"}
             </button>
+                  <button className="btn-ghost w-full mb-3" onClick={() => router.push("/lair/activity")}>
+        📜 My Activity
+      </button>
           )}
         </div>
       )}

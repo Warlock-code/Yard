@@ -11,6 +11,7 @@ type Stats = {
   revenuePesewas: number
   pendingPayoutPesewas: number
   paidOutPesewas: number
+  activeUsers: number
 }
 
 type Report = {
@@ -34,7 +35,8 @@ type AdminUser = { id: string; ghostId: string; email: string; campus: string; t
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
 const SECTIONS = ["Overview", "Reports", "Payouts", "Users", "Posts", "Battles"]
-
+          <div className="card p-3"><p className="text-xs text-white/40">Active (7d)</p><p className="text-lg font-bold">{stats.activeUsers}</p></div>
+          
 function ghs(pesewas: number) {
   return `GHS ${(pesewas / 100).toFixed(2)}`
 }
@@ -210,7 +212,7 @@ export default function AdminPage() {
                   <p className="text-sm font-semibold">{u.ghostId} {u.tier !== "FREE" && <span className="badge badge-prime">{u.tier}</span>}</p>
                   <p className="text-xs text-white/40">{u.email} · {u.campus}</p>
                 </div>
-                <button className="text-red-400 text-xs" onClick={() => handleDeleteUser(u.id)}>Delete</button>
+                <button className="text-red-400 text-xs" onClick={() => handleDeleteUser(u.id)}>Ban</button>
               </div>
             ))}
           </div>

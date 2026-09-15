@@ -231,3 +231,18 @@ model Follow {
   @@unique([followerId, followingId])
 }
 
+model PostVote {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model AiDraft {
+  id          String   @id @default(cuid())
+  text        String
+  status      String   @default("pending") // pending | published | rejected
+  createdAt   DateTime @default(now())
+}
