@@ -17,6 +17,8 @@ type Me = {
   hasPendingPayout: boolean
 }
 
+type Bank = { name: string; code: string }
+
 function ghs(pesewas: number) {
   return `GHS ${(pesewas / 100).toFixed(2)}`
 }
@@ -26,42 +28,43 @@ export default function LairPage() {
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPayout, setShowPayout] = useState(false)
+  const [banks, setBanks] = useState<Bank[]>([])
   const [bankCode, setBankCode] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
-  const [banks, setBanks] = useState<{ name: string; code: string }[]>([])
 
   async function load() {
     try {
       const data = await apiGet("/api/auth/me")
-      if (!data.user) { router.push("/login"); return }
+      if (!data.user) {
+        router.push("/login")
+        return
+      }
       setMe(data.user)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
-  async function handleSubscribe(tier: "plus" | "prime") {
-    try {
-      const data = await apiPost(`/api/subscribe/${tier}`, {})
-      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
-    } catch (err: any) {
-      alert(err.message)
-    }
-  }
-    async function openPayoutModal() {
+  async function openPayoutModal() {
     try {
       const data = await apiGet("/api/banks")
-      setBanks(data.banks)
-      setShowPayout(true)
+      setBanks(data.banks || [])
     } catch {
-      setShowPayout(true)
+      setBanks([])
     }
+    setShowPayout(true)
   }
 
   async function handlePayoutRequest() {
+    if (!bankCode || !accountNumber.trim() || !accountName.trim()) {
+      alert("Fill in all payout details.")
+      return
+    }
     try {
       await apiPost("/api/payout/request", { bankCode, accountNumber, accountName })
       alert("Payout requested — pending admin approval.")
@@ -87,7 +90,10 @@ export default function LairPage() {
       />
 
       <div className="flex flex-col items-center mt-8 mb-5 relative">
-        <div className="avatar-circle text-4xl w-24 h-24 mb-3" style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
+        <div
+          className="avatar-circle text-4xl w-24 h-24 mb-3"
+          style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}
+        >
           {me.avatarEmoji}
         </div>
         <p className="text-xs text-white/30 uppercase tracking-widest mb-1">The Den</p>
@@ -113,14 +119,17 @@ export default function LairPage() {
         </div>
       </div>
 
+      <button className="btn-ghost w-full mb-3" onClick={() => router.push("/lair/activity")}>
+        📜 My Activity
+      </button>
+
       {me.tier === "FREE" && (
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">Deeper in the shadows</p>
           <p className="text-sm text-white/50 mb-3">Plus gets perks. Prime gets perks + real earnings.</p>
-          <div className="flex gap-2">
-            <button className="btn-ghost flex-1" onClick={() => router.push("/upgrade")}>Get Plus</button>
-            <button className="btn-primary flex-1" onClick={() => router.push("/upgrade")}>Get Prime</button>
-          </div>
+          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
+            See plans
+          </button>
         </div>
       )}
 
@@ -128,7 +137,9 @@ export default function LairPage() {
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">Go all the way</p>
           <p className="text-sm text-white/50 mb-3">Unlock real earnings from your posts and battles.</p>
-          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>Get Prime</button>
+          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
+            See Prime
+          </button>
         </div>
       )}
 
@@ -146,32 +157,64 @@ export default function LairPage() {
           {me.hasPendingPayout ? (
             <p className="text-xs text-white/40 text-center">Payout request pending admin approval.</p>
           ) : (
-            <button
-              className="btn-primary w-full"
-              onClick={() => setShowPayout(true)}
-              disabled={me.availableBalancePesewas < 1000}
-            >
-              {me.availableBalancePesewas < 1000 ? "Min GHS 10.00 to withdraw" : "Request Payout"}
-            </button>
-                  <button className="btn-ghost w-full mb-3" onClick={() => router.push("/lair/activity")}>
-        📜 My Activity
-      </button>
+            <>
+              <button
+                className="btn-primary w-full"
+                onClick={openPayoutModal}
+                disabled={me.availableBalancePesewas < 2000}
+              >
+                {me.availableBalancePesewas < 2000 ? "Min GHS 20.00 to withdraw" : "Request Payout"}
+              </button>
+              <p className="text-xs text-white/30 text-center mt-2">
+                Payout requests only open at month-end and the 14th–16th of each month.
+              </p>
+            </>
           )}
         </div>
       )}
 
-      <button className="btn-ghost w-full mt-2" onClick={handleLogout}>Log out</button>
+      <button className="btn-ghost w-full mt-2" onClick={handleLogout}>
+        Log out
+      </button>
 
       {showPayout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-3">Request Payout</h3>
-            <input className="input mb-2" placeholder="Bank code" value={bankCode} onChange={(e) => setBankCode(e.target.value)} />
-            <input className="input mb-2" placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
-            <input className="input mb-3" placeholder="Account name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+            <h3 className="font-bold text-lg mb-1">Request Payout</h3>
+            <p className="text-white/50 text-xs mb-3">Minimum GHS 20.00. Only opens at month-end and the 14th–16th.</p>
+
+            <select
+              className="input mb-2"
+              value={bankCode}
+              onChange={(e) => setBankCode(e.target.value)}
+            >
+              <option value="">Select mobile money network</option>
+              {banks.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+
+            <input
+              className="input mb-2"
+              placeholder="Account number"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+            />
+            <input
+              className="input mb-3"
+              placeholder="Account name"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+            />
             <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>Cancel</button>
-              <button className="btn-primary flex-1" onClick={handlePayoutRequest}>Submit</button>
+              <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>
+                Cancel
+              </button>
+              <button className="btn-primary flex-1" onClick={handlePayoutRequest}>
+                Submit
+              </button>
             </div>
           </div>
         </div>
