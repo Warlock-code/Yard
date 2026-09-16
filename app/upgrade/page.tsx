@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
+import { blockIfNative } from "@/lib/purchaseGate"
 
 export default function UpgradePage() {
   const router = useRouter()
 
   async function handleSubscribe(tier: "plus" | "prime") {
+    if (blockIfNative()) return
     try {
       const data = await apiPost(`/api/subscribe/${tier}`, {})
       if (data.data?.authorization_url) window.location.href = data.data.authorization_url

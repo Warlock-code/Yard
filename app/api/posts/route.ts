@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 
+const POST_COOLDOWN_SECONDS = 30
+const MAX_POSTS_PER_HOUR = 10
+
+async function checkImage(imageUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "anthropic/claude-3.5-haiku",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Does this image contain nudity, graphic violence, or CSAM? Reply with only one word: SAFE or UNSAFE." },
+              { type: "image_url", image_url: { url: imageUrl } },
+            ],
+          },
+        ],
+      }),
+    })
+    const data = await res.json()
+    const verdict = data.choices?.[0]?.message?.content?.trim().toUpperCase()
+    return verdict !== "UNSAFE"
+  } catch {
+    return true // fail open — don't block posting if the check itself errors
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
@@ -10,6 +39,33 @@ export async function POST(req: NextRequest) {
 
   if (!text && !imageUrl) {
     return NextResponse.json({ error: "Post needs text or an image." }, { status: 400 })
+  }
+
+  const recentPost = await prisma.post.findFirst({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+  })
+  if (recentPost) {
+    const secondsSinceLast = (Date.now() - recentPost.createdAt.getTime()) / 1000
+    if (secondsSinceLast < POST_COOLDOWN_SECONDS) {
+      return NextResponse.json(
+        { error: `Slow down — wait ${Math.ceil(POST_COOLDOWN_SECONDS - secondsSinceLast)}s before posting again.` },
+        { status: 429 }
+      )
+    }
+  }
+
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+  const postsThisHour = await prisma.post.count({ where: { userId: user.id, createdAt: { gte: hourAgo } } })
+  if (postsThisHour >= MAX_POSTS_PER_HOUR) {
+    return NextResponse.json({ error: "You've hit the hourly posting limit. Try again later." }, { status: 429 })
+  }
+
+  if (imageUrl) {
+    const safe = await checkImage(imageUrl)
+    if (!safe) {
+      return NextResponse.json({ error: "That image can't be posted." }, { status: 400 })
+    }
   }
 
   const post = await prisma.post.create({

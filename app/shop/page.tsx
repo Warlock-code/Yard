@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
+import { blockIfNative } from "@/lib/purchaseGate"
 
 const COSMETICS = [
   { id: "avatar_snake", name: "Snake", emoji: "🐍", price: "GHS 2.00" },
@@ -32,6 +33,7 @@ export default function ShopPage() {
   }, [])
 
   async function buy(endpoint: string, key: string, body: any = {}) {
+    if (blockIfNative()) return
     setLoading(key)
     try {
       const data = await apiPost(endpoint, body)

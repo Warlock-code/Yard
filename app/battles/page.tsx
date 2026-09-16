@@ -73,7 +73,10 @@ export default function BattlesPage() {
       <h1 className="text-2xl font-black mt-4 mb-1">⚔️ Battles</h1>
 
       {!prompt ? (
-        <p className="text-white/40 mt-8 text-center">No active battle right now — check back soon.</p>
+        <div className="text-center mt-14 px-8">
+          <p className="text-3xl mb-3">⚔️</p>
+          <p className="text-white/50 text-sm">No battle running right now. Check back soon, or ask an admin to start one.</p>
+        </div>
       ) : (
         <>
           <div className="card p-4 mt-3">

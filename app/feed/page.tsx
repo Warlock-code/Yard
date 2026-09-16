@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { PushNotifications } from '@capacitor/push-notifications'
+import { blockIfNative } from "@/lib/purchaseGate"
 
 type Post = {
   id: string
@@ -36,7 +36,12 @@ const TABS = [
   { key: "program", label: "Class" },
 ]
 
-const UPCOMING_FEATURES = ["Direct Messages", "Voice Notes", "Anonymous Polls 2.0", "Custom Themes", "Group Chats"]
+const EMPTY_MESSAGES: Record<string, string> = {
+  campus: "Quiet on campus right now. Be the first ghost to say something today.",
+  following: "You're not following anyone yet — follow a few ghosts from the feed to see their posts here.",
+  all: "Nothing from other campuses yet. Check back soon.",
+  program: "No posts from your program yet — start the conversation.",
+}
 
 export default function FeedPage() {
   const router = useRouter()
@@ -97,19 +102,6 @@ export default function FeedPage() {
   }, [])
 
   useEffect(() => {
-  async function setupPush() {
-    const perm = await PushNotifications.requestPermissions()
-    if (perm.receive === 'granted') {
-      await PushNotifications.register()
-    }
-  }
-  PushNotifications.addListener('registration', async (token) => {
-    await apiPost("/api/notifications/register", { token: token.value })
-  })
-  setupPush()
-}, []) 
-
-  useEffect(() => {
     loadFeed()
   }, [mode])
 
@@ -133,6 +125,7 @@ export default function FeedPage() {
   }
 
   async function handleBoost(postId: string) {
+    if (blockIfNative()) return
     try {
       await apiPost(`/api/boost/${postId}`, {})
       alert("Boosted for 24h!")
@@ -191,6 +184,7 @@ export default function FeedPage() {
 
   async function handleNameChange() {
     if (!newName.trim()) return
+    if (blockIfNative()) return
     try {
       const data = await apiPost("/api/shop/custom-name", { newName })
       if (data.data?.authorization_url) window.location.href = data.data.authorization_url
@@ -220,9 +214,9 @@ export default function FeedPage() {
     }
   }
 
-  function goComingSoon(feature: string) {
-    setShowDrawer(false)
-    router.push(`/coming-soon?feature=${encodeURIComponent(feature)}`)
+  async function handleLogout() {
+    document.cookie = "yard_token=; Max-Age=0; path=/"
+    router.push("/login")
   }
 
   return (
@@ -251,7 +245,10 @@ export default function FeedPage() {
       {loading ? (
         <p className="text-center text-white/40 mt-10">Loading feed...</p>
       ) : posts.length === 0 ? (
-        <p className="text-center text-white/40 mt-10">No posts yet — be the first ghost to post.</p>
+        <div className="text-center mt-14 px-8">
+          <p className="text-3xl mb-3">👻</p>
+          <p className="text-white/50 text-sm">{EMPTY_MESSAGES[mode]}</p>
+        </div>
       ) : (
         <div>
           {posts.map((post) => {
@@ -350,7 +347,12 @@ export default function FeedPage() {
             <button className="text-left py-2 text-sm" onClick={openAvatarModal}>
               🎭 Edit avatar
             </button>
-            
+
+            <div className="mt-auto pt-4">
+              <button className="btn-ghost w-full" onClick={handleLogout}>
+                Log out
+              </button>
+            </div>
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
         </div>

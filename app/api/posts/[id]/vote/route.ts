@@ -5,7 +5,7 @@ import { awardEarning } from "@/lib/earnings"
 import { sendPush } from "@/lib/sendPush"
 
 const PESEWAS_PER_VOTE = 5
-const MILESTONES = [10, 50, 100, 500, 1000]
+const MILESTONES = [1, 5, 10, 50, 100, 200, 500, 100]
 const MILESTONE_BONUS_PESEWAS: Record<number, number> = { 10: 50, 50: 200, 100: 500, 500: 2000, 1000: 5000 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
