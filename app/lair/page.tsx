@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 
@@ -35,22 +35,27 @@ export default function LairPage() {
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
 
-  async function load() {
-    try {
-      const data = await apiGet("/api/auth/me")
-      if (!data.user) {
-        router.push("/login")
-        return
-      }
-      setMe(data.user)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const load = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/auth/me")
+      .then((data) => {
+        if (!isCurrent()) return
+        if (!data.user) {
+          router.push("/login")
+          return
+        }
+        setMe(data.user)
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (isCurrent()) setLoading(false)
+      })
+  }, [router])
 
   useEffect(() => {
-    load()
-  }, [])
+    let active = true
+    load(() => active)
+    return () => { active = false }
+  }, [load])
 
   async function openPayoutModal() {
     try {
@@ -72,8 +77,8 @@ export default function LairPage() {
       alert("Payout requested — pending admin approval.")
       setShowPayout(false)
       load()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 

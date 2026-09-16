@@ -19,8 +19,8 @@ export default function LoginPage() {
     try {
       await apiPost("/api/auth/login", { email, password })
       router.push("/feed")
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setLoading(false)
     }

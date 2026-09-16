@@ -6,14 +6,14 @@ export default function GuidelinesPage() {
 
       <div className="space-y-5 text-sm text-white/80 leading-relaxed">
         <section>
-          <h2 className="font-semibold text-white mb-1">What's allowed</h2>
-          <p>Confessions, gossip, opinions, jokes, roasts, disagreements, criticism — including of people, programs, or the school itself. Yard doesn't moderate based on being offensive, unpopular, or harsh.</p>
+          <h2 className="font-semibold text-white mb-1">What&apos;s allowed</h2>
+          <p>Confessions, gossip, opinions, jokes, roasts, disagreements, criticism — including of people, programs, or the school itself. Yard doesn&apos;t moderate based on being offensive, unpopular, or harsh.</p>
         </section>
         <section>
-          <h2 className="font-semibold text-white mb-1">What's not allowed</h2>
+          <h2 className="font-semibold text-white mb-1">What&apos;s not allowed</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>Direct threats of violence against a real person</li>
-            <li>Doxxing — sharing someone's real name, address, phone number, or other identifying info without consent, when tied to their anonymous ghost identity</li>
+            <li>Doxxing — sharing someone&apos;s real name, address, phone number, or other identifying info without consent, when tied to their anonymous ghost identity</li>
             <li>Child sexual abuse material in any form</li>
             <li>Content facilitating an illegal act (e.g. selling drugs, coordinating a crime)</li>
           </ul>

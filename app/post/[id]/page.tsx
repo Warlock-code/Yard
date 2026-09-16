@@ -62,9 +62,12 @@ function CommentThread({
 }
 
 export default function PostDetailPage() {
-  const params = useParams()
+  const params = useParams<{ id: string }>()
+  return <PostDetail key={params.id} postId={params.id} />
+}
+
+function PostDetail({ postId }: { postId: string }) {
   const router = useRouter()
-  const postId = params.id as string
 
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
@@ -82,33 +85,40 @@ export default function PostDetailPage() {
     }
   }
 
-  async function loadPost() {
-    setLoading(true)
-    try {
-      const feedData = await apiGet(`/api/posts?mode=all`)
-      const found = feedData.posts.find((p: Post) => p.id === postId)
-      setPost(found || null)
-      await loadComments()
-    } catch (err: any) {
-      if (err.message === "Not authenticated.") {
-        router.push("/login")
-        return
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    let active = true
+
+    async function loadPost() {
+      try {
+        const feedData = await apiGet(`/api/posts?mode=all`)
+        if (!active) return
+        const found = feedData.posts.find((p: Post) => p.id === postId)
+        setPost(found || null)
+        try {
+          const data = await apiGet(`/api/posts/${postId}/comments`)
+          if (active) setComments(data.comments)
+        } catch (err) {
+          console.error(err)
+        }
+      } catch (err: unknown) {
+        if (active && err instanceof Error && err.message === "Not authenticated.") {
+          router.push("/login")
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
     loadPost()
-  }, [postId])
+    return () => { active = false }
+  }, [postId, router])
 
   async function handleVote() {
     try {
       await apiPost(`/api/posts/${postId}/vote`, {})
       setPost((prev) => (prev ? { ...prev, yeahs: prev.yeahs + 1 } : prev))
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -123,8 +133,8 @@ export default function PostDetailPage() {
       setCommentText("")
       setReplyingTo(null)
       loadComments()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setSubmitting(false)
     }

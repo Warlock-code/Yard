@@ -30,8 +30,8 @@ export default function ComposePage() {
     try {
       await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
       router.push("/feed")
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setPosting(false)
     }

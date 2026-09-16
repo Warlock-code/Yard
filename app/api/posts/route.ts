@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 
@@ -120,7 +121,7 @@ export async function GET(req: NextRequest) {
   const type = searchParams.get("type") || "all"
   const cursor = searchParams.get("cursor")
 
-  const where: any = { archived: false }
+  const where: Prisma.PostWhereInput = { archived: false }
 
   if (mode === "campus") {
     where.campus = user.campus

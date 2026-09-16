@@ -21,8 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     await prisma.postVote.create({ data: { postId: id, userId: user.id } })
-  } catch (err: any) {
-    if (err.code === "P2002") {
+  } catch (err: unknown) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
       return NextResponse.json({ error: "You already voted on this post." }, { status: 400 })
     }
     throw err

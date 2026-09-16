@@ -8,16 +8,20 @@ function CallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") || searchParams.get("trxref")
-  const [status, setStatus] = useState<"checking" | "success" | "failed">("checking")
+  const [result, setResult] = useState<{ reference: string; status: "success" | "failed" } | null>(null)
+  const status = !reference ? "failed" : result?.reference === reference ? result.status : "checking"
 
   useEffect(() => {
-    if (!reference) {
-      setStatus("failed")
-      return
-    }
+    if (!reference) return
+    let active = true
     apiPost("/api/paystack/verify", { reference })
-      .then(() => setStatus("success"))
-      .catch(() => setStatus("failed"))
+      .then(() => {
+        if (active) setResult({ reference, status: "success" })
+      })
+      .catch(() => {
+        if (active) setResult({ reference, status: "failed" })
+      })
+    return () => { active = false }
   }, [reference])
 
   return (
@@ -35,7 +39,7 @@ function CallbackContent() {
       {status === "failed" && (
         <>
           <p className="text-2xl mb-2">❌</p>
-          <p className="font-semibold mb-4">We couldn't confirm that payment.</p>
+          <p className="font-semibold mb-4">We couldn&apos;t confirm that payment.</p>
           <button className="btn-primary px-6" onClick={() => router.push("/feed")}>
             Back to Feed
           </button>

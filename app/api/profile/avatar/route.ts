@@ -17,7 +17,7 @@ const COSMETIC_EMOJI_MAP: Record<string, string> = {
   avatar_laughing: "😂",
 }
 
-function unlockedSet(user: any) {
+function unlockedSet(user: { tier: string; ownedCosmetics: string[] }) {
   const set = new Set(TIER_AVATARS[user.tier] || TIER_AVATARS.FREE)
   user.ownedCosmetics.forEach((id: string) => {
     const emoji = COSMETIC_EMOJI_MAP[id]

@@ -15,10 +15,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid or already-processed transaction." }, { status: 400 })
   }
 
-  const meta = tx.metadata as any
+  const meta = typeof tx.metadata === "object" && tx.metadata !== null && !Array.isArray(tx.metadata)
+    ? tx.metadata
+    : null
 
   switch (tx.kind) {
     case "boost":
+      if (typeof meta?.postId !== "string" || !meta.postId) {
+        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+      }
       await prisma.post.update({
         where: { id: meta.postId },
         data: { boosted: true, boostedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) },
@@ -26,6 +31,9 @@ export async function POST(req: NextRequest) {
       break
 
     case "custom_name":
+      if (typeof meta?.newName !== "string" || !meta.newName) {
+        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+      }
       await prisma.user.update({
         where: { id: tx.userId },
         data: { ghostId: meta.newName },
@@ -40,6 +48,9 @@ export async function POST(req: NextRequest) {
       break
 
     case "storage":
+      if (typeof meta?.mb !== "number" || !Number.isSafeInteger(meta.mb) || meta.mb <= 0) {
+        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+      }
       await prisma.user.update({
         where: { id: tx.userId },
         data: { storageLimit: { increment: meta.mb } },
@@ -62,6 +73,9 @@ export async function POST(req: NextRequest) {
     }
 
     case "cosmetic":
+      if (typeof meta?.cosmeticId !== "string" || !meta.cosmeticId) {
+        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+      }
       await prisma.user.update({
         where: { id: tx.userId },
         data: { ownedCosmetics: { push: meta.cosmeticId } },

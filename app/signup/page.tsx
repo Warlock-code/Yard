@@ -21,8 +21,8 @@ export default function SignupPage() {
     try {
       const data = await apiPost("/api/auth/signup", { email, password, programLevel, program })
       router.push(`/verify-email?userId=${data.userId}`)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setLoading(false)
     }

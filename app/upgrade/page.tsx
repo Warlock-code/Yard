@@ -12,8 +12,8 @@ export default function UpgradePage() {
     try {
       const data = await apiPost(`/api/subscribe/${tier}`, {})
       if (data.data?.authorization_url) window.location.href = data.data.authorization_url
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 

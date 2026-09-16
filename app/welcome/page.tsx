@@ -22,7 +22,7 @@ export default function WelcomePage() {
         </div>
         <div>
           <p className="font-semibold text-white mb-1">✉️ Verifying is simple</p>
-          <p>Sign up with your school email. Then check your school's inbox (GCTU students: log into your Outlook mailbox) for a 6-digit code.</p>
+          <p>Sign up with your school email. Then check your school&apos;s inbox (GCTU students: log into your Outlook mailbox) for a 6-digit code.</p>
         </div>
         <div>
           <p className="font-semibold text-white mb-1">⚖️ The rules</p>

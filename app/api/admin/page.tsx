@@ -21,6 +21,13 @@ type Payout = {
   user: { ghostId: string; email: string }
 }
 
+function loadAdminData() {
+  return Promise.all([
+    apiGet("/api/admin/reports"),
+    apiGet("/api/admin/payouts"),
+  ])
+}
+
 export default function AdminPage() {
   const [reports, setReports] = useState<Report[]>([])
   const [payouts, setPayouts] = useState<Payout[]>([])
@@ -32,29 +39,43 @@ export default function AdminPage() {
 
   async function load() {
     try {
-      const [reportsData, payoutsData] = await Promise.all([
-        apiGet("/api/admin/reports"),
-        apiGet("/api/admin/payouts"),
-      ])
+      const [reportsData, payoutsData] = await loadAdminData()
       setReports(reportsData.reports)
       setPayouts(payoutsData.payouts)
-    } catch (err: any) {
-      if (err.message === "Not authorized.") setNotAllowed(true)
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === "Not authorized.") setNotAllowed(true)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    load()
+    let active = true
+    loadAdminData()
+      .then(([reportsData, payoutsData]) => {
+        if (!active) return
+        setReports(reportsData.reports)
+        setPayouts(payoutsData.payouts)
+      })
+      .catch((err: unknown) => {
+        if (active && err instanceof Error && err.message === "Not authorized.") {
+          setNotAllowed(true)
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   async function handleAction(id: string, decision: "actioned" | "dismissed") {
     try {
       await apiPost(`/api/admin/reports/${id}/action`, { decision })
       load()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -63,8 +84,8 @@ export default function AdminPage() {
       await apiPost(`/api/admin/payouts/${id}/approve`, {})
       alert("Payout processed.")
       load()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -75,8 +96,8 @@ export default function AdminPage() {
       alert("Battle created.")
       setPromptText("")
       setCampus("")
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 

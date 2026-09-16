@@ -11,11 +11,11 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Your content</h2>
-          <p>You own what you post. By posting, you allow Yard to display it to other verified users on your campus per your chosen visibility setting. You're responsible for what you post.</p>
+          <p>You own what you post. By posting, you allow Yard to display it to other verified users on your campus per your chosen visibility setting. You&apos;re responsible for what you post.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Prohibited content</h2>
-          <p>No threats of violence, doxxing (sharing someone's real identity, address, or contact info without consent), child sexual abuse material, or content facilitating illegal activity. Everything else — opinions, criticism, jokes, drama — is allowed. See our Community Guidelines for detail.</p>
+          <p>No threats of violence, doxxing (sharing someone&apos;s real identity, address, or contact info without consent), child sexual abuse material, or content facilitating illegal activity. Everything else — opinions, criticism, jokes, drama — is allowed. See our Community Guidelines for detail.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Payments and subscriptions</h2>

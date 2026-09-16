@@ -22,12 +22,23 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
+    let active = true
     apiGet(`/api/profile/activity?type=${tab}`)
-      .then((d) => setPosts(d.posts))
+      .then((d) => {
+        if (active) setPosts(d.posts)
+      })
       .catch(console.error)
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [tab])
+
+  function selectTab(nextTab: "posts" | "liked") {
+    if (nextTab === tab) return
+    setLoading(true)
+    setTab(nextTab)
+  }
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
@@ -37,8 +48,8 @@ export default function ActivityPage() {
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab("posts")} className={`text-xs px-4 py-2 rounded-full border ${tab === "posts" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>My Posts</button>
-        <button onClick={() => setTab("liked")} className={`text-xs px-4 py-2 rounded-full border ${tab === "liked" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>Liked</button>
+        <button onClick={() => selectTab("posts")} className={`text-xs px-4 py-2 rounded-full border ${tab === "posts" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>My Posts</button>
+        <button onClick={() => selectTab("liked")} className={`text-xs px-4 py-2 rounded-full border ${tab === "liked" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>Liked</button>
       </div>
 
       {loading ? (

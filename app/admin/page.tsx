@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 type Stats = {
@@ -65,26 +65,35 @@ export default function AdminPage() {
   const [promptText, setPromptText] = useState("")
   const [campus, setCampus] = useState("")
 
-  async function loadAll() {
-    try {
-      const [s, r, p] = await Promise.all([
-        adminFetch("/api/admin/stats"),
-        adminFetch("/api/admin/reports"),
-        adminFetch("/api/admin/payouts"),
-      ])
-      setStats(s)
-      setReports(r.reports)
-      setPayouts(p.payouts)
-    } catch (err: any) {
-      if (err.message === "Not authorized.") setNotAllowed(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const loadAll = useCallback((isCurrent: () => boolean = () => true) => {
+    return Promise.all([
+      adminFetch("/api/admin/stats"),
+      adminFetch("/api/admin/reports"),
+      adminFetch("/api/admin/payouts"),
+    ])
+      .then(([s, r, p]) => {
+        if (!isCurrent()) return
+        setStats(s)
+        setReports(r.reports)
+        setPayouts(p.payouts)
+      })
+      .catch((err: unknown) => {
+        if (isCurrent() && err instanceof Error && err.message === "Not authorized.") setNotAllowed(true)
+      })
+      .finally(() => {
+        if (isCurrent()) setLoading(false)
+      })
+  }, [])
 
   useEffect(() => {
-    loadAll()
-  }, [])
+    let active = true
+    loadAll(() => active)
+    return () => { active = false }
+  }, [loadAll])
+
+  useEffect(() => {
+    if (notAllowed) router.push("/admin/login")
+  }, [notAllowed, router])
 
   useEffect(() => {
     if (section === "Users") {
@@ -134,10 +143,7 @@ export default function AdminPage() {
     setPosts((prev) => prev.filter((p) => p.id !== id))
   }
 
-  if (notAllowed) {
-    router.push("/admin/login")
-    return null
-  }
+  if (notAllowed) return null
   if (loading) return <p className="text-center text-white/40 mt-10">Loading admin...</p>
 
   return (

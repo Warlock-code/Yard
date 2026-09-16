@@ -22,7 +22,19 @@ export async function POST(req: NextRequest) {
     const tx = await prisma.transaction.findUnique({ where: { reference } })
 
     if (tx && tx.status !== "success") {
-      const tier = (tx.metadata as any)?.tier
+      const meta = tx.metadata
+      if (meta !== null && (typeof meta !== "object" || Array.isArray(meta))) {
+        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+      }
+      const rawTier = meta?.tier
+      let tier: "PLUS" | "PRIME" | undefined
+      if (rawTier !== undefined && rawTier !== null && rawTier !== "") {
+        const normalizedTier = typeof rawTier === "string" ? rawTier.toUpperCase() : undefined
+        if (normalizedTier !== "PLUS" && normalizedTier !== "PRIME") {
+          return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+        }
+        tier = normalizedTier
+      }
 
       await prisma.$transaction([
         prisma.transaction.update({ where: { reference }, data: { status: "success" } }),
@@ -31,7 +43,7 @@ export async function POST(req: NextRequest) {
               prisma.user.update({
                 where: { id: tx.userId },
                 data: {
-                  tier: tier.toUpperCase() as "PLUS" | "PRIME",
+                  tier,
                   tierExpiresAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
                 },
               }),

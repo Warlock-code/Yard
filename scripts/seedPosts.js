@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client")
+import { PrismaClient } from "@prisma/client"
 const prisma = new PrismaClient()
 
 const posts = [
@@ -103,8 +103,6 @@ const posts = [
   "Trying to explain campus slang to a new student without sounding confusing",
   "The relief of the semester finally ending and the immediate nostalgia that follows",
 ]
-
-const CAMPUSES = ["GCTU"]
 
 const SEED_GHOSTS = [
   { ghostId: "MidnightScholar", avatarEmoji: "👻" },

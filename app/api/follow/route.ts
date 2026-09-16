@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
 
   try {
     await prisma.follow.create({ data: { followerId: user.id, followingId: targetUserId } })
-  } catch (err: any) {
-    if (err.code === "P2002") {
+  } catch (err: unknown) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
       await prisma.follow.delete({
         where: { followerId_followingId: { followerId: user.id, followingId: targetUserId } },
       })

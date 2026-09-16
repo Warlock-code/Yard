@@ -1,4 +1,4 @@
-export async function apiPost(url: string, body: any) {
+export async function apiPost(url: string, body: unknown) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -31,7 +31,7 @@ export async function apiDelete(url: string) {
   return data
 }
 
-export async function apiPatch(url: string, body: any) {
+export async function apiPatch(url: string, body: unknown) {
   const res = await fetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

@@ -26,13 +26,13 @@ export default function ShopPage() {
   const router = useRouter()
   const [category, setCategory] = useState("tier")
   const [loading, setLoading] = useState<string | null>(null)
-  const [me, setMe] = useState<any>(null)
+  const [me, setMe] = useState<{ ownedCosmetics: string[] } | null>(null)
 
   useEffect(() => {
     apiGet("/api/auth/me").then((d) => setMe(d.user)).catch(() => {})
   }, [])
 
-  async function buy(endpoint: string, key: string, body: any = {}) {
+  async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
     if (blockIfNative()) return
     setLoading(key)
     try {
@@ -42,8 +42,8 @@ export default function ShopPage() {
       } else {
         alert("Purchased!")
       }
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setLoading(null)
     }

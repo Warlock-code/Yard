@@ -23,8 +23,8 @@ export default function AdminLoginPage() {
       })
       if (!res.ok) throw new Error("Invalid credentials.")
       router.push("/admin")
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setLoading(false)
     }

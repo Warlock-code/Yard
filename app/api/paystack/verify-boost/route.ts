@@ -15,7 +15,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid or already-processed transaction." }, { status: 400 })
   }
 
-  const postId = (tx.metadata as any)?.postId
+  const meta = tx.metadata
+  if (typeof meta !== "object" || meta === null || Array.isArray(meta) || typeof meta.postId !== "string" || !meta.postId) {
+    return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
+  }
+  const postId = meta.postId
 
   await prisma.$transaction([
     prisma.transaction.update({ where: { reference }, data: { status: "success" } }),

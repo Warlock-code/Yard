@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 type Entry = {
@@ -24,22 +24,24 @@ export default function BattlesPage() {
   const [entryText, setEntryText] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    try {
-      const data = await apiGet("/api/battles")
-      setPrompt(data.prompt)
-      setEntries(data.entries)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const load = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/battles")
+      .then((data) => {
+        if (!isCurrent()) return
+        setPrompt(data.prompt)
+        setEntries(data.entries)
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (isCurrent()) setLoading(false)
+      })
+  }, [])
 
   useEffect(() => {
-    load()
-  }, [])
+    let active = true
+    load(() => active)
+    return () => { active = false }
+  }, [load])
 
   async function handleEnter() {
     if (!entryText.trim() || !prompt) return
@@ -47,9 +49,10 @@ export default function BattlesPage() {
     try {
       await apiPost("/api/battles/enter", { promptId: prompt.id, text: entryText })
       setEntryText("")
+      setLoading(true)
       load()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
       setSubmitting(false)
     }
@@ -61,8 +64,8 @@ export default function BattlesPage() {
       setEntries((prev) =>
         prev.map((e) => (e.id === entryId ? { ...e, votes: e.votes + 1 } : e)).sort((a, b) => b.votes - a.votes)
       )
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -80,7 +83,7 @@ export default function BattlesPage() {
       ) : (
         <>
           <div className="card p-4 mt-3">
-            <p className="text-xs text-white/40 mb-1">Today's prompt</p>
+            <p className="text-xs text-white/40 mb-1">Today&apos;s prompt</p>
             <p className="font-semibold">{prompt.text}</p>
           </div>
 

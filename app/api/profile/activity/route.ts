@@ -14,9 +14,18 @@ export async function GET(req: NextRequest) {
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 30,
-      include: { post: { include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } } },
+      select: { postId: true },
     })
-    return NextResponse.json({ posts: votes.map((v) => v.post) })
+    const posts = await prisma.post.findMany({
+      where: { id: { in: votes.map((vote) => vote.postId) } },
+      include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+    })
+    const postsById = new Map(posts.map((post) => [post.id, post]))
+    const likedPosts = votes.flatMap((vote) => {
+      const post = postsById.get(vote.postId)
+      return post ? [post] : []
+    })
+    return NextResponse.json({ posts: likedPosts })
   }
 
   const posts = await prisma.post.findMany({

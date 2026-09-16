@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
@@ -57,70 +57,99 @@ export default function FeedPage() {
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [availableAvatars, setAvailableAvatars] = useState<string[]>([])
 
-  async function loadMe() {
-    try {
-      const data = await apiGet("/api/auth/me")
-      setMe(data.user)
-    } catch {
-      router.push("/login")
-    }
-  }
+  const [feedVersion, setFeedVersion] = useState(0)
 
-  async function loadFeed() {
+  const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/auth/me")
+      .then((data) => {
+        if (isCurrent()) setMe(data.user)
+      })
+      .catch(() => {
+        if (isCurrent()) router.push("/login")
+      })
+  }, [router])
+
+  function loadFeed() {
     setLoading(true)
-    try {
-      const data = await apiGet(`/api/posts?mode=${mode}`)
-      setPosts(data.posts)
-      setNextCursor(data.nextCursor)
-    } catch (err: any) {
-      if (err.message === "Not authenticated.") {
-        router.push("/login")
-        return
+    setLoadingMore(false)
+    setFeedVersion((version) => version + 1)
+  }
+
+  function selectMode(nextMode: string) {
+    if (nextMode === mode) return
+    setLoading(true)
+    setLoadingMore(false)
+    setMode(nextMode)
+  }
+
+  useEffect(() => {
+    let active = true
+    loadMe(() => active)
+    return () => { active = false }
+  }, [loadMe])
+
+  useEffect(() => {
+    let active = true
+    apiGet(`/api/posts?mode=${mode}`)
+      .then((data) => {
+        if (!active) return
+        setPosts(data.posts)
+        setNextCursor(data.nextCursor)
+      })
+      .catch((err: unknown) => {
+        if (!active) return
+        if (err instanceof Error && err.message === "Not authenticated.") {
+          router.push("/login")
+          return
+        }
+        console.error(err)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [mode, feedVersion, router])
+
+  useEffect(() => {
+    if (loading || !nextCursor) return
+    let active = true
+    let pending = false
+
+    async function loadMore() {
+      if (pending) return
+      pending = true
+      setLoadingMore(true)
+      try {
+        const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}`)
+        if (!active) return
+        setPosts((prev) => [...prev, ...data.posts])
+        setNextCursor(data.nextCursor)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        pending = false
+        if (active) setLoadingMore(false)
       }
-      console.error(err)
-    } finally {
-      setLoading(false)
     }
-  }
 
-  async function loadMore() {
-    if (!nextCursor || loadingMore) return
-    setLoadingMore(true)
-    try {
-      const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}`)
-      setPosts((prev) => [...prev, ...data.posts])
-      setNextCursor(data.nextCursor)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  useEffect(() => {
-    loadMe()
-  }, [])
-
-  useEffect(() => {
-    loadFeed()
-  }, [mode])
-
-  useEffect(() => {
     function handleScroll() {
       if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
         loadMore()
       }
     }
     window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [nextCursor, loadingMore, mode])
+    return () => {
+      active = false
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [nextCursor, loading, mode, feedVersion])
 
   async function handleVote(postId: string) {
     try {
       await apiPost(`/api/posts/${postId}/vote`, {})
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs: p.yeahs + 1 } : p)))
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -130,11 +159,11 @@ export default function FeedPage() {
       await apiPost(`/api/boost/${postId}`, {})
       alert("Boosted for 24h!")
       loadFeed()
-    } catch (err: any) {
-      if (err.message.includes("Buy")) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("Buy")) {
         if (confirm("No boost credits left. Go buy some in the Shop?")) router.push("/shop")
       } else {
-        alert(err.message)
+        alert(err instanceof Error ? err.message : "Something went wrong.")
       }
     }
   }
@@ -144,8 +173,8 @@ export default function FeedPage() {
       const data = await apiPost("/api/follow", { targetUserId })
       alert(data.following ? "Followed." : "Unfollowed.")
       loadMe()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -156,8 +185,8 @@ export default function FeedPage() {
       await apiPost("/api/reports", { postId, reason })
       alert("Reported — this post is now hidden pending review.")
       loadFeed()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -166,8 +195,8 @@ export default function FeedPage() {
     try {
       await apiDelete(`/api/posts/${postId}`)
       setPosts((prev) => prev.filter((p) => p.id !== postId))
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -177,8 +206,8 @@ export default function FeedPage() {
     try {
       await apiPatch(`/api/posts/${postId}`, { text: newText })
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, text: newText } : p)))
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -188,8 +217,8 @@ export default function FeedPage() {
     try {
       const data = await apiPost("/api/shop/custom-name", { newName })
       if (data.data?.authorization_url) window.location.href = data.data.authorization_url
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -199,8 +228,8 @@ export default function FeedPage() {
       setAvailableAvatars(data.available)
       setShowDrawer(false)
       setShowAvatarModal(true)
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -209,8 +238,8 @@ export default function FeedPage() {
       await apiPost("/api/profile/avatar", { emoji })
       setShowAvatarModal(false)
       loadMe()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -234,7 +263,7 @@ export default function FeedPage() {
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setMode(tab.key)}
+            onClick={() => selectMode(tab.key)}
             className={`text-sm py-3 text-center ${mode === tab.key ? "tab-active" : "tab-inactive"}`}
           >
             {tab.label}
