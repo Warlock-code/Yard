@@ -12,6 +12,8 @@ type Me = {
   streakCount: number
   ghostCoins: number
   postCount: number
+  followersCount: number
+  followingCount: number
   totalEarnedPesewas: number
   availableBalancePesewas: number
   hasPendingPayout: boolean
@@ -89,7 +91,7 @@ export default function LairPage() {
         style={{ background: "radial-gradient(circle, #baff39, transparent 70%)" }}
       />
 
-      <div className="flex flex-col items-center mt-8 mb-5 relative">
+      <div className="flex flex-col items-center mt-8 mb-4 relative">
         <div
           className="avatar-circle text-4xl w-24 h-24 mb-3"
           style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}
@@ -101,6 +103,17 @@ export default function LairPage() {
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{me.campus}</span>
           {me.tier !== "FREE" && <span className="badge badge-prime">{me.tier}</span>}
+        </div>
+
+        <div className="flex gap-5 mt-3 text-sm">
+          <button onClick={() => router.push("/lair/activity")} className="text-center">
+            <span className="font-bold block">{me.followingCount}</span>
+            <span className="text-white/40 text-xs">Following</span>
+          </button>
+          <button onClick={() => router.push("/lair/activity")} className="text-center">
+            <span className="font-bold block">{me.followersCount}</span>
+            <span className="text-white/40 text-xs">Followers</span>
+          </button>
         </div>
       </div>
 
@@ -119,8 +132,12 @@ export default function LairPage() {
         </div>
       </div>
 
-      <button className="btn-ghost w-full mb-3" onClick={() => router.push("/lair/activity")}>
-        📜 My Activity
+      <button
+        className="card w-full p-4 mb-3 flex items-center justify-between"
+        onClick={() => router.push("/lair/activity")}
+      >
+        <span className="font-semibold text-sm">📜 My Posts & Liked Posts</span>
+        <span className="text-white/40">→</span>
       </button>
 
       {me.tier === "FREE" && (
@@ -182,39 +199,17 @@ export default function LairPage() {
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">Request Payout</h3>
             <p className="text-white/50 text-xs mb-3">Minimum GHS 20.00. Only opens at month-end and the 14th–16th.</p>
-
-            <select
-              className="input mb-2"
-              value={bankCode}
-              onChange={(e) => setBankCode(e.target.value)}
-            >
+            <select className="input mb-2" value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
               <option value="">Select mobile money network</option>
               {banks.map((b) => (
-                <option key={b.code} value={b.code}>
-                  {b.name}
-                </option>
+                <option key={b.code} value={b.code}>{b.name}</option>
               ))}
             </select>
-
-            <input
-              className="input mb-2"
-              placeholder="Account number"
-              value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
-            />
-            <input
-              className="input mb-3"
-              placeholder="Account name"
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-            />
+            <input className="input mb-2" placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+            <input className="input mb-3" placeholder="Account name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
             <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>
-                Cancel
-              </button>
-              <button className="btn-primary flex-1" onClick={handlePayoutRequest}>
-                Submit
-              </button>
+              <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>Cancel</button>
+              <button className="btn-primary flex-1" onClick={handlePayoutRequest}>Submit</button>
             </div>
           </div>
         </div>

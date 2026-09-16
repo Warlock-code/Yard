@@ -271,9 +271,13 @@ export default function FeedPage() {
                     )}
 
                     <div className="flex gap-4 text-sm text-white/40 pt-2">
-                      <button onClick={() => handleVote(post.id)} className="hover:text-[#baff39] flex items-center gap-1">
-                        🔥 {post.yeahs}
-                      </button>
+                                        {isOwn ? (
+                        <span className="flex items-center gap-1 text-white/30">🔥 {post.yeahs}</span>
+                      ) : (
+                        <button onClick={() => handleVote(post.id)} className="hover:text-[#baff39] flex items-center gap-1">
+                          🔥 {post.yeahs}
+                        </button>
+                      )}
                       <button
                         onClick={() => router.push(`/post/${post.id}`)}
                         className="hover:text-[#baff39] flex items-center gap-1"

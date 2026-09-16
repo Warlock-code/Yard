@@ -5,13 +5,19 @@ import { awardEarning } from "@/lib/earnings"
 import { sendPush } from "@/lib/sendPush"
 
 const PESEWAS_PER_VOTE = 5
-const MILESTONES = [1, 5, 10, 50, 100, 200, 500, 100]
+const MILESTONES = [10, 50, 100, 500, 1000]
 const MILESTONE_BONUS_PESEWAS: Record<number, number> = { 10: 50, 50: 200, 100: 500, 500: 2000, 1000: 5000 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+
+  const targetPost = await prisma.post.findUnique({ where: { id } })
+  if (!targetPost) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (targetPost.userId === user.id) {
+    return NextResponse.json({ error: "You can't vote on your own post." }, { status: 403 })
+  }
 
   try {
     await prisma.postVote.create({ data: { postId: id, userId: user.id } })
