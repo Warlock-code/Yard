@@ -28,7 +28,7 @@ export default function PushNotificationsSetup() {
       retryTimer = setTimeout(() => {
         retryTimer = undefined
         registerForPush().catch((error) => console.error("Yard push retry failed", error))
-      }, 10000)
+      }, 1000)
     }
 
     async function registerForPush() {
