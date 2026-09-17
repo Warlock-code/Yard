@@ -1,9 +1,14 @@
 apply plugin: 'com.android.application'
 
-def releaseStoreFile = System.getenv('YARD_KEYSTORE_PATH') ?: project.findProperty('YARD_KEYSTORE_PATH')
-def releaseStorePassword = System.getenv('YARD_KEYSTORE_PASSWORD') ?: project.findProperty('YARD_KEYSTORE_PASSWORD')
-def releaseKeyAlias = System.getenv('YARD_KEY_ALIAS') ?: project.findProperty('YARD_KEY_ALIAS')
-def releaseKeyPassword = System.getenv('YARD_KEY_PASSWORD') ?: project.findProperty('YARD_KEY_PASSWORD')
+def signingProperties = new Properties()
+def signingPropertiesFile = rootProject.file('keystore.properties')
+if (signingPropertiesFile.exists()) {
+    signingProperties.load(new FileInputStream(signingPropertiesFile))
+}
+def releaseStoreFile = signingProperties.getProperty('storeFile') ?: System.getenv('YARD_KEYSTORE_PATH')
+def releaseStorePassword = signingProperties.getProperty('storePassword') ?: System.getenv('YARD_KEYSTORE_PASSWORD')
+def releaseKeyAlias = signingProperties.getProperty('keyAlias') ?: System.getenv('YARD_KEY_ALIAS')
+def releaseKeyPassword = signingProperties.getProperty('keyPassword') ?: System.getenv('YARD_KEY_PASSWORD')
 
 android {
     namespace = "me.yardapp.app"
@@ -35,7 +40,7 @@ android {
         release {
             minifyEnabled false
             if (!signingConfigs.release.storeFile && gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
-                throw new GradleException('Release signing is not configured. Set YARD_KEYSTORE_PATH, YARD_KEYSTORE_PASSWORD, YARD_KEY_ALIAS, and YARD_KEY_PASSWORD.')
+                throw new GradleException('Release signing is not configured. Create android/keystore.properties first.')
             }
             if (signingConfigs.release.storeFile) signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
