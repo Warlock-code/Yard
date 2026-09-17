@@ -57,7 +57,15 @@ export async function sendPush(pushToken: string, title: string, body: string, h
         message: {
           token: pushToken,
           notification: { title, body },
-          android: { notification: { channel_id: "yard-v2", sound: "default" } },
+          android: {
+            priority: "HIGH",
+            notification: {
+              channel_id: "yard-v2",
+              sound: "default",
+              default_sound: true,
+              default_vibrate_timings: true,
+            },
+          },
           data: href ? { href } : undefined,
         },
       }),
