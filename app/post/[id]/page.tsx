@@ -166,9 +166,9 @@ function PostDetail({ postId }: { postId: string }) {
         {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
         {post.imageUrl && <img src={post.imageUrl} className="rounded-lg mb-3 w-full" alt="" />}
 
-        <div className="flex flex-wrap items-center gap-4 text-sm border-t border-white/10 mt-2 pt-3">
-          <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl bg-orange-400/10 px-3 font-semibold text-orange-200 hover:bg-orange-400/20 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
-          <span aria-label={`${post.commentsCount} comments`} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl bg-sky-400/10 px-3 font-semibold text-sky-200">💬 {post.commentsCount}</span>
+        <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
+          <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
+          <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
         </div>
       </div>
 

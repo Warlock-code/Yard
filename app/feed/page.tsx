@@ -319,18 +319,18 @@ export default function FeedPage() {
                       <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
                     )}
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-white/70 pt-3 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:justify-center [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:shrink-0 [&_button]:rounded-xl [&_button]:px-3 [&_button]:focus-visible:outline-[#baff39]">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
                       {isOwn ? (
-                        <span className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl bg-orange-400/10 px-3 font-semibold text-orange-200">🔥 {post.yeahs}</span>
+                        <span className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
                       ) : (
-                        <button onClick={() => handleVote(post.id)} aria-label={`Add heat, ${post.yeahs} heat`} className="bg-orange-400/10 text-orange-200 hover:bg-orange-400/20 hover:text-orange-100 font-semibold gap-2">
+                        <button onClick={() => handleVote(post.id)} aria-label={`Add heat, ${post.yeahs} heat`} className="text-orange-200 hover:text-orange-100 gap-1">
                           🔥 {post.yeahs}
                         </button>
                       )}
                       <button
                         onClick={() => router.push(`/post/${post.id}`)}
                         aria-label={`View comments, ${post.commentsCount} comments`}
-                        className="bg-sky-400/10 text-sky-200 hover:bg-sky-400/20 hover:text-sky-100 font-semibold gap-2"
+                        className="text-sky-200 hover:text-sky-100 gap-1"
                       >
                         💬 {post.commentsCount}
                       </button>
@@ -347,9 +347,9 @@ export default function FeedPage() {
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
                           title={isFollowing ? "Following" : "Follow"}
-                          className={`${isFollowing ? "bg-[#baff39]/15 text-[#baff39]" : "bg-white/10 text-white/90"} hover:bg-[#baff39]/20 hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait`}
+                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait`}
                         >
-                          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d={isFollowing ? "M5 12l4 4L19 6" : "M12 5v14M5 12h14"} />
                           </svg>
                         </button>
