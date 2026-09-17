@@ -29,6 +29,8 @@ export default function PushNotificationsSetup() {
         : permission
       if (!active || requested.receive !== "granted") return
 
+      await apiGet("/api/auth/me")
+
       await PushNotifications.createChannel({
         id: "yard-v2",
         name: "Yard notifications",
@@ -36,23 +38,7 @@ export default function PushNotificationsSetup() {
         importance: 5,
         visibility: 1,
         sound: "default",
-      })
-
-      const localPermission = await LocalNotifications.checkPermissions()
-      if (localPermission.display === "prompt") {
-        await LocalNotifications.requestPermissions()
-      }
-
-      await LocalNotifications.createChannel({
-        id: "yard-v2",
-        name: "Yard notifications",
-        description: "Comments and activity on your Yard posts",
-        importance: 5,
-        visibility: 1,
-        sound: "default",
-      })
-
-      await apiGet("/api/auth/me")
+      }).catch((error) => console.error("Yard push channel setup failed", error))
 
       registrationListener = await PushNotifications.addListener("registration", async ({ value }) => {
         try {
@@ -84,10 +70,28 @@ export default function PushNotificationsSetup() {
         const href = notification.extra?.href
         if (typeof href === "string" && href.startsWith("/")) window.location.href = href
       })
+
+      try {
+        const localPermission = await LocalNotifications.checkPermissions()
+        if (localPermission.display === "prompt") {
+          await LocalNotifications.requestPermissions()
+        }
+        await LocalNotifications.createChannel({
+          id: "yard-v2",
+          name: "Yard notifications",
+          description: "Comments and activity on your Yard posts",
+          importance: 5,
+          visibility: 1,
+          sound: "default",
+        })
+      } catch (error) {
+        console.error("Yard local notification setup failed", error)
+      }
+
       await PushNotifications.register()
     }
 
-    setup().catch(() => {})
+    setup().catch((error) => console.error("Yard push setup failed", error))
 
     return () => {
       active = false
