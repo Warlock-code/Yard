@@ -17,6 +17,7 @@ const TABS = [
 export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
   const hidePrefixes = ["/post/"]
 
@@ -32,15 +33,39 @@ export default function BottomNav() {
       }
     }
 
-    loadUnreadCount()
-    const interval = window.setInterval(loadUnreadCount, 20_000)
+    async function refresh() {
+      try {
+        const data = await apiGet("/api/auth/me")
+        if (!active) return
+        setAuthenticatedPath(data.user ? pathname : null)
+        if (!data.user) {
+          setUnreadCount(0)
+          return
+        }
+      } catch {
+        if (active) {
+          setAuthenticatedPath(null)
+          setUnreadCount(0)
+        }
+        return
+      }
+
+      await loadUnreadCount()
+    }
+
+    refresh()
+    const interval = window.setInterval(refresh, 20_000)
     return () => {
       active = false
       window.clearInterval(interval)
     }
   }, [pathname])
 
-  if (hideOn.includes(pathname) || hidePrefixes.some((p) => pathname.startsWith(p))) return null
+  if (
+    authenticatedPath !== pathname ||
+    hideOn.includes(pathname) ||
+    hidePrefixes.some((p) => pathname.startsWith(p))
+  ) return null
 
   return (
     <nav className="fixed bottom-5 left-0 right-0 z-20 flex justify-center px-6">
