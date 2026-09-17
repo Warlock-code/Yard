@@ -28,7 +28,7 @@ async function checkImage(imageUrl: string): Promise<boolean> {
     const verdict = data.choices?.[0]?.message?.content?.trim().toUpperCase()
     return verdict !== "UNSAFE"
   } catch {
-    return true // fail open — don't block posting if the check itself errors
+    return false
   }
 }
 
@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   const { text, imageUrl, type, pollOptions, visibility } = await req.json()
+
+  if (typeof text !== "undefined" && text !== null && (typeof text !== "string" || text.length > 2000)) {
+    return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
+  }
+  if (imageUrl && (typeof imageUrl !== "string" || imageUrl.length > 2048)) {
+    return NextResponse.json({ error: "Image URL is invalid." }, { status: 400 })
+  }
 
   if (!text && !imageUrl) {
     return NextResponse.json({ error: "Post needs text or an image." }, { status: 400 })

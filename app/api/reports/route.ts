@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { moderateWithAI } from "@/lib/moderateWithAI"
+import { rateLimit } from "@/lib/rateLimit"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -10,6 +11,12 @@ export async function POST(req: NextRequest) {
   const { postId, reason } = await req.json()
   if (!postId || !reason?.trim()) {
     return NextResponse.json({ error: "Post and reason required." }, { status: 400 })
+  }
+  if (typeof reason !== "string" || reason.length > 500) {
+    return NextResponse.json({ error: "Report reason must be 500 characters or fewer." }, { status: 400 })
+  }
+  if (!rateLimit(`report:${user.id}`, 10, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many reports. Try again later." }, { status: 429 })
   }
 
   const report = await prisma.report.create({

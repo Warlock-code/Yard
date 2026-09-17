@@ -30,7 +30,7 @@ export default function PushNotificationsSetup() {
       if (!active || requested.receive !== "granted") return
 
       await PushNotifications.createChannel({
-        id: "yard",
+        id: "yard-v2",
         name: "Yard notifications",
         description: "Comments and activity on your Yard posts",
         importance: 5,
@@ -44,7 +44,7 @@ export default function PushNotificationsSetup() {
       }
 
       await LocalNotifications.createChannel({
-        id: "yard",
+        id: "yard-v2",
         name: "Yard notifications",
         description: "Comments and activity on your Yard posts",
         importance: 5,
@@ -67,7 +67,7 @@ export default function PushNotificationsSetup() {
             id: Date.now() % 2147483647,
             title: notification.title || "Yard",
             body: notification.body || "You have a new notification.",
-            channelId: "yard",
+            channelId: "yard-v2",
             extra: notification.data,
           }],
         })

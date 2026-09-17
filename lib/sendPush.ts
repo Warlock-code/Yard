@@ -30,7 +30,7 @@ export async function sendPush(pushToken: string, title: string, body: string, h
         message: {
           token: pushToken,
           notification: { title, body },
-          android: { notification: { channel_id: "yard" } },
+          android: { notification: { channel_id: "yard-v2", sound: "default" } },
           data: href ? { href } : undefined,
         },
       }),

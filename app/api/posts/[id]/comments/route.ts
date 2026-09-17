@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { createNotification } from "@/lib/notifications"
+import { rateLimit } from "@/lib/rateLimit"
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +12,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { text, parentId } = await req.json()
   if (!text?.trim()) return NextResponse.json({ error: "Comment can't be empty." }, { status: 400 })
+  if (typeof text !== "string" || text.length > 500) {
+    return NextResponse.json({ error: "Comment must be 500 characters or fewer." }, { status: 400 })
+  }
+  if (!rateLimit(`comment:${user.id}`, 20, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many comments. Try again later." }, { status: 429 })
+  }
 
   const comment = await prisma.comment.create({
     data: {

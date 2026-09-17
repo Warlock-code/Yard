@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { comparePassword, signToken } from "@/lib/auth"
+import { rateLimit } from "@/lib/rateLimit"
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
+  if (!normalizedEmail || typeof password !== "string" || !rateLimit(`login:${normalizedEmail}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many login attempts. Try again later." }, { status: 429 })
+  }
 
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (!user) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 400 })
   }
