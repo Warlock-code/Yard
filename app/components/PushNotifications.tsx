@@ -15,6 +15,7 @@ export default function PushNotificationsSetup() {
     let active = true
     let registrationListener: { remove: () => Promise<void> } | undefined
     let registrationErrorListener: { remove: () => Promise<void> } | undefined
+    let actionListener: { remove: () => Promise<void> } | undefined
 
     async function setup() {
       const permission = await PushNotifications.checkPermissions()
@@ -33,6 +34,10 @@ export default function PushNotificationsSetup() {
         }
       })
       registrationErrorListener = await PushNotifications.addListener("registrationError", () => {})
+      actionListener = await PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
+        const href = notification.data?.href
+        if (typeof href === "string" && href.startsWith("/")) window.location.href = href
+      })
       await PushNotifications.register()
     }
 
@@ -42,6 +47,7 @@ export default function PushNotificationsSetup() {
       active = false
       registrationListener?.remove()
       registrationErrorListener?.remove()
+      actionListener?.remove()
     }
   }, [pathname])
 

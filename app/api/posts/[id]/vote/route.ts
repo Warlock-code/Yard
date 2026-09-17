@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { awardEarning } from "@/lib/earnings"
-import { sendPush } from "@/lib/sendPush"
+import { createNotification } from "@/lib/notifications"
 
 const PESEWAS_PER_VOTE = 5
 const MILESTONES = [10, 50, 100, 500, 1000]
@@ -38,8 +38,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  if (owner?.pushToken && MILESTONES.includes(post.yeahs)) {
-    await sendPush(owner.pushToken, "Your post is popping 🔥", `${post.yeahs} yeahs and climbing — check it out.`)
+  if (owner && MILESTONES.includes(post.yeahs)) {
+    await createNotification({
+      userId: owner.id,
+      pushToken: owner.pushToken,
+      type: "vote_milestone",
+      title: "Your post is popping",
+      body: `${post.yeahs} yeahs and climbing - check it out.`,
+      href: `/post/${post.id}`,
+    })
   }
 
   return NextResponse.json({ post })

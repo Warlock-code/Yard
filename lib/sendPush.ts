@@ -11,7 +11,7 @@ async function getAccessToken() {
   return tokens.access_token
 }
 
-export async function sendPush(pushToken: string, title: string, body: string) {
+export async function sendPush(pushToken: string, title: string, body: string, href?: string) {
   if (!pushToken) return
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   if (!serviceAccount) return
@@ -30,8 +30,9 @@ export async function sendPush(pushToken: string, title: string, body: string) {
         message: {
           token: pushToken,
           notification: { title, body },
+          data: href ? { href } : undefined,
         },
-      },
+      }),
     })
 
     if (!response.ok) {

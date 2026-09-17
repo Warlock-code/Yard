@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -18,215 +18,215 @@ enum AccountTier {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  passwordHash    String
-  emailVerified   Boolean   @default(false)
-  verifyCode      String?
-  campus          String
-  programLevel    String?
-  pushToken String?
-  program         String?
-  programKey      String?
+  id            String  @id @default(cuid())
+  email         String  @unique
+  passwordHash  String
+  emailVerified Boolean @default(false)
+  verifyCode    String?
+  campus        String
+  programLevel  String?
+  pushToken     String?
+  program       String?
+  programKey    String?
 
-  following  Follow[] @relation("Following")
-followers  Follow[] @relation("Followers")
+  following Follow[] @relation("Following")
+  followers Follow[] @relation("Followers")
 
-  ghostId         String    @unique
-  avatarEmoji     String    @default("👻")
-  ownedCosmetics  String[]  @default([])
+  ghostId        String   @unique
+  avatarEmoji    String   @default("👻")
+  ownedCosmetics String[] @default([])
 
-  tier            AccountTier @default(FREE)
-  tierExpiresAt   DateTime?
+  tier          AccountTier @default(FREE)
+  tierExpiresAt DateTime?
 
   streakCount       Int       @default(0)
   streakFreezeUntil DateTime?
   lastPostedAt      DateTime?
 
-  lastStreakCount   Int?
-streakBrokenAt    DateTime?
+  lastStreakCount Int?
+  streakBrokenAt  DateTime?
 
-  ghostCoins      Int       @default(0)
-  freeBoosts      Int       @default(0)
+  ghostCoins Int @default(0)
+  freeBoosts Int @default(0)
 
-  storageUsed     Int       @default(0)
-  storageLimit    Int       @default(50)
+  storageUsed  Int @default(0)
+  storageLimit Int @default(50)
 
-  battleChampion  Boolean   @default(false)
-  weeklyChampion  Boolean   @default(false)
+  battleChampion Boolean @default(false)
+  weeklyChampion Boolean @default(false)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  posts           Post[]
-  comments        Comment[]
-  battleEntries   BattleEntry[]
-  votes           Vote[]
-  transactions    Transaction[]
-  reports         Report[] @relation("ReportedBy")
-  earnings        Earning[]
-  payouts         Payout[]
+  posts         Post[]
+  comments      Comment[]
+  battleEntries BattleEntry[]
+  votes         Vote[]
+  transactions  Transaction[]
+  reports       Report[]       @relation("ReportedBy")
+  earnings      Earning[]
+  payouts       Payout[]
+  notifications Notification[]
 }
 
 model Post {
-  id             String    @id @default(cuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  text           String?
-  imageUrl       String?
-  voiceUrl       String?
-  type           String    @default("confession") // confession | gossip | meme | poll | voice
+  text     String?
+  imageUrl String?
+  voiceUrl String?
+  type     String  @default("confession") // confession | gossip | meme | poll | voice
 
-  campus         String
-  program        String?
-  programLevel   String?
-  programKey     String?
+  campus       String
+  program      String?
+  programLevel String?
+  programKey   String?
 
-  archived  Boolean @default(false)
+  archived Boolean @default(false)
 
+  visibility String @default("school") // "school" | "program"
 
-visibility     String    @default("school") // "school" | "program"
+  pollOptions String[] @default([])
+  pollVotes   Json?
 
-  pollOptions    String[]  @default([])
-  pollVotes      Json?
+  yeahs         Int @default(0)
+  commentsCount Int @default(0)
 
-  yeahs          Int       @default(0)
-  commentsCount  Int       @default(0)
+  boosted      Boolean   @default(false)
+  boostedUntil DateTime?
+  isPrime      Boolean   @default(false)
 
-  boosted        Boolean   @default(false)
-  boostedUntil   DateTime?
-  isPrime        Boolean   @default(false)
+  createdAt DateTime @default(now())
 
-  createdAt      DateTime  @default(now())
-
-  comments       Comment[]
-  reports        Report[]  @relation("ReportedPost")
+  comments Comment[]
+  reports  Report[]  @relation("ReportedPost")
 
   @@index([campus, createdAt])
   @@index([campus, programKey, createdAt])
 }
 
 model Comment {
-  id         String    @id @default(cuid())
-  postId     String
-  post       Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  ghostId    String
-  text       String
-  parentId   String?
-  parent     Comment?  @relation("Replies", fields: [parentId], references: [id])
-  replies    Comment[] @relation("Replies")
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  ghostId   String
+  text      String
+  parentId  String?
+  parent    Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("Replies")
+  createdAt DateTime  @default(now())
 
   @@index([postId, parentId])
 }
 
 model BattlePrompt {
-  id        String   @id @default(cuid())
-  text      String
-  campus    String
-  active    Boolean  @default(true)
-  startsAt  DateTime @default(now())
-  endsAt    DateTime
+  id       String   @id @default(cuid())
+  text     String
+  campus   String
+  active   Boolean  @default(true)
+  startsAt DateTime @default(now())
+  endsAt   DateTime
 
-  entries   BattleEntry[]
+  entries BattleEntry[]
 }
 
 model BattleEntry {
-  id           String   @id @default(cuid())
-  promptId     String
-  prompt       BattlePrompt @relation(fields: [promptId], references: [id])
+  id       String       @id @default(cuid())
+  promptId String
+  prompt   BattlePrompt @relation(fields: [promptId], references: [id])
 
-  userId       String
-  user         User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  text         String
-  campus       String
-  votes        Int      @default(0)
-  isPrime      Boolean  @default(false)
+  text    String
+  campus  String
+  votes   Int     @default(0)
+  isPrime Boolean @default(false)
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  votesBy      Vote[]
+  votesBy Vote[]
 
   @@index([campus, promptId])
 }
 
 model Vote {
-  id            String      @id @default(cuid())
-  entryId       String
-  entry         BattleEntry @relation(fields: [entryId], references: [id])
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
-  createdAt     DateTime    @default(now())
+  id        String      @id @default(cuid())
+  entryId   String
+  entry     BattleEntry @relation(fields: [entryId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  createdAt DateTime    @default(now())
 
   @@unique([entryId, userId])
 }
 
 model Transaction {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  kind        String   // boost | prime | plus | custom_name | freeze | restore | storage | cosmetic
-  reference   String   @unique
-  amount      Int
-  status      String   @default("pending") // pending | success | failed
-  metadata    Json?
+  kind      String // boost | prime | plus | custom_name | freeze | restore | storage | cosmetic
+  reference String @unique
+  amount    Int
+  status    String @default("pending") // pending | success | failed
+  metadata  Json?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Report {
-  id          String   @id @default(cuid())
-  postId      String?
-  post        Post?    @relation("ReportedPost", fields: [postId], references: [id], onDelete: Cascade)
-  reporterId  String
-  reporter    User     @relation("ReportedBy", fields: [reporterId], references: [id])
+  id         String  @id @default(cuid())
+  postId     String?
+  post       Post?   @relation("ReportedPost", fields: [postId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User    @relation("ReportedBy", fields: [reporterId], references: [id])
 
-aiVerdict String?
+  aiVerdict String?
 
-  reason      String
-  status      String   @default("open") // open | reviewed | actioned | dismissed
+  reason String
+  status String @default("open") // open | reviewed | actioned | dismissed
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Earning {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  source      String   // "post_vote" | "battle_win" | "leaderboard_bonus"
-  sourceId    String?  // postId or battleEntryId
-  amount      Int      // in pesewas
+  source   String // "post_vote" | "battle_win" | "leaderboard_bonus"
+  sourceId String? // postId or battleEntryId
+  amount   Int // in pesewas
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Payout {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  amount        Int      // in pesewas
-  status        String   @default("pending") // pending | approved | paid | rejected
+  amount        Int // in pesewas
+  status        String  @default("pending") // pending | approved | paid | rejected
   bankCode      String?
   accountNumber String?
   accountName   String?
 
-  requestedAt   DateTime @default(now())
-  processedAt   DateTime?
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
 }
 
 model Follow {
-  id           String   @id @default(cuid())
-  followerId   String
-  follower     User     @relation("Following", fields: [followerId], references: [id])
-  followingId  String
-  following    User     @relation("Followers", fields: [followingId], references: [id])
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id])
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
 
   @@unique([followerId, followingId])
 }
@@ -241,8 +241,24 @@ model PostVote {
 }
 
 model AiDraft {
-  id          String   @id @default(cuid())
-  text        String
-  status      String   @default("pending") // pending | published | rejected
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  text      String
+  status    String   @default("pending") // pending | published | rejected
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  href      String
+  actorName String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

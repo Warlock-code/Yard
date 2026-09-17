@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { sendPush } from "@/lib/sendPush"
+import { createNotification } from "@/lib/notifications"
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,8 +28,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   const post = await prisma.post.findUnique({ where: { id }, include: { user: true } })
-if (post && post.user.pushToken && post.userId !== user.id) {
-  await sendPush(post.user.pushToken, "New comment", "Someone replied to your post")
+if (post && post.userId !== user.id) {
+  await createNotification({
+    userId: post.userId,
+    pushToken: post.user.pushToken,
+    type: "comment",
+    title: "New comment",
+    body: `${user.ghostId} replied to your post`,
+    href: `/post/${post.id}`,
+    actorName: user.ghostId,
+  })
 }
 
   return NextResponse.json({ comment })
