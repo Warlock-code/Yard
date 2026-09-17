@@ -26,6 +26,14 @@ export default function PushNotificationsSetup() {
         : permission
       if (!active || requested.receive !== "granted") return
 
+      await PushNotifications.createChannel({
+        id: "yard",
+        name: "Yard notifications",
+        description: "Comments and activity on your Yard posts",
+        importance: 5,
+        visibility: 1,
+      })
+
       registrationListener = await PushNotifications.addListener("registration", async ({ value }) => {
         try {
           await apiPost("/api/notifications/register", { token: value })
