@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+def releaseStoreFile = System.getenv('YARD_KEYSTORE_PATH') ?: project.findProperty('YARD_KEYSTORE_PATH')
+def releaseStorePassword = System.getenv('YARD_KEYSTORE_PASSWORD') ?: project.findProperty('YARD_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('YARD_KEY_ALIAS') ?: project.findProperty('YARD_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('YARD_KEY_PASSWORD') ?: project.findProperty('YARD_KEY_PASSWORD')
+
 android {
     namespace = "me.yardapp.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,9 +21,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            if (!signingConfigs.release.storeFile && gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+                throw new GradleException('Release signing is not configured. Set YARD_KEYSTORE_PATH, YARD_KEYSTORE_PASSWORD, YARD_KEY_ALIAS, and YARD_KEY_PASSWORD.')
+            }
+            if (signingConfigs.release.storeFile) signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
