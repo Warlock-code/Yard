@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
+import { apiGet } from "@/lib/useApi"
 
 const TABS = [
   { href: "/feed", icon: "🏠" },
@@ -14,8 +16,30 @@ const TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname()
-    const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
+  const [unreadCount, setUnreadCount] = useState(0)
+  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
   const hidePrefixes = ["/post/"]
+
+  useEffect(() => {
+    let active = true
+
+    async function loadUnreadCount() {
+      try {
+        const data = await apiGet("/api/notifications?limit=1")
+        if (active) setUnreadCount(data.unreadCount || 0)
+      } catch {
+        if (active) setUnreadCount(0)
+      }
+    }
+
+    loadUnreadCount()
+    const interval = window.setInterval(loadUnreadCount, 20_000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [pathname])
+
   if (hideOn.includes(pathname) || hidePrefixes.some((p) => pathname.startsWith(p))) return null
 
   return (
@@ -27,11 +51,17 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`w-11 h-11 flex items-center justify-center rounded-full text-lg transition-all ${
+              className={`relative w-11 h-11 flex items-center justify-center rounded-full text-lg transition-all ${
                 active ? "bg-[#baff39]/15 text-[#baff39]" : "text-white/40"
               }`}
             >
               {tab.icon}
+              {tab.href === "/notifications" && unreadCount > 0 && (
+                <span
+                  aria-label={`${unreadCount} unread notifications`}
+                  className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#ff4d6d] border-2 border-[#0a0a0a]"
+                />
+              )}
             </Link>
           )
         })}
