@@ -1,12 +1,15 @@
 "use client"
 
 import { useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 import { PushNotifications } from "@capacitor/push-notifications"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 export default function PushNotificationsSetup() {
+  const pathname = usePathname()
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
 
@@ -112,7 +115,7 @@ export default function PushNotificationsSetup() {
       actionListener?.remove()
       localActionListener?.remove()
     }
-  }, [])
+  }, [pathname])
 
   return null
 }
