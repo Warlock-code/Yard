@@ -1,7 +1,32 @@
 import { google } from "googleapis"
 
+type FirebaseServiceAccount = {
+  project_id: string
+  client_email: string
+  private_key: string
+}
+
+function getServiceAccount(): FirebaseServiceAccount | null {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim()
+  if (!raw) {
+    console.error("FCM is not configured: FIREBASE_SERVICE_ACCOUNT is missing")
+    return null
+  }
+
+  try {
+    const unwrapped = raw.replace(/^'([\s\S]*)'$/, "$1").replace(/^\"([\s\S]*)\"$/, "$1")
+    const key = JSON.parse(unwrapped) as FirebaseServiceAccount
+    if (!key.project_id || !key.client_email || !key.private_key) throw new Error("Incomplete Firebase service account")
+    return { ...key, private_key: key.private_key.replace(/\\n/g, "\n") }
+  } catch (error) {
+    console.error("FCM is not configured: invalid FIREBASE_SERVICE_ACCOUNT", error)
+    return null
+  }
+}
+
 async function getAccessToken() {
-  const key = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!)
+  const key = getServiceAccount()
+  if (!key) return null
   const jwtClient = new google.auth.JWT({
     email: key.client_email,
     key: key.private_key,
@@ -13,12 +38,11 @@ async function getAccessToken() {
 
 export async function sendPush(pushToken: string, title: string, body: string, href?: string) {
   if (!pushToken) return
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  if (!serviceAccount) return
-
   try {
-    const key = JSON.parse(serviceAccount)
+    const key = getServiceAccount()
+    if (!key) return
     const accessToken = await getAccessToken()
+    if (!accessToken) return
 
     const response = await fetch(`https://fcm.googleapis.com/v1/projects/${key.project_id}/messages:send`, {
       method: "POST",
@@ -37,7 +61,8 @@ export async function sendPush(pushToken: string, title: string, body: string, h
     })
 
     if (!response.ok) {
-      console.error("FCM notification failed", response.status, await response.text())
+      const errorBody = await response.text()
+      console.error("FCM notification failed", response.status, errorBody)
     }
   } catch (error) {
     console.error("FCM notification could not be sent", error)
