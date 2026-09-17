@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.user.update({ where: { id: user.id }, data: { pushToken: token } })
+  console.info("FCM device token registered", { userId: user.id })
 
   return NextResponse.json({ success: true })
 }

@@ -37,7 +37,10 @@ async function getAccessToken() {
 }
 
 export async function sendPush(pushToken: string, title: string, body: string, href?: string) {
-  if (!pushToken) return
+  if (!pushToken) {
+    console.error("FCM notification skipped: recipient has no registered device token")
+    return
+  }
   try {
     const key = getServiceAccount()
     if (!key) return
