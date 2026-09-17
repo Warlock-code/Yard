@@ -1,17 +1,32 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { UTApi } from "uploadthing/server"
+
+const BYTES_PER_MB = 1024 * 1024
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const post = await prisma.post.findUnique({ where: { id } })
+  const post = await prisma.post.findUnique({ where: { id }, include: { upload: true } })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
   if (post.userId !== user.id) return NextResponse.json({ error: "Not your post." }, { status: 403 })
 
-  await prisma.post.delete({ where: { id } })
+  await prisma.$transaction([
+    ...(post.upload
+      ? [prisma.mediaUpload.delete({ where: { id: post.upload.id } })]
+      : []),
+    prisma.post.delete({ where: { id } }),
+  ])
+  if (post.upload) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { storageUsed: { decrement: post.upload.sizeBytes / BYTES_PER_MB } },
+    })
+    await new UTApi().deleteFiles(post.upload.fileKey)
+  }
   return NextResponse.json({ success: true })
 }
 

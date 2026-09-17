@@ -1,9 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { apiPost } from "@/lib/useApi"
+import { apiGet, apiPost } from "@/lib/useApi"
 import { useUploadThing } from "@/lib/uploadthing"
+
+type StorageQuota = {
+  storageUsed: number
+  storageRemaining: number
+}
 
 export default function ComposePage() {
   const router = useRouter()
@@ -11,21 +16,77 @@ export default function ComposePage() {
   const [image, setImage] = useState<string | null>(null)
   const [visibility, setVisibility] = useState<"school" | "program">("school")
   const [posting, setPosting] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [quota, setQuota] = useState<StorageQuota | null>(null)
+  const [quotaError, setQuotaError] = useState("")
+
+  const refreshQuota = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/auth/me")
+      .then((data) => {
+        if (!data.user) throw new Error("Sign in to check your storage.")
+        if (!isCurrent()) return
+        setQuota(data.user)
+        setQuotaError("")
+      })
+      .catch((err: unknown) => {
+        if (!isCurrent()) return
+        setQuota(null)
+        setQuotaError(err instanceof Error ? err.message : "Could not load storage.")
+      })
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    refreshQuota(() => active)
+    return () => { active = false }
+  }, [refreshQuota])
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
-    onClientUploadComplete: (res) => {
-      if (res?.[0]?.url) setImage(res[0].url)
+    onClientUploadComplete: async (res) => {
+      const url = res?.[0]?.serverData?.url
+      if (url) setImage(url)
+      else alert("Upload completed without an image URL. Check pending images in your lair.")
+      await refreshQuota()
     },
     onUploadError: (err) => alert(`Upload failed: ${err.message}`),
   })
 
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) startUpload([file])
+    e.target.value = ""
+    if (!file || image || isUploading || removing || posting || !quota) return
+    if (file.size > quota.storageRemaining * 1024 * 1024) {
+      alert("Not enough storage for this image. Free up space in your lair or visit the shop.")
+      return
+    }
+    startUpload([file])
+  }
+
+  async function handleRemoveImage() {
+    if (!image || removing || posting || isUploading) return
+    setRemoving(true)
+    try {
+      const res = await fetch("/api/storage", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ url: image }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Could not remove image.")
+      }
+      setImage(null)
+      await refreshQuota()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Could not remove image.")
+    } finally {
+      setRemoving(false)
+    }
   }
 
   async function handlePost() {
-    if (!text.trim() && !image) return
+    if (posting || isUploading || removing || (!text.trim() && !image)) return
     setPosting(true)
     try {
       await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
@@ -46,7 +107,7 @@ export default function ComposePage() {
         <button
           className="btn-primary px-5 py-1.5 text-sm"
           onClick={handlePost}
-          disabled={posting || isUploading || (!text.trim() && !image)}
+          disabled={posting || isUploading || removing || (!text.trim() && !image)}
         >
           {posting ? "Posting..." : "Post"}
         </button>
@@ -66,8 +127,10 @@ export default function ComposePage() {
           <div className="relative mt-3">
             <img src={image} className="rounded-lg w-full max-h-80 object-cover" alt="" />
             <button
-              onClick={() => setImage(null)}
-              className="absolute top-2 right-2 bg-black/70 rounded-full w-7 h-7 text-sm"
+              onClick={handleRemoveImage}
+              disabled={removing || posting || isUploading}
+              aria-label={removing ? "Removing image" : "Remove image"}
+              className="absolute top-2 right-2 bg-black/70 rounded-full w-7 h-7 text-sm disabled:opacity-40"
             >
               ✕
             </button>
@@ -95,9 +158,24 @@ export default function ComposePage() {
           </button>
         </div>
 
-        <label className="btn-ghost cursor-pointer inline-block">
-          {isUploading ? "Uploading..." : "📷 Add photo"}
-          <input type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
+        <div className="text-xs text-white/40" role="status">
+          {quota ? (
+            <p>{quota.storageUsed.toFixed(2)} MB used · {quota.storageRemaining.toFixed(2)} MB remaining</p>
+          ) : quotaError ? (
+            <p>{quotaError} <button className="text-[#baff39]" onClick={() => refreshQuota()}>Retry</button></p>
+          ) : (
+            <p>Loading storage...</p>
+          )}
+        </div>
+        <label className={`btn-ghost inline-block ${image || isUploading || removing || posting || !quota || quota.storageRemaining <= 0 ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
+          {isUploading ? "Uploading..." : removing ? "Removing..." : image ? "Remove photo to add another" : "Add photo"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImagePick}
+            disabled={!!image || isUploading || removing || posting || !quota || quota.storageRemaining <= 0}
+          />
         </label>
       </div>
     </main>

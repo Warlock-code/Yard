@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
       totalEarnedPesewas: totalEarned,
       availableBalancePesewas: totalEarned - totalPaidOut,
       hasPendingPayout: !!pendingPayout,
+      storageUsed: Math.max(0, user.storageUsed),
+      storageLimit: user.storageLimit,
+      storageRemaining: Math.max(0, user.storageLimit - user.storageUsed),
     },
   })
 }

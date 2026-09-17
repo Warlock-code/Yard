@@ -49,8 +49,8 @@ model User {
   ghostCoins Int @default(0)
   freeBoosts Int @default(0)
 
-  storageUsed  Int @default(0)
-  storageLimit Int @default(50)
+  storageUsed  Float @default(0)
+  storageLimit Int   @default(50)
 
   battleChampion Boolean @default(false)
   weeklyChampion Boolean @default(false)
@@ -67,6 +67,22 @@ model User {
   payouts       Payout[]
   notifications Notification[]
   deviceTokens  DeviceToken[]
+  uploads       MediaUpload[]
+}
+
+model MediaUpload {
+  id        String   @id @default(cuid())
+  fileKey   String   @unique
+  url       String   @unique
+  sizeBytes Int
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String?  @unique
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
 }
 
 model DeviceToken {
@@ -113,7 +129,8 @@ model Post {
   createdAt DateTime @default(now())
 
   comments Comment[]
-  reports  Report[]  @relation("ReportedPost")
+  reports  Report[]     @relation("ReportedPost")
+  upload   MediaUpload?
 
   @@index([campus, createdAt])
   @@index([campus, programKey, createdAt])

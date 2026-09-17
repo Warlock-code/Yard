@@ -76,6 +76,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const upload = imageUrl
+    ? await prisma.mediaUpload.findUnique({ where: { url: imageUrl } })
+    : null
+
+  if (imageUrl && (!upload || upload.userId !== user.id)) {
+    return NextResponse.json({ error: "Image not found in your storage." }, { status: 400 })
+  }
+
   const post = await prisma.post.create({
     data: {
       userId: user.id,
@@ -91,6 +99,13 @@ export async function POST(req: NextRequest) {
       visibility: visibility === "program" ? "program" : "school",
     },
   })
+
+  if (upload) {
+    await prisma.mediaUpload.update({
+      where: { id: upload.id },
+      data: { postId: post.id, status: "posted" },
+    })
+  }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 type Me = {
@@ -17,7 +18,12 @@ type Me = {
   totalEarnedPesewas: number
   availableBalancePesewas: number
   hasPendingPayout: boolean
+  storageUsed: number
+  storageLimit: number
+  storageRemaining: number
 }
+
+type PendingUpload = { id: string; url: string; sizeBytes: number }
 
 type Bank = { name: string; code: string }
 
@@ -34,6 +40,56 @@ export default function LairPage() {
   const [bankCode, setBankCode] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
+  const [uploads, setUploads] = useState<PendingUpload[]>([])
+  const [storageLoading, setStorageLoading] = useState(true)
+  const [storageError, setStorageError] = useState("")
+  const [discarding, setDiscarding] = useState<string | null>(null)
+
+  const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/storage")
+      .then((data) => {
+        if (!isCurrent()) return
+        setUploads(data.uploads)
+        setStorageError("")
+      })
+      .catch((err: unknown) => {
+        if (isCurrent()) setStorageError(err instanceof Error ? err.message : "Could not load pending images.")
+      })
+      .finally(() => {
+        if (isCurrent()) setStorageLoading(false)
+      })
+  }, [])
+
+  async function discardUpload(upload: PendingUpload) {
+    if (discarding) return
+    setDiscarding(upload.id)
+    setStorageError("")
+    try {
+      const res = await fetch("/api/storage", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ url: upload.url }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Could not discard image.")
+      }
+      setUploads((current) => current.filter((item) => item.id !== upload.id))
+      const data = await apiGet("/api/auth/me")
+      if (!data.user) throw new Error("Could not refresh storage. Reload to try again.")
+      setMe((current) => current ? {
+        ...current,
+        storageUsed: data.user.storageUsed,
+        storageLimit: data.user.storageLimit,
+        storageRemaining: data.user.storageRemaining,
+      } : current)
+    } catch (err: unknown) {
+      setStorageError(err instanceof Error ? err.message : "Could not update storage.")
+    } finally {
+      setDiscarding(null)
+    }
+  }
 
   const load = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/auth/me")
@@ -54,8 +110,9 @@ export default function LairPage() {
   useEffect(() => {
     let active = true
     load(() => active)
+    loadStorage(() => active)
     return () => { active = false }
-  }, [load])
+  }, [load, loadStorage])
 
   async function openPayoutModal() {
     try {
@@ -144,6 +201,46 @@ export default function LairPage() {
         <span className="font-semibold text-sm">📜 My Posts & Liked Posts</span>
         <span className="text-white/40">→</span>
       </button>
+
+      <div className="card p-4 mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-semibold">Image storage</p>
+          <Link href="/shop" className="text-sm text-[#baff39]">Get more storage</Link>
+        </div>
+        <p className="text-sm text-white/50">
+          {me.storageUsed.toFixed(2)} MB used / {me.storageLimit.toFixed(2)} MB
+        </p>
+        <p className="text-xs text-white/40 mt-1">{me.storageRemaining.toFixed(2)} MB remaining</p>
+        <p className="font-semibold text-sm mt-4 mb-1">Pending images</p>
+        <p className="text-xs text-white/40 mb-3">Discard unposted images to reclaim storage.</p>
+        {storageError && (
+          <p className="text-xs text-white/50 mb-3" role="alert">
+            {storageError}{" "}
+            <button className="text-[#baff39]" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>Refresh</button>
+          </p>
+        )}
+        {storageLoading ? (
+          <p className="text-xs text-white/40">Loading pending images...</p>
+        ) : uploads.length === 0 ? (
+          !storageError && <p className="text-xs text-white/40">No pending images.</p>
+        ) : (
+          <ul className="space-y-3">
+            {uploads.map((upload) => (
+              <li key={upload.id} className="flex items-center gap-3">
+                <img src={upload.url} alt="Unposted upload" className="w-16 h-16 rounded-lg object-cover" />
+                <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} MB</span>
+                <button
+                  className="btn-ghost text-xs disabled:opacity-40"
+                  disabled={!!discarding}
+                  onClick={() => discardUpload(upload)}
+                >
+                  {discarding === upload.id ? "Discarding..." : "Discard"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {me.tier === "FREE" && (
         <div className="card p-4 mb-3">
