@@ -7,6 +7,10 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   const { token } = await req.json()
+  if (typeof token !== "string" || !token.trim()) {
+    return NextResponse.json({ error: "A push token is required." }, { status: 400 })
+  }
+
   await prisma.user.update({ where: { id: user.id }, data: { pushToken: token } })
 
   return NextResponse.json({ success: true })
