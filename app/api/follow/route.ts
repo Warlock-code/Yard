@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { createNotification } from "@/lib/notifications"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -21,6 +22,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ following: false })
     }
     throw err
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } })
+  if (target) {
+    await createNotification({
+      userId: target.id,
+      pushToken: target.pushToken,
+      type: "follow",
+      title: "New follower",
+      body: `${user.ghostId} followed you`,
+      href: "/feed",
+      actorName: user.ghostId,
+    })
   }
 
   return NextResponse.json({ following: true })

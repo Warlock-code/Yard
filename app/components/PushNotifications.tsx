@@ -1,19 +1,17 @@
 "use client"
 
 import { useEffect } from "react"
-import { usePathname } from "next/navigation"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 import { PushNotifications } from "@capacitor/push-notifications"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 export default function PushNotificationsSetup() {
-  const pathname = usePathname()
-
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
 
     let active = true
+    let registeredToken = ""
     let registrationListener: { remove: () => Promise<void> } | undefined
     let registrationErrorListener: { remove: () => Promise<void> } | undefined
     let actionListener: { remove: () => Promise<void> } | undefined
@@ -21,6 +19,19 @@ export default function PushNotificationsSetup() {
     let localActionListener: { remove: () => Promise<void> } | undefined
 
     async function setup() {
+      registrationListener = await PushNotifications.addListener("registration", async ({ value }) => {
+        registeredToken = value
+        try {
+          await apiPost("/api/notifications/register", { token: value })
+          console.info("Yard push token registered")
+        } catch (error) {
+          console.error("Yard push token registration failed", error)
+        }
+      })
+      registrationErrorListener = await PushNotifications.addListener("registrationError", (error) => {
+        console.error("Yard push registration failed", error)
+      })
+
       const permission = await PushNotifications.checkPermissions()
       if (!active || permission.receive === "denied") return
 
@@ -29,7 +40,11 @@ export default function PushNotificationsSetup() {
         : permission
       if (!active || requested.receive !== "granted") return
 
-      await apiGet("/api/auth/me")
+      try {
+        await apiGet("/api/auth/me")
+      } catch {
+        return
+      }
 
       await PushNotifications.createChannel({
         id: "yard-v2",
@@ -40,16 +55,6 @@ export default function PushNotificationsSetup() {
         sound: "default",
       }).catch((error) => console.error("Yard push channel setup failed", error))
 
-      registrationListener = await PushNotifications.addListener("registration", async ({ value }) => {
-        try {
-          await apiPost("/api/notifications/register", { token: value })
-        } catch (error) {
-          console.error("Yard push token registration failed", error)
-        }
-      })
-      registrationErrorListener = await PushNotifications.addListener("registrationError", (error) => {
-        console.error("Yard push registration failed", error)
-      })
       foregroundListener = await PushNotifications.addListener("pushNotificationReceived", async (notification) => {
         if (!notification.title && !notification.body) return
         await LocalNotifications.schedule({
@@ -89,6 +94,12 @@ export default function PushNotificationsSetup() {
       }
 
       await PushNotifications.register()
+
+      if (registeredToken) {
+        await apiPost("/api/notifications/register", { token: registeredToken }).catch((error) => {
+          console.error("Yard push token retry failed", error)
+        })
+      }
     }
 
     setup().catch((error) => console.error("Yard push setup failed", error))
@@ -101,7 +112,7 @@ export default function PushNotificationsSetup() {
       actionListener?.remove()
       localActionListener?.remove()
     }
-  }, [pathname])
+  }, [])
 
   return null
 }
