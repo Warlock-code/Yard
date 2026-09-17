@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 import { PushNotifications } from "@capacitor/push-notifications"
-import { apiPost } from "@/lib/useApi"
+import { apiGet, apiPost } from "@/lib/useApi"
 
 export default function PushNotificationsSetup() {
   const pathname = usePathname()
@@ -52,14 +52,18 @@ export default function PushNotificationsSetup() {
         sound: "default",
       })
 
+      await apiGet("/api/auth/me")
+
       registrationListener = await PushNotifications.addListener("registration", async ({ value }) => {
         try {
           await apiPost("/api/notifications/register", { token: value })
-        } catch {
-          // The user may be signed out when the native app starts.
+        } catch (error) {
+          console.error("Yard push token registration failed", error)
         }
       })
-      registrationErrorListener = await PushNotifications.addListener("registrationError", () => {})
+      registrationErrorListener = await PushNotifications.addListener("registrationError", (error) => {
+        console.error("Yard push registration failed", error)
+      })
       foregroundListener = await PushNotifications.addListener("pushNotificationReceived", async (notification) => {
         if (!notification.title && !notification.body) return
         await LocalNotifications.schedule({
