@@ -53,6 +53,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
+    const trRef = event.data?.reference || ""
+    if (typeof trRef === "string" && trRef.startsWith("payout_")) {
+      const payoutId = trRef.split("_")[1]
+      if (payoutId) {
+        const payout = await prisma.payout.findUnique({ where: { id: payoutId } })
+        if (payout && payout.status === "approved") {
+          if (event.event === "transfer.success") {
+            await prisma.payout.update({ where: { id: payout.id }, data: { status: "paid", processedAt: new Date() } })
+          } else {
+            await prisma.payout.update({ where: { id: payout.id }, data: { status: "rejected" } })
+          }
+        }
+      }
+    }
+  }
+
   if (event.event === "subscription.disable") {
     const customerEmail = event.data.customer.email
     const user = await prisma.user.findUnique({ where: { email: customerEmail } })

@@ -19,7 +19,7 @@ export default function BottomNav() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
-  const hidePrefixes = ["/post/"]
+  const hidePrefixes = ["/post/", "/admin"]
 
   useEffect(() => {
     let active = true
@@ -68,8 +68,8 @@ export default function BottomNav() {
   ) return null
 
   return (
-    <nav className="fixed bottom-5 left-0 right-0 z-20 flex justify-center px-6">
-      <div className="flex gap-1 bg-[#0a0a0a]/35 backdrop-blur-md border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+    <nav className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-6">
+      <div className="flex gap-1 bg-[#0a0a0a]/20 backdrop-blur-sm border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/")
           return (

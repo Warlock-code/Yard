@@ -36,6 +36,8 @@ type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
 const SECTIONS = ["Overview", "Reports", "Payouts", "Users", "Posts", "Battles"]
 
+const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
+
 function ghs(pesewas: number) {
   return `GHS ${(pesewas / 100).toFixed(2)}`
 }
@@ -124,7 +126,7 @@ export default function AdminPage() {
     await adminFetch("/api/admin/battles/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: promptText, campus, durationHours: 24 }),
+      body: JSON.stringify({ text: promptText, campus, durationHours: 24 * 7 }),
     })
     alert("Battle created.")
     setPromptText("")
@@ -171,7 +173,10 @@ export default function AdminPage() {
           <div className="card p-3"><p className="text-xs text-white/40">Posts</p><p className="text-lg font-bold">{stats.postCount}</p></div>
           <div className="card p-3"><p className="text-xs text-white/40">Prime</p><p className="text-lg font-bold">{stats.primeCount}</p></div>
           <div className="card p-3"><p className="text-xs text-white/40">Plus</p><p className="text-lg font-bold">{stats.plusCount}</p></div>
-          <div className="card p-3 col-span-2"><p className="text-xs text-white/40">Total revenue</p><p className="text-lg font-bold">{ghs(stats.revenuePesewas)}</p></div>
+          <div className="card p-5 col-span-2 border border-[#baff39]/30" style={{ background: "linear-gradient(135deg, rgba(186,255,57,0.08), rgba(186,255,57,0.02))" }}>
+            <p className="text-xs text-white/50 uppercase tracking-widest">Total revenue</p>
+            <p className="text-3xl font-black text-[#baff39] mt-1">{ghs(stats.revenuePesewas)}</p>
+          </div>
           <div className="card p-3"><p className="text-xs text-white/40">Pending payouts</p><p className="text-lg font-bold">{ghs(stats.pendingPayoutPesewas)}</p></div>
           <div className="card p-3"><p className="text-xs text-white/40">Paid out</p><p className="text-lg font-bold">{ghs(stats.paidOutPesewas)}</p></div>
         </div>
@@ -246,7 +251,12 @@ export default function AdminPage() {
         <div className="card p-4">
           <p className="font-semibold mb-2">Create Battle Prompt</p>
           <input className="input mb-2" placeholder="Prompt text" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
-          <input className="input mb-2" placeholder="Campus (exact match)" value={campus} onChange={(e) => setCampus(e.target.value)} />
+          <select className="input mb-2" value={campus} onChange={(e) => setCampus(e.target.value)}>
+            <option value="">Select school</option>
+            {CAMPUSES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           <button className="btn-primary w-full" onClick={handleCreateBattle}>Create</button>
         </div>
       )}

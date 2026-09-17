@@ -32,26 +32,46 @@ export async function initializeSubscription(email: string, planCode: string, re
   return res.json()
 }
 
+const MOMO_BANK_CODES = new Set(["MTN", "VOD", "ATL", "AFB", "GCB", "TIGO"])
+
 export async function createTransferRecipient(name: string, accountNumber: string, bankCode: string) {
+  const isMomo = MOMO_BANK_CODES.has(bankCode.toUpperCase())
   const res = await fetch("https://api.paystack.co/transferrecipient", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type: "ghipss", name, account_number: accountNumber, bank_code: bankCode, currency: "GHS" }),
+    body: JSON.stringify({
+      type: isMomo ? "mobile_money" : "ghipss",
+      name,
+      account_number: accountNumber,
+      bank_code: bankCode,
+      currency: "GHS",
+    }),
   })
   return res.json()
 }
 
-export async function initiateTransfer(amountPesewas: number, recipientCode: string, reason: string) {
+export async function initiateTransfer(
+  amountPesewas: number,
+  recipientCode: string,
+  reason: string,
+  reference?: string
+) {
   const res = await fetch("https://api.paystack.co/transfer", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PAYSTACK_SECRET}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ source: "balance", amount: amountPesewas, recipient: recipientCode, reason }),
+    body: JSON.stringify({
+      source: "balance",
+      amount: amountPesewas,
+      recipient: recipientCode,
+      reason,
+      ...(reference ? { reference } : {}),
+    }),
   })
   return res.json()
 }

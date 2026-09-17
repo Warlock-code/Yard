@@ -13,6 +13,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const { decision } = await req.json()
 
+  if (decision !== "actioned" && decision !== "dismissed") {
+    return NextResponse.json({ error: "Invalid decision." }, { status: 400 })
+  }
+
   const report = await prisma.report.findUnique({ where: { id } })
   if (!report) return NextResponse.json({ error: "Not found." }, { status: 404 })
 

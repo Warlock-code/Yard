@@ -25,16 +25,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Failed to create transfer recipient." }, { status: 400 })
   }
 
+  const reference = `payout_${payout.id}_${Date.now()}`
+
   const transfer = await initiateTransfer(
     payout.amount,
     recipient.data.recipient_code,
-    "Yard creator payout"
+    "Yard creator payout",
+    reference
   )
 
   await prisma.payout.update({
     where: { id: payout.id },
     data: {
-      status: transfer.status ? "paid" : "rejected",
+      status: transfer.status ? "approved" : "rejected",
       processedAt: new Date(),
     },
   })

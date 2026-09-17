@@ -115,11 +115,13 @@ export default function LairPage() {
   }, [load, loadStorage])
 
   async function openPayoutModal() {
-    try {
-      const data = await apiGet("/api/banks")
-      setBanks(data.banks || [])
-    } catch {
-      setBanks([])
+    if (banks.length === 0) {
+      try {
+        const data = await apiGet("/api/banks")
+        setBanks(data.banks || [])
+      } catch {
+        setBanks([])
+      }
     }
     setShowPayout(true)
   }
@@ -302,7 +304,7 @@ export default function LairPage() {
             <h3 className="font-bold text-lg mb-1">Request Payout</h3>
             <p className="text-white/50 text-xs mb-3">Minimum GHS 20.00. Only opens at month-end and the 14th–16th.</p>
             <select className="input mb-2" value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
-              <option value="">Select mobile money network</option>
+              <option value="">Select your bank or MoMo network</option>
               {banks.map((b) => (
                 <option key={b.code} value={b.code}>{b.name}</option>
               ))}

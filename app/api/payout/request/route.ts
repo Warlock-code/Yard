@@ -22,7 +22,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payouts open at month-end and mid-month (14th–16th) only." }, { status: 400 })
   }
 
+  const pending = await prisma.payout.findFirst({ where: { userId: user.id, status: "pending" } })
+  if (pending) {
+    return NextResponse.json({ error: "You already have a payout request pending approval." }, { status: 409 })
+  }
+
   const { bankCode, accountNumber, accountName } = await req.json()
+  if (
+    typeof bankCode !== "string" || !bankCode.trim() ||
+    typeof accountNumber !== "string" || !accountNumber.trim() ||
+    typeof accountName !== "string" || !accountName.trim()
+  ) {
+    return NextResponse.json({ error: "Bank, account number and account name are required." }, { status: 400 })
+  }
 
   const earnings = await prisma.earning.aggregate({ where: { userId: user.id }, _sum: { amount: true } })
   const alreadyPaid = await prisma.payout.aggregate({
