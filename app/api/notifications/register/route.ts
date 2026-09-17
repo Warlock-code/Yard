@@ -11,6 +11,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A push token is required." }, { status: 400 })
   }
 
+  await prisma.deviceToken.upsert({
+    where: { token },
+    update: { userId: user.id, platform: "android" },
+    create: { userId: user.id, token, platform: "android" },
+  })
   await prisma.user.update({ where: { id: user.id }, data: { pushToken: token } })
   console.info("FCM device token registered", { userId: user.id })
 

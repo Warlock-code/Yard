@@ -25,12 +25,19 @@ export async function createNotification(input: NotificationInput) {
 
   const recipient = await prisma.user.findUnique({
     where: { id: input.userId },
-    select: { pushToken: true },
+    select: {
+      pushToken: true,
+      deviceTokens: { select: { token: true } },
+    },
   })
-  const pushToken = recipient?.pushToken || input.pushToken
+  const tokens = new Set([
+    ...(recipient?.deviceTokens.map((device) => device.token) || []),
+    recipient?.pushToken,
+    input.pushToken,
+  ].filter((token): token is string => Boolean(token)))
 
-  if (pushToken) {
-    await sendPush(pushToken, input.title, input.body, input.href)
+  for (const token of tokens) {
+    await sendPush(token, input.title, input.body, input.href)
   }
 
   return notification
