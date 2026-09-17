@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       ghostId: user.ghostId,
       avatarEmoji: user.avatarEmoji,
       campus: user.campus,
+      program: user.program,
       tier: user.tier,
       streakCount: user.streakCount,
       ghostCoins: user.ghostCoins,

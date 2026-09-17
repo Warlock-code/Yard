@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { moderateWithAI } from "@/lib/moderateWithAI"
 import { rateLimit } from "@/lib/rateLimit"
+import { getReadablePostWhere } from "@/lib/programAccess"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -19,13 +20,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many reports. Try again later." }, { status: 429 })
   }
 
+  const post = await prisma.post.findFirst({ where: { id: postId, AND: [await getReadablePostWhere(user)] } })
+  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+
   const report = await prisma.report.create({
     data: { postId, reporterId: user.id, reason },
   })
 
   await prisma.post.update({ where: { id: postId }, data: { archived: true } })
 
-  const post = await prisma.post.findUnique({ where: { id: postId } })
   const verdict = await moderateWithAI(post?.text || "", reason)
 
   await prisma.report.update({ where: { id: report.id }, data: { aiVerdict: verdict } })

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { sendPush } from "@/lib/sendPush"
+import { canReadPost } from "@/lib/program"
 
 type NotificationInput = {
   userId: string
@@ -12,6 +13,15 @@ type NotificationInput = {
 }
 
 export async function createNotification(input: NotificationInput) {
+  if (input.href.startsWith("/post/")) {
+    const postId = input.href.slice("/post/".length).split(/[?#]/u)[0]
+    const [viewer, post] = await Promise.all([
+      prisma.user.findUnique({ where: { id: input.userId }, select: { campus: true, program: true } }),
+      prisma.post.findUnique({ where: { id: postId } }),
+    ])
+    if (!viewer || !post || !canReadPost(viewer, post)) return null
+  }
+
   const notification = await prisma.notification.create({
     data: {
       userId: input.userId,

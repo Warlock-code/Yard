@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { blockIfNative } from "@/lib/purchaseGate"
+import RichText from "@/app/components/RichText"
 
 type Post = {
   id: string
@@ -298,14 +299,21 @@ export default function FeedPage() {
             const followPending = pendingFollows.has(post.user.id)
             return (
               <div key={post.id} className="relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
+                <Link href={`/post/${post.id}`} aria-label={`Open post by ${post.user.ghostId}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]" />
                 <div className="flex items-start gap-3">
-                  <div className="avatar-circle text-base flex-shrink-0">{post.user.avatarEmoji}</div>
+                  <Link
+                    href={`/u/${encodeURIComponent(post.user.ghostId)}`}
+                    aria-label={`View ${post.user.ghostId}'s profile`}
+                    className="relative z-10 flex-shrink-0 focus-visible:outline-[#baff39]"
+                  >
+                    <div className="avatar-circle text-base">{post.user.avatarEmoji}</div>
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap text-sm">
                       <Link
-                        href={`/post/${post.id}`}
-                        aria-label={`Open post by ${post.user.ghostId}`}
-                        className="font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-[#baff39]"
+                        href={`/u/${encodeURIComponent(post.user.ghostId)}`}
+                        aria-label={`View ${post.user.ghostId}'s profile`}
+                        className="font-semibold relative z-10 focus-visible:outline-[#baff39]"
                       >
                         {post.user.ghostId}
                       </Link>
@@ -314,7 +322,11 @@ export default function FeedPage() {
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
 
-                    {post.text && <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">{post.text}</p>}
+                    {post.text && (
+                      <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">
+                        <RichText text={post.text} />
+                      </p>
+                    )}
                     {post.imageUrl && (
                       <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
                     )}

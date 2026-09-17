@@ -12,6 +12,8 @@ type Notification = {
   href: string
   readAt: string | null
   createdAt: string
+  icon?: string
+  type?: string
 }
 
 export default function NotificationsPage() {
@@ -65,7 +67,7 @@ export default function NotificationsPage() {
               className={`block rounded-xl border p-4 ${notification.readAt ? "border-white/10 bg-white/[0.02]" : "border-[#baff39]/30 bg-[#baff39]/[0.06]"}`}
             >
               <div className="flex items-start gap-3">
-                <span className="text-xl">{notification.title.includes("comment") ? "💬" : "🔥"}</span>
+                <span className="text-xl">{notification.icon || "🔔"}</span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm">{notification.title}</p>
                   <p className="text-sm text-white/60 mt-1">{notification.body}</p>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { awardEarning } from "@/lib/earnings"
 import { createNotification } from "@/lib/notifications"
+import { getReadablePostWhere } from "@/lib/programAccess"
 
 const PESEWAS_PER_VOTE = 5
 const MILESTONES = [10, 50, 100, 500, 1000]
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const targetPost = await prisma.post.findUnique({ where: { id } })
+  const targetPost = await prisma.post.findFirst({ where: { id, AND: [await getReadablePostWhere(user)] } })
   if (!targetPost) return NextResponse.json({ error: "Post not found." }, { status: 404 })
   if (targetPost.userId === user.id) {
     return NextResponse.json({ error: "You can't vote on your own post." }, { status: 403 })
@@ -36,6 +37,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (MILESTONES.includes(post.yeahs)) {
       await awardEarning(owner.id, "milestone_bonus", post.id, MILESTONE_BONUS_PESEWAS[post.yeahs])
     }
+  }
+
+  if (owner && !MILESTONES.includes(post.yeahs)) {
+    await createNotification({
+      userId: owner.id,
+      pushToken: owner.pushToken,
+      type: "like",
+      title: "Your post got a yeah",
+      body: `${user.ghostId} yeahed your post`,
+      href: `/post/${post.id}`,
+      actorName: user.ghostId,
+    })
   }
 
   if (owner && MILESTONES.includes(post.yeahs)) {

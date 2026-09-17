@@ -2,8 +2,34 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { UTApi } from "uploadthing/server"
+import { getReadablePostWhere } from "@/lib/programAccess"
 
 const BYTES_PER_MB = 1024 * 1024
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const viewer = await getCurrentUser(req)
+  if (!viewer) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+
+  const { id } = await params
+  const post = await prisma.post.findFirst({
+    where: {
+      id,
+      AND: [await getReadablePostWhere(viewer)],
+    },
+    select: {
+      id: true,
+      text: true,
+      imageUrl: true,
+      yeahs: true,
+      commentsCount: true,
+      createdAt: true,
+      user: { select: { ghostId: true, avatarEmoji: true, tier: true } },
+    },
+  })
+  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+
+  return NextResponse.json({ post })
+}
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

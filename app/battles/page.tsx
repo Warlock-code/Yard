@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 type Entry = {
@@ -112,8 +113,12 @@ export default function BattlesPage() {
                 <div key={entry.id} className="card p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-white/40 text-sm font-bold">#{i + 1}</span>
-                    <span className="text-lg">{entry.user.avatarEmoji}</span>
-                    <span className="font-semibold text-sm">{entry.user.ghostId}</span>
+                    <Link href={`/u/${encodeURIComponent(entry.user.ghostId)}`} aria-label={`View ${entry.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+                      <span className="text-lg">{entry.user.avatarEmoji}</span>
+                    </Link>
+                    <Link href={`/u/${encodeURIComponent(entry.user.ghostId)}`} aria-label={`View ${entry.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+                      {entry.user.ghostId}
+                    </Link>
                     {entry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                   </div>
                   <p className="text-white/90 mb-3">{entry.text}</p>

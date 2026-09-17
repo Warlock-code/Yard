@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { notifyMentions } from "@/lib/mentions"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
@@ -129,6 +130,10 @@ export async function POST(req: NextRequest) {
         ...(streakBroke && { lastStreakCount: user.streakCount, streakBrokenAt: new Date() }),
       },
     })
+  }
+
+  if (text) {
+    await notifyMentions({ text, senderUser: user, href: `/post/${post.id}`, excludeUserId: user.id }).catch(() => {})
   }
 
   return NextResponse.json({ post })

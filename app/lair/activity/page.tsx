@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { apiGet } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
@@ -58,17 +59,23 @@ export default function ActivityPage() {
         <p className="text-white/40 text-center mt-8">Nothing here yet.</p>
       ) : (
         posts.map((p) => (
-          <div key={p.id} className="border-b border-white/[0.06] py-3">
+          <div key={p.id} className="border-b border-white/[0.06] py-3 hover:bg-white/[0.02]">
             <div className="flex items-center gap-2 text-sm mb-1">
-              <span>{p.user.avatarEmoji}</span>
-              <span className="font-semibold">{p.user.ghostId}</span>
+              <Link href={`/u/${encodeURIComponent(p.user.ghostId)}`} aria-label={`View ${p.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+                <span>{p.user.avatarEmoji}</span>
+              </Link>
+              <Link href={`/u/${encodeURIComponent(p.user.ghostId)}`} aria-label={`View ${p.user.ghostId}'s profile`} className="font-semibold focus-visible:outline-[#baff39]">
+                {p.user.ghostId}
+              </Link>
               <span className="text-white/30">· {timeAgo(p.createdAt)}</span>
             </div>
-            {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
-            <div className="flex gap-4 text-xs text-white/40 mt-1">
-              <span>🔥 {p.yeahs}</span>
-              <span>💬 {p.commentsCount}</span>
-            </div>
+            <Link href={`/post/${p.id}`} aria-label={`Open post by ${p.user.ghostId}`} className="block focus-visible:outline-[#baff39]">
+              {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
+              <div className="flex gap-4 text-xs text-white/40 mt-1">
+                <span>🔥 {p.yeahs}</span>
+                <span>💬 {p.commentsCount}</span>
+              </div>
+            </Link>
           </div>
         ))
       )}

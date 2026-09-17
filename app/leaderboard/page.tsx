@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { apiGet } from "@/lib/useApi"
 
 type Ranked = { id: string; ghostId: string; avatarEmoji: string; tier: string; score: number }
@@ -38,10 +39,14 @@ export default function LeaderboardPage() {
           {top.map((r, i) => (
             <div key={r.id} className={`card p-3 flex items-center gap-3 ${i < 3 ? "border-[#facc15]/30" : ""}`}>
               <span className={`font-black w-7 text-center ${i < 3 ? "text-[#facc15]" : "text-white/40"}`}>{i + 1}</span>
-              <span className="text-xl">{r.avatarEmoji}</span>
+              <Link href={`/u/${encodeURIComponent(r.ghostId)}`} aria-label={`View ${r.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+                <span className="text-xl">{r.avatarEmoji}</span>
+              </Link>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{r.ghostId}</span>
+                  <Link href={`/u/${encodeURIComponent(r.ghostId)}`} aria-label={`View ${r.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+                    {r.ghostId}
+                  </Link>
                   {r.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                 </div>
               </div>
@@ -57,9 +62,13 @@ export default function LeaderboardPage() {
           <p className="text-white/30 text-xs uppercase mb-2">Your position</p>
           <div className="card p-3 flex items-center gap-3 border-[#baff39]/30">
             <span className="font-black w-7 text-center text-[#baff39]">{myRank}</span>
-            <span className="text-xl">{me.avatarEmoji}</span>
+            <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+              <span className="text-xl">{me.avatarEmoji}</span>
+            </Link>
             <div className="flex-1">
-              <span className="font-semibold text-sm">{me.ghostId}</span>
+              <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+                {me.ghostId}
+              </Link>
             </div>
             <span className="text-sm text-white/50 font-semibold">{me.score} pts</span>
           </div>

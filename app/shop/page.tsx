@@ -4,15 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { blockIfNative } from "@/lib/purchaseGate"
-
-const COSMETICS = [
-  { id: "avatar_snake", name: "Snake", emoji: "🐍", price: "GHS 2.00" },
-  { id: "avatar_alien", name: "Alien", emoji: "👽", price: "GHS 2.00" },
-  { id: "avatar_witch", name: "Witch", emoji: "🧙", price: "GHS 3.00" },
-  { id: "avatar_bat", name: "Bat", emoji: "🦇", price: "GHS 3.00" },
-  { id: "avatar_spider", name: "Spider", emoji: "🕷️", price: "GHS 3.00" },
-  { id: "avatar_laughing", name: "Laughing", emoji: "😂", price: "GHS 3.50" },
-]
+import { AVATARS } from "@/lib/avatars"
 
 const CATEGORIES = [
   { key: "tier", label: "Upgrade" },
@@ -26,7 +18,7 @@ export default function ShopPage() {
   const router = useRouter()
   const [category, setCategory] = useState("tier")
   const [loading, setLoading] = useState<string | null>(null)
-  const [me, setMe] = useState<{ ownedCosmetics: string[] } | null>(null)
+  const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[] } | null>(null)
 
   useEffect(() => {
     apiGet("/api/auth/me").then((d) => setMe(d.user)).catch(() => {})
@@ -70,19 +62,36 @@ export default function ShopPage() {
         ))}
       </div>
 
-      {category === "tier" && (
+      {category === "tier" && me?.tier === "PRIME" && (
+        <div className="card p-4 mt-2">
+          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
+          <p className="font-semibold text-sm text-white/70">You&apos;re on the highest plan.</p>
+        </div>
+      )}
+
+      {category === "tier" && me?.tier !== "PRIME" && (
         <div className="space-y-3 mt-2">
-          <div className="card p-5">
-            <p className="text-xs text-white/40 uppercase mb-1">Plus</p>
-            <p className="font-bold text-lg mb-2">More perks, more style</p>
-            <button className="btn-ghost" onClick={() => buy("/api/subscribe/plus", "plus")}>
-              {loading === "plus" ? "..." : "Subscribe"}
-            </button>
-          </div>
+          {me?.tier !== "PLUS" && (
+            <div className="card p-5">
+              <p className="text-xs text-white/40 uppercase mb-1">Plus</p>
+              <p className="font-bold text-lg mb-2">More perks, more style</p>
+              <button
+                className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!me || loading !== null}
+                onClick={() => buy("/api/subscribe/plus", "plus")}
+              >
+                {loading === "plus" ? "..." : "Subscribe"}
+              </button>
+            </div>
+          )}
           <div className="card p-5 border-[#facc15]/30">
             <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
-            <p className="font-bold text-lg mb-2">Every avatar. Real earnings. Early access.</p>
-            <button className="btn-primary" onClick={() => buy("/api/subscribe/prime", "prime")}>
+            <p className="font-bold text-lg mb-2">Every tier avatar. Real earnings. Early access.</p>
+            <button
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!me || loading !== null}
+              onClick={() => buy("/api/subscribe/prime", "prime")}
+            >
               {loading === "prime" ? "..." : "Go Prime"}
             </button>
           </div>
@@ -123,7 +132,7 @@ export default function ShopPage() {
           <div className="card p-4 text-center col-span-2">
             <p className="text-3xl mb-2">💾</p>
             <p className="font-semibold text-sm">Storage +100MB</p>
-            <p className="text-white/40 text-xs mb-3">GHS 4.00</p>
+            <p className="text-white/40 text-xs mb-3">GHS 10.00</p>
             <button className="btn-primary w-full text-sm" onClick={() => buy("/api/shop/storage", "storage")}>
               {loading === "storage" ? "..." : "Buy"}
             </button>
@@ -132,14 +141,21 @@ export default function ShopPage() {
       )}
 
       {category === "avatars" && (
-        <div className="grid grid-cols-2 gap-3 mt-2">
-          {COSMETICS.map((c) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+          {AVATARS.map((c) => {
             const owned = me?.ownedCosmetics?.includes(c.id)
+            const rarityClass = {
+              common: "text-white/40",
+              rare: "text-sky-300",
+              epic: "text-fuchsia-300",
+              legendary: "text-[#facc15]",
+            }[c.rarity]
             return (
               <div key={c.id} className="card p-4 text-center">
                 <p className="text-3xl mb-2">{c.emoji}</p>
                 <p className="font-semibold text-sm">{c.name}</p>
-                <p className="text-white/40 text-xs mb-3">{owned ? "Owned" : c.price}</p>
+                <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
+                <p className="text-white/40 text-xs mb-3">{owned ? "Owned" : `GHS ${(c.pricePesewas / 100).toFixed(2)}`}</p>
                 <button
                   className="btn-primary w-full text-sm"
                   disabled={owned}
@@ -156,7 +172,7 @@ export default function ShopPage() {
       {category === "identity" && (
         <div className="card p-4 mt-2">
           <p className="font-semibold text-sm mb-1">✏️ Custom Ghost Name</p>
-          <p className="text-white/40 text-xs mb-3">GHS 3.00 — change from your Lair page.</p>
+          <p className="text-white/40 text-xs mb-3">GHS 5.00 — change from your Lair page.</p>
           <button className="btn-ghost" onClick={() => router.push("/lair")}>
             Go to Lair
           </button>

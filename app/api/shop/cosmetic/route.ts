@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
+import { AVATARS } from "@/lib/avatars"
 
-export const COSMETICS = [
-  { id: "avatar_snake", name: "Snake", emoji: "🐍", pricePesewas: 200 },
-  { id: "avatar_alien", name: "Alien", emoji: "👽", pricePesewas: 200 },
-  { id: "avatar_witch", name: "Witch", emoji: "🧙", pricePesewas: 300 },
-  { id: "avatar_bat", name: "Bat", emoji: "🦇", pricePesewas: 300 },
-  { id: "avatar_spider", name: "Spider", emoji: "🕷️", pricePesewas: 300 },
-  { id: "avatar_laughing", name: "Laughing", emoji: "😂", pricePesewas: 350 },
-]
+export const COSMETICS = AVATARS
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)

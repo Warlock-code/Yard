@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
@@ -9,6 +10,7 @@ type Comment = {
   id: string
   text: string
   ghostId: string
+  user: { ghostId: string; avatarEmoji: string }
   createdAt: string
   parentId: string | null
   replies: Comment[]
@@ -34,10 +36,14 @@ function CommentThread({
   return (
     <div className="mt-3">
       <div className="flex gap-2">
-        <div className="avatar-circle text-sm w-8 h-8">👻</div>
+        <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+          <div className="avatar-circle text-sm w-8 h-8">{comment.user.avatarEmoji}</div>
+        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{comment.ghostId}</span>
+            <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+              {comment.user.ghostId}
+            </Link>
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
@@ -72,6 +78,7 @@ function PostDetail({ postId }: { postId: string }) {
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [commentText, setCommentText] = useState("")
   const [replyingTo, setReplyingTo] = useState<{ id: string; ghostId: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -90,10 +97,15 @@ function PostDetail({ postId }: { postId: string }) {
 
     async function loadPost() {
       try {
-        const feedData = await apiGet(`/api/posts?mode=all`)
+        const response = await fetch(`/api/posts/${postId}`, { credentials: "include", cache: "no-store" })
         if (!active) return
-        const found = feedData.posts.find((p: Post) => p.id === postId)
-        setPost(found || null)
+        if (response.status === 401) throw new Error("Not authenticated.")
+        if (response.status === 404) return
+        if (!response.ok) throw new Error(`Unable to load post (${response.status}). Please try again.`)
+        const data = await response.json()
+        if (!active) return
+        if (!data.post) throw new Error("Unable to load post. Please try again.")
+        setPost(data.post)
         try {
           const data = await apiGet(`/api/posts/${postId}/comments`)
           if (active) setComments(data.comments)
@@ -101,9 +113,11 @@ function PostDetail({ postId }: { postId: string }) {
           console.error(err)
         }
       } catch (err: unknown) {
-        if (active && err instanceof Error && err.message === "Not authenticated.") {
+        if (!active) return
+        if (err instanceof Error && err.message === "Not authenticated.") {
           router.push("/login")
         }
+        setError(err instanceof Error ? err.message : "Unable to load post. Please try again.")
       } finally {
         if (active) setLoading(false)
       }
@@ -141,6 +155,7 @@ function PostDetail({ postId }: { postId: string }) {
   }
 
   if (loading) return <p className="text-center text-white/40 mt-10">Loading...</p>
+  if (error) return <p role="alert" className="text-center text-white/40 mt-10">{error}</p>
   if (!post) return <p className="text-center text-white/40 mt-10">Post not found.</p>
 
   return (
@@ -153,10 +168,14 @@ function PostDetail({ postId }: { postId: string }) {
 
       <div className="card m-4 p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="avatar-circle">{post.user.avatarEmoji}</div>
+          <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+            <div className="avatar-circle">{post.user.avatarEmoji}</div>
+          </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">{post.user.ghostId}</span>
+              <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+                {post.user.ghostId}
+              </Link>
               {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>

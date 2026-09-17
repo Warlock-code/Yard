@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { AVATAR_EMOJI_MAP } from "@/lib/avatars"
 
 const TIER_AVATARS: Record<string, string[]> = {
   FREE: ["👻"],
@@ -8,14 +9,7 @@ const TIER_AVATARS: Record<string, string[]> = {
   PRIME: ["👻", "🐍", "👽", "🧙", "🦇", "🕷️", "😂"],
 }
 
-const COSMETIC_EMOJI_MAP: Record<string, string> = {
-  avatar_snake: "🐍",
-  avatar_alien: "👽",
-  avatar_witch: "🧙",
-  avatar_bat: "🦇",
-  avatar_spider: "🕷️",
-  avatar_laughing: "😂",
-}
+const COSMETIC_EMOJI_MAP = AVATAR_EMOJI_MAP
 
 function unlockedSet(user: { tier: string; ownedCosmetics: string[] }) {
   const set = new Set(TIER_AVATARS[user.tier] || TIER_AVATARS.FREE)

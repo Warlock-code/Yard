@@ -4,6 +4,7 @@ import { hashPassword, makeGhostId, makeVerifyCode } from "@/lib/auth"
 import { getCampusFromEmail } from "@/lib/schoolEmails"
 import { sendVerifyEmail } from "@/lib/resend"
 import { rateLimit } from "@/lib/rateLimit"
+import { getProgramKey } from "@/lib/program"
 
 export async function POST(req: NextRequest) {
   const { email, password, programLevel, program } = await req.json()
@@ -31,11 +32,12 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.create({
     data: {
-      email,
+      email: normalizedEmail,
       passwordHash,
       campus,
-      programLevel,
-      program,
+      programLevel: typeof programLevel === "string" ? programLevel.trim() || null : null,
+      program: typeof program === "string" ? program.trim() || null : null,
+      programKey: getProgramKey(campus, program),
       ghostId,
       verifyCode,
     },

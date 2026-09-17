@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 
-const CUSTOM_NAME_PRICE_PESEWAS = 300 // GHS 3.00
+const CUSTOM_NAME_PRICE_PESEWAS = 500 // GHS 5.00
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)

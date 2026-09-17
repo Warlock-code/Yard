@@ -4,8 +4,11 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { useUploadThing } from "@/lib/uploadthing"
+import { getProgramKey } from "@/lib/program"
 
 type StorageQuota = {
+  campus: string
+  program: string | null
   storageUsed: number
   storageRemaining: number
 }
@@ -19,6 +22,7 @@ export default function ComposePage() {
   const [removing, setRemoving] = useState(false)
   const [quota, setQuota] = useState<StorageQuota | null>(null)
   const [quotaError, setQuotaError] = useState("")
+  const hasProgram = !!getProgramKey(quota?.campus, quota?.program)
 
   const refreshQuota = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/auth/me")
@@ -86,7 +90,7 @@ export default function ComposePage() {
   }
 
   async function handlePost() {
-    if (posting || isUploading || removing || (!text.trim() && !image)) return
+    if (posting || isUploading || removing || (visibility === "program" && !hasProgram) || (!text.trim() && !image)) return
     setPosting(true)
     try {
       await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
@@ -107,7 +111,7 @@ export default function ComposePage() {
         <button
           className="btn-primary px-5 py-1.5 text-sm"
           onClick={handlePost}
-          disabled={posting || isUploading || removing || (!text.trim() && !image)}
+          disabled={posting || isUploading || removing || (visibility === "program" && !hasProgram) || (!text.trim() && !image)}
         >
           {posting ? "Posting..." : "Post"}
         </button>
@@ -150,7 +154,9 @@ export default function ComposePage() {
           </button>
           <button
             onClick={() => setVisibility("program")}
-            className={`flex-1 text-xs py-2 rounded-full border ${
+            disabled={!hasProgram}
+            title={!hasProgram ? "A program is required for program-only posts." : undefined}
+            className={`flex-1 text-xs py-2 rounded-full border disabled:opacity-40 disabled:cursor-not-allowed ${
               visibility === "program" ? "border-[#baff39] text-[#baff39]" : "border-white/15 text-white/40"
             }`}
           >

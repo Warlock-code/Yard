@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getReadablePostWhere } from "@/lib/programAccess"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -8,6 +9,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const type = searchParams.get("type") || "posts"
+  const readablePosts = await getReadablePostWhere(user)
 
   if (type === "liked") {
     const votes = await prisma.postVote.findMany({
@@ -17,7 +19,7 @@ export async function GET(req: NextRequest) {
       select: { postId: true },
     })
     const posts = await prisma.post.findMany({
-      where: { id: { in: votes.map((vote) => vote.postId) } },
+      where: { id: { in: votes.map((vote) => vote.postId) }, AND: [readablePosts] },
       include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
     })
     const postsById = new Map(posts.map((post) => [post.id, post]))
@@ -29,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 
   const posts = await prisma.post.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, AND: [readablePosts] },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },

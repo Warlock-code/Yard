@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 
-const STORAGE_PRICE_PESEWAS = 400 // GHS 4.00 for +100MB, adjust as needed
+const STORAGE_PRICE_PESEWAS = 1000 // GHS 10.00 for +100MB, adjust as needed
 const STORAGE_BOOST_MB = 100
 
 export async function POST(req: NextRequest) {
