@@ -128,6 +128,11 @@ export async function GET(req: NextRequest) {
   const type = searchParams.get("type") || "all"
   const cursor = searchParams.get("cursor")
 
+  const follows = await prisma.follow.findMany({
+    where: { followerId: user.id },
+    select: { followingId: true },
+  })
+  const followingIds = new Set(follows.map((follow) => follow.followingId))
   const where: Prisma.PostWhereInput = { archived: false }
 
   if (mode === "campus") {
@@ -137,8 +142,7 @@ export async function GET(req: NextRequest) {
     where.campus = user.campus
     where.programKey = user.programKey
   } else if (mode === "following") {
-    const follows = await prisma.follow.findMany({ where: { followerId: user.id } })
-    where.userId = { in: follows.map((f) => f.followingId) }
+    where.userId = { in: [...followingIds] }
   } else if (mode === "all") {
     where.visibility = "school"
   }
@@ -163,7 +167,7 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({
-    posts: sorted,
+    posts: sorted.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId) })),
     nextCursor: posts.length === 20 ? posts[posts.length - 1].id : null,
   })
 }
