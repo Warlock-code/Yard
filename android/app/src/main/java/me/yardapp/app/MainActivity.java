@@ -3,10 +3,17 @@ package me.yardapp.app;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+		@Override
+		public void onCreate(Bundle savedInstanceState) {
+			registerPlugin(YardPushPlugin.class);
+			super.onCreate(savedInstanceState);
+		}
+
 	private static final int NOTIFICATION_PERMISSION_REQUEST = 7001;
 
 	@Override

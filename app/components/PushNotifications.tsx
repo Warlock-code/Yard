@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 import { PushNotifications } from "@capacitor/push-notifications"
+import { registerPlugin } from "@capacitor/core"
 import { apiGet, apiPost } from "@/lib/useApi"
+
+const YardPush = registerPlugin<{ getToken: () => Promise<{ token: string }> }>("YardPush")
 
 export default function PushNotificationsSetup() {
   const pathname = usePathname()
@@ -23,6 +26,12 @@ export default function PushNotificationsSetup() {
     let foregroundListener: { remove: () => Promise<void> } | undefined
     let localActionListener: { remove: () => Promise<void> } | undefined
 
+    async function getNativeToken() {
+      const result = await YardPush.getToken()
+      if (!result.token) throw new Error("Native Firebase returned an empty token")
+      return result.token
+    }
+
     function retryRegistration() {
       if (!active || retryTimer || registeredToken) return
       retryTimer = setTimeout(() => {
@@ -35,10 +44,13 @@ export default function PushNotificationsSetup() {
       if (!active || registrationInFlight || registeredToken) return
       registrationInFlight = true
       try {
-        await PushNotifications.register()
-        if (!registeredToken) retryRegistration()
+        const token = await getNativeToken()
+        registeredToken = token
+        await apiPost("/api/notifications/register", { token })
+        console.info("Yard native push token registered")
       } catch (error) {
         console.error("Yard push registration attempt failed", error)
+        registeredToken = ""
         retryRegistration()
       } finally {
         registrationInFlight = false
