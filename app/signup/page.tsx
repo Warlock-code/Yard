@@ -78,6 +78,12 @@ export default function SignupPage() {
           Log in
         </a>
       </p>
+      <p className="text-center text-white/40 text-sm mt-4">
+        Need the Android app?{" "}
+        <a href="/download" className="text-[#baff39] font-semibold">
+          Download Yard
+        </a>
+      </p>
             <p className="text-center text-white/30 text-xs mt-4 px-4">
         By signing up you agree to our{" "}
         <a href="/terms" className="underline">Terms</a>,{" "}

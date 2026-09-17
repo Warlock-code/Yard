@@ -33,6 +33,12 @@ export default function WelcomePage() {
       <button className="btn-primary w-full" onClick={handleContinue}>
         Get Started
       </button>
+      <a
+        href="/download"
+        className="block text-center text-[#baff39] text-sm font-semibold mt-4"
+      >
+        Download the Android app
+      </a>
     </main>
   )
 }
