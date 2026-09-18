@@ -255,53 +255,82 @@ export default function AdminPage() {
           </div>
           <p className="text-xs text-white/30 mt-2">Control Center · Ghana campuses</p>
         </div>
-        {/* Tier mini stats — makes sidebar feel used */}
-        <div className="px-3 pt-3">
+        {/* Tier mini stats — 3 filled cards */}
+        <div className="px-3 pt-3 space-y-2">
           {stats ? (
-            <div className="card p-3 bg-white/[0.02] border-white/[0.06]">
-              <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-2">Tier breakdown</p>
-              <div className="space-y-2">
-                {(() => {
-                  const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
-                  const total = Math.max(1, stats.userCount)
-                  const items = [
-                    { label: "Prime", icon: "👑", count: stats.primeCount, price: "GHS 20", color: "text-[#facc15]", bg: "bg-[#facc15]/15 border-[#facc15]/20", bar: "bg-[#facc15]" },
-                    { label: "Plus", icon: "⭐", count: stats.plusCount, price: "GHS 10", color: "text-sky-300", bg: "bg-sky-500/10 border-sky-500/20", bar: "bg-sky-400" },
-                    { label: "Free", icon: "👻", count: freeCount, price: "Free", color: "text-white/60", bg: "bg-white/5 border-white/10", bar: "bg-white/20" },
-                  ]
-                  return items.map((it) => {
-                    const pct = Math.round((it.count / total) * 100)
-                    return (
-                      <div key={it.label} className="flex items-center gap-2.5">
-                        <span className={`w-7 h-7 rounded-lg border flex items-center justify-center text-xs ${it.bg}`}>{it.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-bold ${it.color}`}>{it.label}</span>
-                            <span className="text-xs font-black">{it.count}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                              <div className={`h-full rounded-full ${it.bar}`} style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-[10px] text-white/25 font-medium">{pct}% · {it.price}</span>
+            <>
+              {(() => {
+                const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
+                const total = Math.max(1, stats.userCount)
+                return (
+                  <>
+                    {/* Prime — filled */}
+                    <div className="card p-3 border-[#facc15]/20 bg-[#facc15]/[0.06]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-8 h-8 rounded-lg bg-[#facc15]/15 border border-[#facc15]/20 grid place-items-center text-sm">👑</span>
+                          <div>
+                            <p className="text-xs font-black text-[#facc15] leading-none">Prime</p>
+                            <p className="text-[10px] text-white/30">GHS 20/mo · auto-renew</p>
                           </div>
                         </div>
+                        <span className="text-xl font-black text-[#facc15]">{stats.primeCount}</span>
                       </div>
-                    )
-                  })
-                })()}
-              </div>
-              <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-                <span className="text-white/30">{stats.userCount} total · {stats.activeUsers} active 7d</span>
-                <span className="text-white/20 font-mono">{ghs(stats.revenuePesewas)}</span>
-              </div>
-            </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-black/30 overflow-hidden">
+                        <div className="h-full bg-[#facc15]" style={{ width: `${Math.round((stats.primeCount/total)*100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-white/30 mt-1.5 flex justify-between"><span>{Math.round((stats.primeCount/total)*100)}% of users</span><span className="text-[#facc15]/60">{ghs(stats.primeCount * 2000)} potent.</span></p>
+                    </div>
+                    {/* Plus — filled */}
+                    <div className="card p-3 border-sky-500/20 bg-sky-500/[0.06]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 grid place-items-center text-sm">⭐</span>
+                          <div>
+                            <p className="text-xs font-black text-sky-300 leading-none">Plus</p>
+                            <p className="text-[10px] text-white/30">GHS 10/mo · upgrade path</p>
+                          </div>
+                        </div>
+                        <span className="text-xl font-black text-sky-300">{stats.plusCount}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-black/30 overflow-hidden">
+                        <div className="h-full bg-sky-400" style={{ width: `${Math.round((stats.plusCount/total)*100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-white/30 mt-1.5 flex justify-between"><span>{Math.round((stats.plusCount/total)*100)}% of users</span><span>Push to Prime →</span></p>
+                    </div>
+                    {/* Free — filled */}
+                    <div className="card p-3 border-white/10 bg-white/[0.03]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 grid place-items-center text-sm">👻</span>
+                          <div>
+                            <p className="text-xs font-black text-white/80 leading-none">Free</p>
+                            <p className="text-[10px] text-white/30">Potential • convert</p>
+                          </div>
+                        </div>
+                        <span className="text-xl font-black text-white/80">{freeCount}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-black/30 overflow-hidden">
+                        <div className="h-full bg-white/20" style={{ width: `${Math.round((freeCount/total)*100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-white/25 mt-1.5 flex justify-between"><span>{Math.round((freeCount/total)*100)}% of users</span><span>{freeCount > 0 ? `${freeCount} to upsell` : "All converted!"}</span></p>
+                    </div>
+                    <div className="flex items-center justify-between px-1 text-[10px] text-white/25">
+                      <span>{stats.userCount} total • {stats.activeUsers} active 7d</span>
+                      <span className="font-mono text-white/20">{ghs(stats.revenuePesewas)}</span>
+                    </div>
+                  </>
+                )
+              })()}
+            </>
           ) : (
-            <div className="card p-3 bg-white/[0.02] border-white/[0.06] animate-pulse">
-              <div className="h-3 w-20 bg-white/10 rounded mb-3" />
-              <div className="space-y-2">
-                {[1,2,3].map(i=> <div key={i} className="h-8 bg-white/5 rounded" />)}
-              </div>
+            <div className="space-y-2">
+              {[1,2,3].map(i=> (
+                <div key={i} className="card p-3 bg-white/[0.02] border-white/[0.06] animate-pulse">
+                  <div className="h-3 w-16 bg-white/10 rounded mb-2" />
+                  <div className="h-6 w-12 bg-white/5 rounded" />
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -343,27 +372,27 @@ export default function AdminPage() {
               <span className="font-black text-lg">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] tracking-widest text-white/30 ml-1">ADMIN</span></span>
               <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60">✕</button>
             </div>
-            {stats && (
-              <div className="px-3 pt-3">
-                <div className="card p-3 bg-white/[0.02] border-white/10">
-                  <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-2">Tiers</p>
-                  <div className="space-y-2">
-                    {(() => {
-                      const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
-                      return [
-                        { label: "Prime", icon: "👑", count: stats.primeCount, color: "text-[#facc15]" },
-                        { label: "Plus", icon: "⭐", count: stats.plusCount, color: "text-sky-300" },
-                        { label: "Free", icon: "👻", count: freeCount, color: "text-white/60" },
-                      ].map(it => (
-                        <div key={it.label} className="flex items-center justify-between text-xs">
-                          <span className={it.color}>{it.icon} {it.label}</span>
-                          <span className="font-bold">{it.count}</span>
-                        </div>
-                      ))
-                    })()}
-                  </div>
-                </div>
+            {stats ? (
+              <div className="px-3 pt-3 space-y-2">
+                {(() => {
+                  const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
+                  return (
+                    <>
+                      <div className="card p-2.5 border-[#facc15]/20 bg-[#facc15]/[0.06] flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#facc15]">👑 Prime · {stats.primeCount}</span><span className="text-[10px] text-white/30">GHS 20</span>
+                      </div>
+                      <div className="card p-2.5 border-sky-500/20 bg-sky-500/[0.06] flex items-center justify-between">
+                        <span className="text-xs font-bold text-sky-300">⭐ Plus · {stats.plusCount}</span><span className="text-[10px] text-white/30">GHS 10</span>
+                      </div>
+                      <div className="card p-2.5 border-white/10 bg-white/[0.03] flex items-center justify-between">
+                        <span className="text-xs font-bold text-white/70">👻 Free · {freeCount}</span><span className="text-[10px] text-white/30">{freeCount} to convert</span>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
+            ) : (
+              <div className="px-3 pt-3"><div className="card p-3 animate-pulse h-20 bg-white/5" /></div>
             )}
             <div className="flex-1 overflow-y-auto p-3 space-y-6">
               {NAV_GROUPS.map((group) => (
