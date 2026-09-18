@@ -11,10 +11,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Invalid action." }, { status: 400 })
   }
 
-  const statusMap = { suspend: "SUSPENDED", ban: "BANNED", unsuspend: "ACTIVE" }
+  const statusMap = { suspend: "SUSPENDED", ban: "BANNED", unsuspend: "ACTIVE" } as const
   const user = await prisma.user.update({
     where: { id },
-    data: { status: statusMap[action] },
+    data: { status: statusMap[action as keyof typeof statusMap] },
     select: { id: true, status: true, email: true },
   })
 

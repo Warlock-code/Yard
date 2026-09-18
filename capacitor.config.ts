@@ -22,7 +22,6 @@ const config: CapacitorConfig = {
       keystorePath: undefined,
       keystoreAlias: undefined,
       keystorePassword: undefined,
-      keyPassword: undefined,
     },
   },
   plugins: {

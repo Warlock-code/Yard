@@ -24,15 +24,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "This report has already been reviewed." }, { status: 409 })
   }
 
-  if (decision === "dismissed" && report.postId) {
+if (decision === "dismissed" && report.postId) {
     await prisma.$transaction(async (tx) => {
       await tx.report.update({ where: { id }, data: { status: "dismissed" } })
       // Legacy reports may have hidden a post. Never restore it while another report is waiting.
       const remainingOpenReports = await tx.report.count({
-        where: { postId: report.postId, id: { not: id }, status: "open" },
+        where: { postId: report.postId!, id: { not: id }, status: "open" },
       })
       if (remainingOpenReports === 0) {
-        await tx.post.updateMany({ where: { id: report.postId, archived: true }, data: { archived: false } })
+        await tx.post.updateMany({ where: { id: report.postId!, archived: true }, data: { archived: false } })
       }
     })
 } else if (decision === "actioned" && report.postId) {
