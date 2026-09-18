@@ -51,7 +51,7 @@ const TABS = [
   { key: "hashtags", label: "Hashtags", icon: "#" },
 ]
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "posts")
@@ -70,51 +70,54 @@ export default function SearchPage() {
   const campus = searchParams.get("campus") || ""
   const hashtagFilter = searchParams.get("hashtag") || ""
 
-  const fetchResults = useCallback(async (page = 1, append = false) => {
-    if (!query.trim()) {
-      setResults({ posts: [], total: 0, page: 1, totalPages: 0 })
-      setLoading(false)
-      return
-    }
-
-    if (!append) setLoading(true)
-    else setLoadingMore(true)
-
-    try {
-      const params = new URLSearchParams()
-      params.set("q", query)
-      params.set("tab", activeTab)
-      params.set("page", page.toString())
-      params.set("limit", "20")
-      params.set("sortBy", filters.sortBy)
-      if (campus) params.set("campus", campus)
-      if (filters.type !== "all") params.set("type", filters.type)
-      if (hashtagFilter) params.set("hashtag", hashtagFilter)
-      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
-      if (filters.dateTo) params.set("dateTo", filters.dateTo)
-
-      const res = await fetch(`/api/search?${params.toString()}`)
-      if (!res.ok) throw new Error("Search failed")
-
-      const data = await res.json()
-
-      if (append && data.posts) {
-        setResults((prev) => ({
-          ...data,
-          posts: [...prev.posts, ...data.posts],
-        }))
-      } else {
-        setResults(data)
+  const fetchResults = useCallback(
+    async (page = 1, append = false) => {
+      if (!query.trim()) {
+        setResults({ posts: [], total: 0, page: 1, totalPages: 0 })
+        setLoading(false)
+        return
       }
-      setNextCursor(data.posts?.length === 20 ? data.posts[data.posts.length - 1]?.id : null)
-    } catch (err) {
-      console.error(err)
-      if (!append) setResults({ posts: [], total: 0, page: 1, totalPages: 0 })
-    } finally {
-      setLoading(false)
-      setLoadingMore(false)
-    }
-  }, [query, activeTab, campus, hashtagFilter, filters])
+
+      if (!append) setLoading(true)
+      else setLoadingMore(true)
+
+      try {
+        const params = new URLSearchParams()
+        params.set("q", query)
+        params.set("tab", activeTab)
+        params.set("page", page.toString())
+        params.set("limit", "20")
+        params.set("sortBy", filters.sortBy)
+        if (campus) params.set("campus", campus)
+        if (filters.type !== "all") params.set("type", filters.type)
+        if (hashtagFilter) params.set("hashtag", hashtagFilter)
+        if (filters.dateFrom) params.set("dateFrom", filters.dateFrom)
+        if (filters.dateTo) params.set("dateTo", filters.dateTo)
+
+        const res = await fetch(`/api/search?${params.toString()}`)
+        if (!res.ok) throw new Error("Search failed")
+
+        const data = await res.json()
+
+        if (append && data.posts) {
+          setResults((prev) => ({
+            ...data,
+            posts: [...prev.posts, ...data.posts],
+          }))
+        } else {
+          setResults(data)
+        }
+        setNextCursor(data.posts?.length === 20 ? data.posts[data.posts.length - 1]?.id : null)
+      } catch (err) {
+        console.error(err)
+        if (!append) setResults({ posts: [], total: 0, page: 1, totalPages: 0 })
+      } finally {
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    },
+    [query, activeTab, campus, hashtagFilter, filters]
+  )
 
   useEffect(() => {
     fetchResults(1, false)
@@ -224,7 +227,9 @@ export default function SearchPage() {
       {activeTab === "posts" && (
         <>
           <div className="flex items-center justify-between text-sm text-white/50 mb-3 px-1">
-            <span>{results.total} result{results.total !== 1 ? "s" : ""}</span>
+            <span>
+              {results.total} result{results.total !== 1 ? "s" : ""}
+            </span>
             <select
               value={filters.sortBy}
               onChange={(e) => handleFilterChange("sortBy", e.target.value)}
@@ -244,18 +249,33 @@ export default function SearchPage() {
           ) : (
             <div className="space-y-0">
               {posts.map((post) => (
-                <article key={post.id} className="px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
-                  <Link href={`/post/${post.id}`} aria-label={`Open post by ${post.user.ghostId}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]" />
+                <article
+                  key={post.id}
+                  className="px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02] relative"
+                >
+                  <Link
+                    href={`/post/${post.id}`}
+                    aria-label={`Open post by ${post.user.ghostId}`}
+                    className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]"
+                  />
                   <div className="flex items-start gap-3 relative z-10">
-                    <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="flex-shrink-0">
+                    <Link
+                      href={`/u/${encodeURIComponent(post.user.ghostId)}`}
+                      className="flex-shrink-0"
+                    >
                       <div className="avatar-circle text-base">{post.user.avatarEmoji}</div>
                     </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap text-sm">
-                        <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="font-semibold">
+                        <Link
+                          href={`/u/${encodeURIComponent(post.user.ghostId)}`}
+                          className="font-semibold"
+                        >
                           {post.user.ghostId}
                         </Link>
-                        {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                        {post.user.tier === "PRIME" && (
+                          <span className="badge badge-prime">Prime</span>
+                        )}
                         {post.boosted && <span className="badge badge-boosted">Boosted</span>}
                         <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                       </div>
@@ -300,7 +320,9 @@ export default function SearchPage() {
                   </div>
                 </article>
               ))}
-              {loadingMore && <p className="text-center text-white/30 text-sm py-4">Loading more...</p>}
+              {loadingMore && (
+                <p className="text-center text-white/30 text-sm py-4">Loading more...</p>
+              )}
               {!loadingMore && nextCursor && (
                 <button
                   onClick={handleLoadMore}
@@ -323,7 +345,11 @@ export default function SearchPage() {
             </div>
           ) : (
             users.map((user) => (
-              <Link key={user.id} href={`/u/${encodeURIComponent(user.ghostId)}`} className="block px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
+              <Link
+                key={user.id}
+                href={`/u/${encodeURIComponent(user.ghostId)}`}
+                className="block px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]"
+              >
                 <div className="flex items-center gap-3">
                   <div className="avatar-circle text-lg">{user.avatarEmoji}</div>
                   <div className="flex-1 min-w-0">
@@ -332,10 +358,20 @@ export default function SearchPage() {
                       {user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                     </div>
                     <p className="text-white/40 text-sm mt-0.5">
-                      {user._count.followers} follower{user._count.followers !== 1 ? "s" : ""} · {user._count.posts} post{user._count.posts !== 1 ? "s" : ""}
+                      {user._count.followers} follower
+                      {user._count.followers !== 1 ? "s" : ""} · {user._count.posts} post
+                      {user._count.posts !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/30">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="text-white/30"
+                  >
                     <path d="M9 18l6-6-6-6" />
                   </svg>
                 </div>
@@ -354,16 +390,24 @@ export default function SearchPage() {
             </div>
           ) : (
             hashtags.map((ht) => (
-              <Link key={ht.id} href={`/search?q=%23${encodeURIComponent(ht.tag)}&tab=posts`} className="block px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
+              <Link
+                key={ht.id}
+                href={`/search?q=%23${encodeURIComponent(ht.tag)}&tab=posts`}
+                className="block px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">#</span>
                     <div>
                       <p className="font-semibold text-white/90">#{ht.tag}</p>
-                      <p className="text-white/40 text-sm">{ht.postsCount} post{ht.postsCount !== 1 ? "s" : ""}</p>
+                      <p className="text-white/40 text-sm">
+                        {ht.postsCount} post{ht.postsCount !== 1 ? "s" : ""}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded">Trending: {ht.trendingScore.toFixed(1)}</span>
+                  <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded">
+                    Trending: {ht.trendingScore.toFixed(1)}
+                  </span>
                 </div>
               </Link>
             ))
@@ -371,5 +415,19 @@ export default function SearchPage() {
         </div>
       )}
     </main>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 py-6 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#baff39] border-t-transparent" />
+        </main>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   )
 }
