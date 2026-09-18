@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -8,8 +8,12 @@ import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { blockIfNative } from "@/lib/purchaseGate"
 import RichText from "@/app/components/RichText"
-import { useSocket, useSocketEvent } from "@/lib/socket"
+import { useSocket } from "@/lib/socket"
 import SearchBar from "@/app/components/SearchBar"
+
+function SearchBarWrapper() {
+  return <SearchBar />
+}
 
 type Post = {
   id: string
@@ -291,7 +295,9 @@ export default function FeedPage() {
           YARD<span className="text-[#baff39]">.</span>
         </span>
         <Link href="/search" className="absolute right-4" aria-label="Search">
-          <SearchBar placeholder="Search..." showFilters={false} className="w-48" />
+          <Suspense fallback={<div className="h-10 w-48 bg-white/5 border border-white/10 rounded-full animate-pulse" />}>
+            <SearchBar placeholder="Search..." showFilters={false} className="w-48" />
+          </Suspense>
         </Link>
       </div>
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { apiGet } from "@/lib/useApi"
 import {
   EarningsLineChart,
@@ -10,7 +9,6 @@ import {
   EarningsPieChart,
   FollowerGrowthChart,
   ActiveHoursChart,
-  CampusBarChart,
   ComparisonBarChart,
   StatCard,
   DateRangePicker,
@@ -118,21 +116,20 @@ export default function AnalyticsPage() {
     )
   }
 
-  const currentWeekEarnings = earnings?.breakdown.posts
-    .filter((p) => new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-    .reduce((s, p) => s + p.amount, 0) || 0
+  const currentWeekEarnings =
+    earnings?.breakdown.posts
+      .filter((p) => new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+      .reduce((s, p) => s + p.amount, 0) || 0
 
-  const lastWeekEarnings = earnings?.breakdown.posts
-    .filter((p) => {
-      const d = new Date(p.createdAt)
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-      return d > twoWeeksAgo && d <= weekAgo
-    })
-    .reduce((s, p) => s + p.amount, 0) || 0
-
-  const currentMonthEarnings = earnings?.totalEarned || 0
-  const lastMonthEarnings = 0
+  const lastWeekEarnings =
+    earnings?.breakdown.posts
+      .filter((p) => {
+        const d = new Date(p.createdAt)
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+        return d > twoWeeksAgo && d <= weekAgo
+      })
+      .reduce((s, p) => s + p.amount, 0) || 0
 
   const earningsSources = Object.entries(earnings?.bySource || {})
     .map(([name, value]) => ({
@@ -146,7 +143,9 @@ export default function AnalyticsPage() {
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="flex items-center gap-3 pt-5 pb-3">
-        <button onClick={() => router.back()} className="text-white/60">←</button>
+        <button onClick={() => router.back()} className="text-white/60">
+          ←
+        </button>
         <h1 className="text-xl font-bold">Analytics</h1>
       </div>
 
@@ -172,7 +171,7 @@ export default function AnalyticsPage() {
           <StatCard
             label="Total Earned"
             value={`₵${(earnings.totalEarned / 100).toFixed(2)}`}
-            change={`${earnings.range}`}
+            change={earnings.range}
           />
         )}
       </div>
@@ -183,7 +182,11 @@ export default function AnalyticsPage() {
             <StatCard
               label="Total Earnings"
               value={earnings ? `₵${(earnings.totalEarned / 100).toFixed(2)}` : "₵0.00"}
-              change={lastWeekEarnings ? `${currentWeekEarnings > lastWeekEarnings ? "+" : ""}${((currentWeekEarnings - lastWeekEarnings) / 100).toFixed(2)} vs last week` : undefined}
+              change={
+                lastWeekEarnings
+                  ? `${currentWeekEarnings > lastWeekEarnings ? "+" : ""}${((currentWeekEarnings - lastWeekEarnings) / 100).toFixed(2)} vs last week`
+                  : undefined
+              }
               trend={currentWeekEarnings >= lastWeekEarnings ? "up" : "down"}
             />
             <StatCard
@@ -235,12 +238,14 @@ export default function AnalyticsPage() {
             ) : (
               topPosts.map((post) => (
                 <div key={post.id} className="border-b border-white/[0.06] py-3 last:border-0">
-                  <p className="text-sm text-white/90 mb-1">{post.text || (post.imageUrl ? "📷 Image post" : "Post")}</p>
+                  <p className="text-sm text-white/90 mb-1">
+                    {post.text || (post.imageUrl ? "📷 Image post" : "Post")}
+                  </p>
                   <div className="flex gap-4 text-xs text-white/40">
                     <span>👁 {post.views.toLocaleString()}</span>
                     <span>🔥 {post.yeahs}</span>
                     <span>💬 {post.comments}</span>
-                    <span className="text-[#baff39]">₵${(post.earnings / 100).toFixed(2)}</span>
+                    <span className="text-[#baff39]">₵{(post.earnings / 100).toFixed(2)}</span>
                     <span>{post.engagementRate.toFixed(1)}%</span>
                   </div>
                 </div>
@@ -259,8 +264,10 @@ export default function AnalyticsPage() {
               {earningsSources.map((s) => (
                 <div key={s.name} className="bg-white/[0.02] rounded-lg p-3 text-center">
                   <p className="text-xs text-white/40">{s.name}</p>
-                  <p className="text-lg font-bold text-white">₵${(s.value / 100).toFixed(2)}</p>
-                  <p className="text-xs text-white/30">{((s.value / earnings.totalEarned) * 100).toFixed(1)}%</p>
+                  <p className="text-lg font-bold text-white">₵{(s.value / 100).toFixed(2)}</p>
+                  <p className="text-xs text-white/30">
+                    {((s.value / earnings.totalEarned) * 100).toFixed(1)}%
+                  </p>
                 </div>
               ))}
             </div>
@@ -277,12 +284,21 @@ export default function AnalyticsPage() {
               <p className="text-white/40 text-center py-4">No post earnings</p>
             ) : (
               earnings.breakdown.posts.map((p) => (
-                <div key={p.postId} className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between">
+                <div
+                  key={p.postId}
+                  className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between"
+                >
                   <div className="flex-1 mr-3">
-                    <p className="text-sm text-white/90">{p.text || (p.imageUrl ? "📷 Image post" : "Post")}</p>
-                    <p className="text-xs text-white/40">{format(new Date(p.createdAt), "MMM d, yyyy")}</p>
+                    <p className="text-sm text-white/90">
+                      {p.text || (p.imageUrl ? "📷 Image post" : "Post")}
+                    </p>
+                    <p className="text-xs text-white/40">
+                      {format(new Date(p.createdAt), "MMM d, yyyy")}
+                    </p>
                   </div>
-                  <span className="text-[#baff39] font-semibold">₵${(p.amount / 100).toFixed(2)}</span>
+                  <span className="text-[#baff39] font-semibold">
+                    ₵{(p.amount / 100).toFixed(2)}
+                  </span>
                 </div>
               ))
             )}
@@ -294,13 +310,20 @@ export default function AnalyticsPage() {
               <p className="text-white/40 text-center py-4">No battle earnings</p>
             ) : (
               earnings.breakdown.battles.map((b) => (
-                <div key={b.battleEntryId} className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between">
+                <div
+                  key={b.battleEntryId}
+                  className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between"
+                >
                   <div className="flex-1 mr-3">
                     <p className="text-sm text-white/90">{b.promptText || "Battle"}</p>
-                    <p className="text-xs text-white/40">{b.text ? `${b.text.slice(0, 50)}...` : "Entry"}</p>
+                    <p className="text-xs text-white/40">
+                      {b.text ? `${b.text.slice(0, 50)}...` : "Entry"}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[#baff39] font-semibold">₵${(b.amount / 100).toFixed(2)}</span>
+                    <span className="text-[#baff39] font-semibold">
+                      ₵{(b.amount / 100).toFixed(2)}
+                    </span>
                     <p className="text-xs text-white/40">{b.votes} votes</p>
                   </div>
                 </div>
@@ -314,11 +337,18 @@ export default function AnalyticsPage() {
               <p className="text-white/40 text-center py-4">No leaderboard bonuses</p>
             ) : (
               earnings.breakdown.leaderboard.map((l, i) => (
-                <div key={i} className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between">
+                <div
+                  key={i}
+                  className="border-b border-white/[0.06] py-3 last:border-0 flex items-center justify-between"
+                >
                   <p className="text-sm text-white/90">Leaderboard Bonus</p>
                   <div className="text-right">
-                    <span className="text-[#baff39] font-semibold">₵${(l.amount / 100).toFixed(2)}</span>
-                    <p className="text-xs text-white/40">{format(new Date(l.createdAt), "MMM d, yyyy")}</p>
+                    <span className="text-[#baff39] font-semibold">
+                      ₵{(l.amount / 100).toFixed(2)}
+                    </span>
+                    <p className="text-xs text-white/40">
+                      {format(new Date(l.createdAt), "MMM d, yyyy")}
+                    </p>
                   </div>
                 </div>
               ))
@@ -332,8 +362,14 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Total Posts" value={posts.summary.totalPosts.toString()} />
             <StatCard label="Total Views" value={posts.summary.totalViews.toLocaleString()} />
-            <StatCard label="Total Earnings" value={`₵${(posts.summary.totalEarnings / 100).toFixed(2)}`} />
-            <StatCard label="Avg Engagement" value={`${posts.summary.avgEngagementRate.toFixed(1)}%`} />
+            <StatCard
+              label="Total Earnings"
+              value={`₵${(posts.summary.totalEarnings / 100).toFixed(2)}`}
+            />
+            <StatCard
+              label="Avg Engagement"
+              value={`${posts.summary.avgEngagementRate.toFixed(1)}%`}
+            />
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
@@ -350,7 +386,9 @@ export default function AnalyticsPage() {
                 <div key={post.id} className="border-b border-white/[0.06] py-3 last:border-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white/90 mb-1">{post.text || (post.imageUrl ? "📷 Image post" : "Post")}</p>
+                      <p className="text-sm text-white/90 mb-1">
+                        {post.text || (post.imageUrl ? "📷 Image post" : "Post")}
+                      </p>
                       <div className="flex gap-4 text-xs text-white/40 flex-wrap">
                         <span>👁 {post.views.toLocaleString()}</span>
                         <span>🔥 {post.yeahs}</span>
@@ -360,8 +398,12 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                     <div className="text-right whitespace-nowrap">
-                      <span className="text-[#baff39] font-semibold">₵${(post.earnings / 100).toFixed(2)}</span>
-                      <p className="text-xs text-white/40">₵${post.earningsPerView.toFixed(4)}/view</p>
+                      <span className="text-[#baff39] font-semibold">
+                        ₵{(post.earnings / 100).toFixed(2)}
+                      </span>
+                      <p className="text-xs text-white/40">
+                        ₵{post.earningsPerView.toFixed(4)}/view
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -374,15 +416,28 @@ export default function AnalyticsPage() {
       {tab === "audience" && audience && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Total Followers" value={audience.summary.totalFollowers.toLocaleString()} />
-            <StatCard label="Following" value={audience.summary.totalFollowing.toLocaleString()} />
+            <StatCard
+              label="Total Followers"
+              value={audience.summary.totalFollowers.toLocaleString()}
+            />
+            <StatCard
+              label="Following"
+              value={audience.summary.totalFollowing.toLocaleString()}
+            />
             <StatCard
               label="New Followers"
               value={audience.summary.newFollowers.toString()}
-              change={audience.summary.netGrowth > 0 ? `+${audience.summary.netGrowth} net` : undefined}
+              change={
+                audience.summary.netGrowth > 0
+                  ? `+${audience.summary.netGrowth} net`
+                  : undefined
+              }
               trend={audience.summary.netGrowth > 0 ? "up" : "down"}
             />
-            <StatCard label="Campuses" value={audience.summary.uniqueCampuses.toString()} />
+            <StatCard
+              label="Campuses"
+              value={audience.summary.uniqueCampuses.toString()}
+            />
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
@@ -393,7 +448,19 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
               <h3 className="text-sm font-semibold mb-3">Top Campuses</h3>
-              <CampusBarChart data={audience.topCampuses} />
+              {audience.topCampuses.length === 0 ? (
+                <p className="text-white/40 text-center py-4 text-sm">No data</p>
+              ) : (
+                audience.topCampuses.map((c, i) => (
+                  <div
+                    key={i}
+                    className="border-b border-white/[0.06] py-2 last:border-0 flex items-center justify-between"
+                  >
+                    <p className="text-sm text-white/90">{c.campus}</p>
+                    <span className="text-white/60 text-sm">{c.count}</span>
+                  </div>
+                ))
+              )}
             </div>
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
               <h3 className="text-sm font-semibold mb-3">Active Hours</h3>
@@ -407,7 +474,10 @@ export default function AnalyticsPage() {
               <p className="text-white/40 text-center py-4">No program data</p>
             ) : (
               audience.topPrograms.map((p, i) => (
-                <div key={i} className="border-b border-white/[0.06] py-2 last:border-0 flex items-center justify-between">
+                <div
+                  key={i}
+                  className="border-b border-white/[0.06] py-2 last:border-0 flex items-center justify-between"
+                >
                   <p className="text-sm text-white/90">{p.program}</p>
                   <span className="text-white/60">{p.count} followers</span>
                 </div>

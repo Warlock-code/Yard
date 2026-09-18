@@ -28,7 +28,7 @@ export default function SearchBar({
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q.trim() || q.length < 2) {
@@ -91,7 +91,16 @@ export default function SearchBar({
   function handleSuggestionClick(suggestion: string) {
     setQuery(suggestion)
     setShowSuggestions(false)
-    handleSubmit(new Event("submit") as unknown as React.FormEvent)
+
+    if (onSearch) {
+      onSearch(suggestion)
+    } else {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("q", suggestion)
+      params.set("tab", "posts")
+      params.delete("page")
+      router.push(`/search?${params.toString()}`)
+    }
   }
 
   function handleFocus() {
@@ -156,7 +165,7 @@ export default function SearchBar({
           role="listbox"
           className="absolute top-full left-0 right-0 mt-1 bg-black/95 backdrop-blur border border-white/10 rounded-xl overflow-hidden shadow-xl z-50"
         >
-          {suggestions.map((suggestion, index) => (
+          {suggestions.map((suggestion) => (
             <li key={suggestion} role="option">
               <button
                 onClick={() => handleSuggestionClick(suggestion)}

@@ -1,12 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import SearchBar from "@/app/components/SearchBar"
 import { timeAgo } from "@/lib/timeAgo"
 import RichText from "@/app/components/RichText"
+
+function SearchBarWrapper({ campus }: { campus: string }) {
+  return <SearchBar placeholder="Search posts, ghosts, hashtags..." campus={campus} />
+}
 
 type Post = {
   id: string
@@ -78,7 +82,9 @@ export default function ExplorePage() {
     return (
       <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 py-6">
         <div className="mb-4">
-          <SearchBar placeholder="Search posts, ghosts, hashtags..." campus="" />
+          <Suspense fallback={<div className="h-10 w-full bg-white/5 border border-white/10 rounded-full animate-pulse" />}>
+            <SearchBarWrapper campus="" />
+          </Suspense>
         </div>
         <div className="sticky top-0 bg-black/80 backdrop-blur border-b border-white/10 z-10 mb-4 rounded-xl p-1 flex gap-1">
           {WINDOWS.map((w) => (
@@ -113,7 +119,9 @@ export default function ExplorePage() {
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 py-4">
       <div className="mb-4">
-        <SearchBar placeholder="Search posts, ghosts, hashtags..." campus="" />
+        <Suspense fallback={<div className="h-10 w-full bg-white/5 border border-white/10 rounded-full animate-pulse" />}>
+          <SearchBarWrapper campus="" />
+        </Suspense>
       </div>
 
       <div className="sticky top-0 bg-black/80 backdrop-blur border-b border-white/10 z-10 mb-4 rounded-xl p-1 flex gap-1">

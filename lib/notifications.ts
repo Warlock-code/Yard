@@ -41,26 +41,29 @@ export async function createNotification(input: NotificationInput) {
       deviceTokens: { select: { token: true } },
     },
   })
-  const tokens = new Set([
-    ...(recipient?.deviceTokens.map((device) => device.token) || []),
-    recipient?.pushToken,
-    input.pushToken,
-  ].filter((token): token is string => Boolean(token)))
+
+  const tokens = new Set(
+    [
+      ...(recipient?.deviceTokens.map((device) => device.token) || []),
+      recipient?.pushToken,
+      input.pushToken,
+    ].filter((token): token is string => Boolean(token))
+  )
 
   for (const token of tokens) {
     await sendPush(token, input.title, input.body, input.href)
   }
 
-  emitNotification(input.userId, {
-    id: notification.id,
-    type: notification.type,
-    title: notification.title,
-    body: notification.body,
-    href: notification.href,
-    actorName: notification.actorName,
-    readAt: notification.readAt?.toISOString() || null,
-    createdAt: notification.createdAt.toISOString(),
-  })
+ emitNotification(input.userId, {
+  id: notification.id,
+  type: notification.type,
+  title: notification.title,
+  body: notification.body,
+  href: notification.href,
+  actorName: notification.actorName || undefined,
+  readAt: notification.readAt ? notification.readAt.toISOString() : null,
+  createdAt: notification.createdAt.toISOString(),
+})
 
   return notification
 }

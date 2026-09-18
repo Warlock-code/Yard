@@ -4,6 +4,10 @@ import { isAdmin } from "@/lib/getAdmin"
 
 const VALID_CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const fetchCache = "force-no-store"
+
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })

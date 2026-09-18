@@ -142,13 +142,19 @@ export async function searchPosts({
     ]
   }
 
-  let orderBy: Prisma.PostOrderByWithRelationInput = { createdAt: "desc" }
+let orderBy: Prisma.PostOrderByWithRelationInput | Prisma.PostOrderByWithRelationInput[] = {
+  createdAt: "desc",
+}
 
-  if (sortBy === "engagement") {
-    orderBy = [{ yeahs: "desc" }, { commentsCount: "desc" }, { createdAt: "desc" }]
-  } else if (sortBy === "relevance" && query) {
-    orderBy = { createdAt: "desc" }
-  }
+if (sortBy === "engagement") {
+  orderBy = [
+    { yeahs: "desc" },
+    { commentsCount: "desc" },
+    { createdAt: "desc" },
+  ]
+} else if (sortBy === "relevance" && query) {
+  orderBy = { createdAt: "desc" }
+}
 
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
@@ -292,9 +298,19 @@ export async function getSuggestedGhosts(userId: string, campus: string, limit =
   })
 }
 
-export async function recordSearchHistory(userId: string, query: string, filters: SearchFilters, resultsCount: number) {
+export async function recordSearchHistory(
+  userId: string,
+  query: string,
+  filters: SearchFilters,
+  resultsCount: number
+) {
   await prisma.searchHistory.create({
-    data: { userId, query, filters: filters as Record<string, unknown>, resultsCount },
+    data: {
+      userId,
+      query,
+      filters: filters as unknown as Prisma.InputJsonValue,
+      resultsCount,
+    },
   })
 }
 
@@ -307,9 +323,21 @@ export async function getRecentSearches(userId: string, limit = 10) {
   })
 }
 
-export async function saveSearch(userId: string, name: string, query: string, filters: SearchFilters, alertEnabled = false) {
+export async function saveSearch(
+  userId: string,
+  name: string,
+  query: string,
+  filters: SearchFilters,
+  alertEnabled = false
+) {
   return prisma.savedSearch.create({
-    data: { userId, name, query, filters: filters as Record<string, unknown>, alertEnabled },
+    data: {
+      userId,
+      name,
+      query,
+      filters: filters as unknown as Prisma.InputJsonValue,
+      alertEnabled,
+    },
   })
 }
 

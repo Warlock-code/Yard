@@ -76,40 +76,68 @@ export async function GET(req: NextRequest) {
   const byDateMap = new Map<string, { posts: number; battles: number; leaderboard: number; total: number }>()
   for (const e of earnings) {
     const periodStart = getPeriodStart(e.createdAt, period)
-    const key = periodStart.toISOString().split("T")[0]
-    const existing = byDateMap.get(key) || { posts: 0, battles: 0, leaderboard: 0, total: 0 }
-    if (e.source === "post_vote") existing.posts += e.amount
-    else if (e.source === "battle_win") existing.battles += e.amount
-    else if (e.source === "leaderboard_bonus") existing.leaderboard += e.amount
-    existing.total += e.amount
-    byDateMap.set(key, existing)
+    const key = periodStart.toISOString().slice(0, 10)
+    const current = byDateMap.get(key) || { posts: 0, battles: 0, leaderboard: 0, total: 0 }
+
+    if (e.source === "post_vote") current.posts += e.amount
+    else if (e.source === "battle_win") current.battles += e.amount
+    else if (e.source === "leaderboard_bonus") current.leaderboard += e.amount
+
+    current.total += e.amount
+    byDateMap.set(key, current)
   }
 
   const byDate = Array.from(byDateMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, data]) => ({ date, ...data }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const postEarnings = earnings.filter((e) => e.source === "post_vote" && e.sourceId)
   const battleEarnings = earnings.filter((e) => e.source === "battle_win" && e.sourceId)
   const leaderboardEarnings = earnings.filter((e) => e.source === "leaderboard_bonus")
 
-  const postIds = [...new Set(postEarnings.map((e) => e.sourceId))]
-  const battleEntryIds = [...new Set(battleEarnings.map((e) => e.sourceId))]
+  const postIds = [
+    ...new Set(
+      postEarnings
+        .map((e) => e.sourceId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ]
+
+  const battleEntryIds = [
+    ...new Set(
+      battleEarnings
+        .map((e) => e.sourceId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ]
 
   const posts = await prisma.post.findMany({
     where: { id: { in: postIds } },
-    select: { id: true, text: true, imageUrl: true, createdAt: true, yeahs: true, commentsCount: true },
+    select: { id: true, text: true, createdAt: true, yeahs: true, commentsCount: true },
   })
+
+  const postsWithImages = await prisma.post.findMany({
+    where: { id: { in: postIds } },
+    select: { id: true, imageUrl: true },
+  })
+  const imageMap = new Map(postsWithImages.map((p) => [p.id, p.imageUrl ?? undefined]))
 
   const battleEntries = await prisma.battleEntry.findMany({
     where: { id: { in: battleEntryIds } },
     select: { id: true, text: true, promptId: true, createdAt: true, votes: true },
   })
 
-  const postMap = new Map(posts.map((p) => [p.id, { id: p.id, text: p.text, imageUrl: p.imageUrl ?? undefined, createdAt: p.createdAt, yeahs: p.yeahs, commentsCount: p.commentsCount }]))
+  const postMap = new Map(posts.map((p) => [p.id, { ...p, imageUrl: imageMap.get(p.id) }]))
   const entryMap = new Map(battleEntries.map((e) => [e.id, e]))
 
-  const promptIds = [...new Set(battleEntries.map((e) => e.promptId))]
+  const promptIds = [
+    ...new Set(
+      battleEntries
+        .map((e) => e.promptId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ]
+
   const prompts = await prisma.battlePrompt.findMany({
     where: { id: { in: promptIds } },
     select: { id: true, text: true },
@@ -119,13 +147,26 @@ export async function GET(req: NextRequest) {
   const postBreakdown = postIds.map((id) => {
     const post = postMap.get(id)
     const amount = postEarnings.filter((e) => e.sourceId === id).reduce((s, e) => s + e.amount, 0)
-    return { postId: id, text: post?.text?.slice(0, 100) || "", imageUrl: post?.imageUrl ?? undefined, amount, createdAt: post?.createdAt }
+    return {
+      postId: id,
+      text: post?.text?.slice(0, 100) || "",
+      imageUrl: post?.imageUrl ?? undefined,
+      amount,
+      createdAt: post?.createdAt,
+    }
   })
 
   const battleBreakdown = battleEntryIds.map((id) => {
     const entry = entryMap.get(id)
     const amount = battleEarnings.filter((e) => e.sourceId === id).reduce((s, e) => s + e.amount, 0)
-    return { battleEntryId: id, promptText: entry ? promptMap.get(entry.promptId) || "" : "", text: entry?.text?.slice(0, 100) || "", amount, createdAt: entry?.createdAt, votes: entry?.votes || 0 }
+    return {
+      battleEntryId: id,
+      promptText: entry ? promptMap.get(entry.promptId) || "" : "",
+      text: entry?.text?.slice(0, 100) || "",
+      amount,
+      createdAt: entry?.createdAt,
+      votes: entry?.votes || 0,
+    }
   })
 
   const leaderboardBreakdown = leaderboardEarnings.map((e) => ({

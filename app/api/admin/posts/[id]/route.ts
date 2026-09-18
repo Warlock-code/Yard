@@ -4,6 +4,8 @@ import { isAdmin } from "@/lib/getAdmin"
 import { UTApi } from "uploadthing/server"
 
 export const dynamic = "force-dynamic"
+export const revalidate = 0
+export const fetchCache = "force-no-store"
 
 const BYTES_PER_MB = 1024 * 1024
 

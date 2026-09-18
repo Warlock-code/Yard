@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
   "crons": [
     { "path": "/api/cron/generate-post", "schedule": "0 0 * * *" },
     { "path": "/api/cron/return-reminder", "schedule": "0 9 * * *" }
