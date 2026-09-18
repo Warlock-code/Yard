@@ -70,6 +70,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (post.userId !== user.id) return NextResponse.json({ error: "Not your post." }, { status: 403 })
 
   const { text } = await req.json()
-  const updated = await prisma.post.update({ where: { id }, data: { text } })
+  if (typeof text !== "string" || !text.trim()) {
+    return NextResponse.json({ error: "Post text can't be empty." }, { status: 400 })
+  }
+  if (text.length > 2000) {
+    return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
+  }
+
+  const updated = await prisma.post.update({ where: { id }, data: { text: text.trim() } })
   return NextResponse.json({ post: updated })
 }

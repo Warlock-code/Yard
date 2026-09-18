@@ -10,18 +10,31 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   const { entryId } = await req.json()
+  if (typeof entryId !== "string" || !entryId) {
+    return NextResponse.json({ error: "Entry required." }, { status: 400 })
+  }
 
   try {
-    const entry = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
+      const candidate = await tx.battleEntry.findUnique({ where: { id: entryId }, include: { prompt: true } })
+      const now = new Date()
+      if (!candidate || candidate.userId === user.id || candidate.campus !== user.campus ||
+        candidate.prompt.campus !== user.campus || !candidate.prompt.active ||
+        candidate.prompt.startsAt > now || candidate.prompt.endsAt <= now) {
+        throw new Error("INVALID_BATTLE_VOTE")
+      }
       await tx.vote.create({ data: { entryId, userId: user.id } })
-      return tx.battleEntry.update({ where: { id: entryId }, data: { votes: { increment: 1 } } })
-    })
+      await tx.battleEntry.update({ where: { id: entryId }, data: { votes: { increment: 1 } } })
 
-    const owner = await prisma.user.findUnique({ where: { id: entry.userId } })
-    if (owner && owner.tier === "PRIME") {
-      await awardEarning(owner.id, "battle_win", entry.id, PESEWAS_PER_BATTLE_VOTE)
-    }
+      const owner = await tx.user.findUnique({ where: { id: candidate.userId } })
+      if (owner && owner.tier === "PRIME") {
+        await awardEarning(owner.id, "battle_win", entryId, PESEWAS_PER_BATTLE_VOTE)
+      }
+    })
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === "INVALID_BATTLE_VOTE") {
+      return NextResponse.json({ error: "You cannot vote on this battle entry." }, { status: 400 })
+    }
     if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
       return NextResponse.json({ error: "You already voted on this entry." }, { status: 400 })
     }

@@ -3,9 +3,12 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { notifyMentions } from "@/lib/mentions"
+import { rankFeedCandidates } from "@/lib/feedRanking"
+import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
+const FEED_PAGE_SIZE = 20
 
 async function checkImage(imageUrl: string): Promise<boolean> {
   try {
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const { text, imageUrl, type, pollOptions, visibility } = await req.json()
+  const { text, imageUrl, type, visibility } = await req.json()
 
   if (typeof text !== "undefined" && text !== null && (typeof text !== "string" || text.length > 2000)) {
     return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
@@ -48,6 +51,9 @@ export async function POST(req: NextRequest) {
 
   if (!text && !imageUrl) {
     return NextResponse.json({ error: "Post needs text or an image." }, { status: 400 })
+  }
+  if (visibility === "program" && !user.programKey) {
+    return NextResponse.json({ error: "Choose your program before posting to Class." }, { status: 400 })
   }
 
   const recentPost = await prisma.post.findFirst({
@@ -95,7 +101,6 @@ export async function POST(req: NextRequest) {
       program: user.program,
       programLevel: user.programLevel,
       programKey: user.programKey,
-      pollOptions: pollOptions || [],
       isPrime: user.tier === "PRIME",
       visibility: visibility === "program" ? "program" : "school",
     },
@@ -153,41 +158,61 @@ export async function GET(req: NextRequest) {
     select: { followingId: true },
   })
   const followingIds = new Set(follows.map((follow) => follow.followingId))
-  const where: Prisma.PostWhereInput = { archived: false }
+  const readableWhere = await getReadablePostWhere(user)
+  let scopeWhere: Prisma.PostWhereInput
 
   if (mode === "campus") {
-    where.campus = user.campus
-    where.visibility = "school"
+    scopeWhere = { campus: user.campus, visibility: "school" }
   } else if (mode === "program") {
-    where.campus = user.campus
-    where.programKey = user.programKey
+    scopeWhere = {
+      AND: [
+        { campus: user.campus, visibility: "program" },
+        await getProgramPostWhere(user),
+      ],
+    }
   } else if (mode === "following") {
-    where.userId = { in: [...followingIds] }
-  } else if (mode === "all") {
-    where.visibility = "school"
+    scopeWhere = { userId: { in: [...followingIds] } }
+  } else {
+    scopeWhere = { campus: { not: user.campus }, visibility: "school" }
   }
 
-  if (type !== "all") where.type = type
+  const where: Prisma.PostWhereInput = {
+    AND: [readableWhere, scopeWhere, ...(type !== "all" ? [{ type }] : [])],
+  }
 
   const posts = await prisma.post.findMany({
     where,
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
   const now = new Date()
-  const sorted = [...posts].sort((a, b) => {
-    const aBoost = a.boostedUntil && a.boostedUntil > now
-    const bBoost = b.boostedUntil && b.boostedUntil > now
-    if (aBoost && !bBoost) return -1
-    if (bBoost && !aBoost) return 1
-    return 0
-  })
+  const rankedPosts = rankFeedCandidates(posts, {
+    campus: user.campus,
+    programKey: user.programKey,
+    followingIds,
+  }, now)
+  const activeBoosts = rankedPosts.filter((post) => post.boostedUntil && post.boostedUntil > now)
+  const otherPosts = rankedPosts.filter((post) => !post.boostedUntil || post.boostedUntil <= now)
+  const orderedPosts = [...activeBoosts, ...otherPosts]
+
+  const cursorIndex = cursor ? orderedPosts.findIndex((post) => post.id === cursor) : -1
+  if (cursor && cursorIndex === -1) {
+    return NextResponse.json({ error: "Invalid feed cursor." }, { status: 400 })
+  }
+
+  const startIndex = cursor ? cursorIndex + 1 : 0
+  const page = orderedPosts.slice(startIndex, startIndex + FEED_PAGE_SIZE)
+  const nextCursor = startIndex + FEED_PAGE_SIZE < orderedPosts.length
+    ? page[page.length - 1]?.id ?? null
+    : null
 
   return NextResponse.json({
-    posts: sorted.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId) })),
-    nextCursor: posts.length === 20 ? posts[posts.length - 1].id : null,
+    posts: page.map((post) => ({
+      ...post,
+      boosted: Boolean(post.boostedUntil && post.boostedUntil > now),
+      isFollowing: followingIds.has(post.userId),
+    })),
+    nextCursor,
   })
 }

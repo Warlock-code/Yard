@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
+import { fulfillPaidTransaction } from "@/lib/paystackFulfillment"
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -22,49 +23,19 @@ export async function POST(req: NextRequest) {
     const tx = await prisma.transaction.findUnique({ where: { reference } })
 
     if (tx && tx.status !== "success") {
-      const meta = tx.metadata
-      if (meta !== null && (typeof meta !== "object" || Array.isArray(meta))) {
-        return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
-      }
-      const rawTier = meta?.tier
-      let tier: "PLUS" | "PRIME" | undefined
-      if (rawTier !== undefined && rawTier !== null && rawTier !== "") {
-        const normalizedTier = typeof rawTier === "string" ? rawTier.toUpperCase() : undefined
-        if (normalizedTier !== "PLUS" && normalizedTier !== "PRIME") {
-          return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
-        }
-        tier = normalizedTier
-      }
-
-      await prisma.$transaction([
-        prisma.transaction.update({ where: { reference }, data: { status: "success" } }),
-        ...(tier
-          ? [
-              prisma.user.update({
-                where: { id: tx.userId },
-                data: {
-                  tier,
-                  tierExpiresAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
-                },
-              }),
-            ]
-          : []),
-      ])
+      await fulfillPaidTransaction(reference)
     }
   }
 
   if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
     const trRef = event.data?.reference || ""
     if (typeof trRef === "string" && trRef.startsWith("payout_")) {
-      const payoutId = trRef.split("_")[1]
-      if (payoutId) {
-        const payout = await prisma.payout.findUnique({ where: { id: payoutId } })
-        if (payout && payout.status === "approved") {
-          if (event.event === "transfer.success") {
-            await prisma.payout.update({ where: { id: payout.id }, data: { status: "paid", processedAt: new Date() } })
-          } else {
-            await prisma.payout.update({ where: { id: payout.id }, data: { status: "rejected" } })
-          }
+      const payout = await prisma.payout.findUnique({ where: { providerTransferRef: trRef } })
+      if (payout && payout.status === "approved") {
+        if (event.event === "transfer.success") {
+          await prisma.payout.update({ where: { id: payout.id }, data: { status: "paid", processedAt: new Date() } })
+        } else {
+          await prisma.payout.update({ where: { id: payout.id }, data: { status: "rejected" } })
         }
       }
     }

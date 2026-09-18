@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
@@ -186,7 +187,17 @@ function GhostProfile({ ghostId }: { ghostId: string }) {
               <span className="text-white/30">· {timeAgo(p.createdAt)}</span>
             </div>
             {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
-            {p.imageUrl && <img src={p.imageUrl} className="rounded-lg mt-2 w-full max-h-72 object-cover" alt="" />}
+            {p.imageUrl && (
+              <div className="relative w-full max-h-72 mt-2">
+                <Image
+                  src={p.imageUrl}
+                  alt=""
+                  fill
+                  className="rounded-lg w-full h-full object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              </div>
+            )}
             <div className="flex gap-4 text-xs text-white/40 mt-1">
               <span>🔥 {p.yeahs}</span>
               <span>💬 {p.commentsCount}</span>

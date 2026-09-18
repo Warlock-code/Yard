@@ -17,6 +17,12 @@ enum AccountTier {
   PRIME
 }
 
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
 model User {
   id            String  @id @default(cuid())
   email         String  @unique
@@ -38,6 +44,7 @@ model User {
 
   tier          AccountTier @default(FREE)
   tierExpiresAt DateTime?
+  status        AccountStatus @default(ACTIVE)
 
   streakCount       Int       @default(0)
   streakFreezeUntil DateTime?
@@ -105,7 +112,7 @@ model Post {
   text     String?
   imageUrl String?
   voiceUrl String?
-  type     String  @default("confession") // confession | gossip | meme | poll | voice
+  type     String  @default("confession") // confession | gossip | meme | voice
 
   campus       String
   program      String?
@@ -115,9 +122,6 @@ model Post {
   archived Boolean @default(false)
 
   visibility String @default("school") // "school" | "program"
-
-  pollOptions String[] @default([])
-  pollVotes   Json?
 
   yeahs         Int @default(0)
   commentsCount Int @default(0)
@@ -181,6 +185,7 @@ model BattleEntry {
   votesBy Vote[]
 
   @@index([campus, promptId])
+  @@unique([promptId, userId])
 }
 
 model Vote {
@@ -211,7 +216,7 @@ model Transaction {
 model Report {
   id         String  @id @default(cuid())
   postId     String?
-  post       Post?   @relation("ReportedPost", fields: [postId], references: [id], onDelete: Cascade)
+  post       Post?   @relation("ReportedPost", fields: [postId], references: [id], onDelete: SetNull)
   reporterId String
   reporter   User    @relation("ReportedBy", fields: [reporterId], references: [id])
 
@@ -221,6 +226,8 @@ model Report {
   status String @default("open") // open | reviewed | actioned | dismissed
 
   createdAt DateTime @default(now())
+
+  @@unique([postId, reporterId])
 }
 
 model Earning {
@@ -240,11 +247,12 @@ model Payout {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  amount        Int // in pesewas
-  status        String  @default("pending") // pending | approved | paid | rejected
-  bankCode      String?
-  accountNumber String?
-  accountName   String?
+  amount                Int // in pesewas
+  status                String  @default("pending") // pending | processing | approved | paid | rejected
+  bankCode              String?
+  accountNumber         String?
+  accountName           String?
+  providerTransferRef   String? @unique
 
   requestedAt DateTime  @default(now())
   processedAt DateTime?
@@ -291,4 +299,14 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+}
+
+model RateLimit {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  hits      Int      @default(0)
+  windowStart DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

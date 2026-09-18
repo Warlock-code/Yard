@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { useUploadThing } from "@/lib/uploadthing"
 import { getProgramKey } from "@/lib/program"
@@ -128,13 +129,19 @@ export default function ComposePage() {
         />
 
         {image && (
-          <div className="relative mt-3">
-            <img src={image} className="rounded-lg w-full max-h-80 object-cover" alt="" />
+          <div className="relative mt-3 w-full max-h-80">
+            <Image
+              src={image}
+              alt=""
+              fill
+              className="rounded-lg w-full h-full object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
             <button
               onClick={handleRemoveImage}
               disabled={removing || posting || isUploading}
               aria-label={removing ? "Removing image" : "Remove image"}
-              className="absolute top-2 right-2 bg-black/70 rounded-full w-7 h-7 text-sm disabled:opacity-40"
+              className="absolute top-2 right-2 z-10 bg-black/70 rounded-full w-7 h-7 text-sm disabled:opacity-40"
             >
               ✕
             </button>

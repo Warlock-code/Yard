@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   const { postId, reason } = await req.json()
-  if (!postId || !reason?.trim()) {
+  if (typeof postId !== "string" || !postId || typeof reason !== "string" || !reason.trim()) {
     return NextResponse.json({ error: "Post and reason required." }, { status: 400 })
   }
   if (typeof reason !== "string" || reason.length > 500) {
@@ -22,16 +22,25 @@ export async function POST(req: NextRequest) {
 
   const post = await prisma.post.findFirst({ where: { id: postId, AND: [await getReadablePostWhere(user)] } })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (post.userId === user.id) {
+    return NextResponse.json({ error: "You cannot report your own post." }, { status: 400 })
+  }
 
-  const report = await prisma.report.create({
-    data: { postId, reporterId: user.id, reason },
-  })
-
-  await prisma.post.update({ where: { id: postId }, data: { archived: true } })
+  let report
+  try {
+    report = await prisma.report.create({
+      data: { postId, reporterId: user.id, reason: reason.trim() },
+    })
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      return NextResponse.json({ error: "You have already reported this post." }, { status: 409 })
+    }
+    throw error
+  }
 
   const verdict = await moderateWithAI(post?.text || "", reason)
 
   await prisma.report.update({ where: { id: report.id }, data: { aiVerdict: verdict } })
 
-  return NextResponse.json({ report })
+  return NextResponse.json({ report }, { status: 201 })
 }

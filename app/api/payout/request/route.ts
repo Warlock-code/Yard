@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { encrypt, maskAccountNumber } from "@/lib/payoutEncryption"
 
 function inPayoutWindow() {
   const day = new Date().getDate()
@@ -8,6 +9,15 @@ function inPayoutWindow() {
   const inEndOfMonth = day >= lastDayOfMonth - 2
   const inMidMonth = day >= 14 && day <= 16
   return inEndOfMonth || inMidMonth
+}
+
+function validateGhanaAccount(accountNumber: string, bankCode: string) {
+  if (!/^\d{10,15}$/.test(accountNumber)) {
+    throw new Error("Invalid account number format (10-15 digits).")
+  }
+  if (!/^\d{6}$/.test(bankCode)) {
+    throw new Error("Invalid bank code (6 digits).")
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -36,6 +46,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bank, account number and account name are required." }, { status: 400 })
   }
 
+  try {
+    validateGhanaAccount(accountNumber, bankCode)
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid bank details." }, { status: 400 })
+  }
+
   const earnings = await prisma.earning.aggregate({ where: { userId: user.id }, _sum: { amount: true } })
   const alreadyPaid = await prisma.payout.aggregate({
     where: { userId: user.id, status: { in: ["approved", "paid"] } },
@@ -48,8 +64,21 @@ export async function POST(req: NextRequest) {
   }
 
   const payout = await prisma.payout.create({
-    data: { userId: user.id, amount: available, bankCode, accountNumber, accountName },
+    data: {
+      userId: user.id,
+      amount: available,
+      bankCode: encrypt(bankCode.trim()),
+      accountNumber: encrypt(accountNumber.trim()),
+      accountName: encrypt(accountName.trim()),
+    },
   })
 
-  return NextResponse.json({ payout })
+  return NextResponse.json({
+    payout: {
+      ...payout,
+      bankCode: "****",
+      accountNumber: maskAccountNumber(accountNumber),
+      accountName: "****",
+    },
+  })
 }

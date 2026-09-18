@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { blockIfNative } from "@/lib/purchaseGate"
@@ -328,7 +329,15 @@ export default function FeedPage() {
                       </p>
                     )}
                     {post.imageUrl && (
-                      <img src={post.imageUrl} className="rounded-xl mt-2 w-full max-h-96 object-cover" alt="" />
+                      <div className="relative w-full max-h-96 mt-2">
+                        <Image
+                          src={post.imageUrl}
+                          alt=""
+                          fill
+                          className="rounded-xl w-full h-full object-cover"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                      </div>
                     )}
 
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">

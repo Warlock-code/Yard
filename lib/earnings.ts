@@ -4,6 +4,9 @@ const PLATFORM_CUT = 0.3
 const DAILY_CAP_PESEWAS = 1500
 
 export async function awardEarning(userId: string, source: string, sourceId: string, grossAmount: number) {
+  const existing = await prisma.earning.findFirst({ where: { userId, source, sourceId } })
+  if (existing) return existing
+
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
 import { createTransferRecipient, initiateTransfer } from "@/lib/paystack"
+import { decrypt } from "@/lib/payoutEncryption"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdmin(req)) {
@@ -15,17 +16,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Invalid or already-processed payout." }, { status: 400 })
   }
 
-  const recipient = await createTransferRecipient(
-    payout.accountName!,
-    payout.accountNumber!,
-    payout.bankCode!
-  )
+  const claim = await prisma.payout.updateMany({
+    where: { id: payout.id, status: "pending" },
+    data: { status: "processing" },
+  })
+  if (claim.count !== 1) {
+    return NextResponse.json({ error: "Payout already claimed for processing." }, { status: 409 })
+  }
+
+  let accountName: string
+  let accountNumber: string
+  let bankCode: string
+  try {
+    accountName = decrypt(payout.accountName!)
+    accountNumber = decrypt(payout.accountNumber!)
+    bankCode = decrypt(payout.bankCode!)
+  } catch {
+    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
+    return NextResponse.json({ error: "Failed to decrypt payout details." }, { status: 500 })
+  }
+
+  const recipient = await createTransferRecipient(accountName, accountNumber, bankCode)
 
   if (!recipient.status) {
+    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
     return NextResponse.json({ error: "Failed to create transfer recipient." }, { status: 400 })
   }
 
-  const reference = `payout_${payout.id}_${Date.now()}`
+  const reference = `payout_${payout.id}`
 
   const transfer = await initiateTransfer(
     payout.amount,
@@ -34,13 +52,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     reference
   )
 
+  if (!transfer.status) {
+    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
+    return NextResponse.json({ error: "Transfer initiation failed." }, { status: 400 })
+  }
+
   await prisma.payout.update({
     where: { id: payout.id },
     data: {
-      status: transfer.status ? "approved" : "rejected",
+      status: "approved",
+      providerTransferRef: reference,
       processedAt: new Date(),
     },
   })
 
-  return NextResponse.json({ success: transfer.status, transfer })
+  return NextResponse.json({ success: true, transfer })
 }

@@ -1,33 +1,25 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
 import { verifyPaystack } from "@/lib/paystack"
+import { prisma } from "@/lib/prisma"
+import { fulfillPaidTransaction, validatePaystackCharge } from "@/lib/paystackFulfillment"
+import { getCurrentUser } from "@/lib/getCurrentUser"
 
 export async function POST(req: NextRequest) {
-  const { reference } = await req.json()
+  const user = await getCurrentUser(req)
+  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  const { reference } = await req.json().catch(() => ({}))
+  if (typeof reference !== "string" || !reference) return NextResponse.json({ error: "Invalid payment reference." }, { status: 400 })
+
+  const transaction = await prisma.transaction.findUnique({ where: { reference } })
+  if (!transaction || transaction.userId !== user.id) return NextResponse.json({ error: "Transaction not found." }, { status: 404 })
 
   const result = await verifyPaystack(reference)
-  if (result.data?.status !== "success") {
-    return NextResponse.json({ error: "Payment not verified." }, { status: 400 })
+  try {
+    await validatePaystackCharge(reference, result.data)
+    await fulfillPaidTransaction(reference)
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Payment not verified." }, { status: 400 })
   }
-
-  const tx = await prisma.transaction.findUnique({ where: { reference } })
-  if (!tx || tx.status === "success") {
-    return NextResponse.json({ error: "Invalid or already-processed transaction." }, { status: 400 })
-  }
-
-  const meta = tx.metadata
-  if (typeof meta !== "object" || meta === null || Array.isArray(meta) || typeof meta.postId !== "string" || !meta.postId) {
-    return NextResponse.json({ error: "Invalid transaction metadata." }, { status: 400 })
-  }
-  const postId = meta.postId
-
-  await prisma.$transaction([
-    prisma.transaction.update({ where: { reference }, data: { status: "success" } }),
-    prisma.post.update({
-      where: { id: postId },
-      data: { boosted: true, boostedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) },
-    }),
-  ])
 
   return NextResponse.json({ success: true })
 }

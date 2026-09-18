@@ -1,0 +1,23 @@
+# Yard robots.txt
+User-agent: *
+Allow: /
+
+# Disallow private/admin routes
+Disallow: /api/
+Disallow: /admin/
+Disallow: /lair/
+Disallow: /notifications/
+Disallow: /compose/
+Disallow: /post/
+Disallow: /u/
+Disallow: /battles/
+Disallow: /leaderboard/
+Disallow: /shop/
+Disallow: /upgrade/
+Disallow: /payment/
+Disallow: /verify-email/
+Disallow: /signup/
+Disallow: /login/
+Disallow: /welcome/
+
+Sitemap: https://yardapp.me/sitemap.xml

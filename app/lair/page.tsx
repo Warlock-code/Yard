@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 
 type Me = {
@@ -36,6 +37,9 @@ export default function LairPage() {
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
   const [showPayout, setShowPayout] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleting, setDeleting] = useState(false)
   const [banks, setBanks] = useState<Bank[]>([])
   const [bankCode, setBankCode] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
@@ -146,6 +150,33 @@ export default function LairPage() {
     router.push("/login")
   }
 
+  async function handleDeleteAccount() {
+    if (!deletePassword.trim()) {
+      alert("Enter your password to confirm.")
+      return
+    }
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password: deletePassword }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Could not delete account.")
+      }
+      router.push("/signup")
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    } finally {
+      setDeleting(false)
+      setShowDeleteModal(false)
+      setDeletePassword("")
+    }
+  }
+
   if (loading || !me) return <p className="text-center text-white/40 mt-10">Entering the den...</p>
 
   return (
@@ -229,7 +260,15 @@ export default function LairPage() {
           <ul className="space-y-3">
             {uploads.map((upload) => (
               <li key={upload.id} className="flex items-center gap-3">
-                <img src={upload.url} alt="Unposted upload" className="w-16 h-16 rounded-lg object-cover" />
+                <div className="relative w-16 h-16 flex-shrink-0">
+                  <Image
+                    src={upload.url}
+                    alt="Unposted upload"
+                    fill
+                    className="rounded-lg object-cover"
+                    sizes="64px"
+                  />
+                </div>
                 <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} MB</span>
                 <button
                   className="btn-ghost text-xs disabled:opacity-40"
@@ -298,6 +337,10 @@ export default function LairPage() {
         Log out
       </button>
 
+      <button className="btn-ghost w-full mt-2 text-red-400" onClick={() => setShowDeleteModal(true)}>
+        Delete Account
+      </button>
+
       {showPayout && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
@@ -314,6 +357,22 @@ export default function LairPage() {
             <div className="flex gap-2">
               <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>Cancel</button>
               <button className="btn-primary flex-1" onClick={handlePayoutRequest}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="card p-5 w-full max-w-sm bg-black">
+            <h3 className="font-bold text-lg mb-1">Delete Account</h3>
+            <p className="text-white/50 text-sm mb-4">This action is irreversible. All your posts, votes, earnings, and data will be permanently deleted.</p>
+            <input className="input mb-3" type="password" placeholder="Password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
+            <div className="flex gap-2">
+              <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>Cancel</button>
+              <button className="btn-primary flex-1" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete Account"}
+              </button>
             </div>
           </div>
         </div>

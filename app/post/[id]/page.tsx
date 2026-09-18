@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
@@ -183,7 +184,17 @@ function PostDetail({ postId }: { postId: string }) {
         </div>
 
         {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
-        {post.imageUrl && <img src={post.imageUrl} className="rounded-lg mb-3 w-full" alt="" />}
+        {post.imageUrl && (
+          <div className="relative w-full mb-3">
+            <Image
+              src={post.imageUrl}
+              alt=""
+              fill
+              className="rounded-lg w-full h-full object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
           <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>

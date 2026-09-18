@@ -20,13 +20,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const report = await prisma.report.findUnique({ where: { id } })
   if (!report) return NextResponse.json({ error: "Not found." }, { status: 404 })
 
-  if (decision === "dismissed" && report.postId) {
-    await prisma.post.update({ where: { id: report.postId }, data: { archived: false } })
+  if (report.status !== "open") {
+    return NextResponse.json({ error: "This report has already been reviewed." }, { status: 409 })
   }
-  if (decision === "actioned" && report.postId) {
+
+  if (decision === "dismissed" && report.postId) {
+    await prisma.$transaction(async (tx) => {
+      await tx.report.update({ where: { id }, data: { status: "dismissed" } })
+      // Legacy reports may have hidden a post. Never restore it while another report is waiting.
+      const remainingOpenReports = await tx.report.count({
+        where: { postId: report.postId, id: { not: id }, status: "open" },
+      })
+      if (remainingOpenReports === 0) {
+        await tx.post.updateMany({ where: { id: report.postId, archived: true }, data: { archived: false } })
+      }
+    })
+} else if (decision === "actioned" && report.postId) {
     const post = await prisma.post.findUnique({ where: { id: report.postId }, include: { upload: true } })
     if (post) {
       await prisma.$transaction([
+        prisma.report.update({ where: { id }, data: { status: "actioned", postId: null } }),
         ...(post.upload ? [prisma.mediaUpload.delete({ where: { id: post.upload.id } })] : []),
         prisma.post.delete({ where: { id: post.id } }),
       ])
@@ -37,10 +50,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         })
         await new UTApi().deleteFiles(post.upload.fileKey)
       }
+    } else {
+      await prisma.report.update({ where: { id }, data: { status: "actioned" } })
     }
+  } else {
+    await prisma.report.update({ where: { id }, data: { status: decision } })
   }
-
-  await prisma.report.update({ where: { id }, data: { status: decision } })
 
   return NextResponse.json({ success: true })
 }

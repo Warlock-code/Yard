@@ -11,6 +11,14 @@ export async function POST(req: NextRequest) {
   if (targetUserId === user.id) {
     return NextResponse.json({ error: "Can't follow yourself." }, { status: 400 })
   }
+  if (typeof targetUserId !== "string" || !targetUserId) {
+    return NextResponse.json({ error: "Invalid user." }, { status: 400 })
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } })
+  if (!target || target.campus !== user.campus) {
+    return NextResponse.json({ error: "Ghost not found." }, { status: 404 })
+  }
 
   try {
     await prisma.follow.create({ data: { followerId: user.id, followingId: targetUserId } })
@@ -24,18 +32,15 @@ export async function POST(req: NextRequest) {
     throw err
   }
 
-  const target = await prisma.user.findUnique({ where: { id: targetUserId } })
-  if (target) {
-    await createNotification({
-      userId: target.id,
-      pushToken: target.pushToken,
-      type: "follow",
-      title: "New follower",
-      body: `${user.ghostId} followed you`,
-      href: "/feed",
-      actorName: user.ghostId,
-    })
-  }
+  await createNotification({
+    userId: target.id,
+    pushToken: target.pushToken,
+    type: "follow",
+    title: "New follower",
+    body: `${user.ghostId} followed you`,
+    href: "/feed",
+    actorName: user.ghostId,
+  })
 
   return NextResponse.json({ following: true })
 }

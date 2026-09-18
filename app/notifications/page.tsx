@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { apiGet, apiPatch } from "@/lib/useApi"
+import { useEffect, useState, useCallback } from "react"
+import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
 type Notification = {
@@ -16,16 +16,55 @@ type Notification = {
   type?: string
 }
 
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+async function registerPushToken() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_PUBLIC_KEY) return
+
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    })
+
+    const token = JSON.stringify(subscription)
+    await apiPost("/api/notifications/register", { token })
+    console.log("Push token registered")
+  } catch (error) {
+    console.error("Push registration failed:", error)
+  }
+}
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    apiGet("/api/notifications")
-      .then((data) => setNotifications(data.notifications))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await apiGet("/api/notifications")
+      setNotifications(data.notifications)
+    } catch {}
+    finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    loadNotifications()
+    registerPushToken()
+  }, [loadNotifications])
 
   async function openNotification(notification: Notification) {
     if (!notification.readAt) {
