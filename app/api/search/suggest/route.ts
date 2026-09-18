@@ -1,57 +1,35 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { prisma } from "@/lib/prisma"
+import { getRankedSuggestions, sanitizeSearchQuery, clampInt } from "@/lib/search"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
+
+const MAX_LIMIT = 7
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const q = searchParams.get("q")?.trim() || ""
-  const campus = searchParams.get("campus") || user.campus
+  const raw = searchParams.get("q") ?? ""
+  const q = sanitizeSearchQuery(raw, 50)
+  const campus = sanitizeSearchQuery(searchParams.get("campus"), 64) || user.campus
+  const limit = clampInt(searchParams.get("limit"), MAX_LIMIT, 1, MAX_LIMIT)
 
-  if (!q || q.length < 2) {
+  // Empty-q guard: fast empty response, no DB hit
+  if (!q) {
     return NextResponse.json({ suggestions: [] })
   }
 
-  const [hashtags, users, recentSearches] = await Promise.all([
-    prisma.hashtag.findMany({
-      where: {
-        campus,
-        tag: { startsWith: q.toLowerCase(), mode: "insensitive" },
-      },
-      select: { tag: true },
-      take: 5,
-      orderBy: { trendingScore: "desc" },
-    }),
-    prisma.user.findMany({
-      where: {
-        campus,
-        ghostId: { startsWith: q, mode: "insensitive" },
-        status: "ACTIVE",
-      },
-      select: { ghostId: true },
-      take: 3,
-      orderBy: { followers: { _count: "desc" } },
-    }),
-    prisma.searchHistory.findMany({
-      where: {
-        userId: user.id,
-        query: { startsWith: q, mode: "insensitive" },
-      },
-      select: { query: true },
-      take: 3,
-      orderBy: { createdAt: "desc" },
-    }),
-  ])
-
-  const suggestions = [
-    ...hashtags.map((h) => `#${h.tag}`),
-    ...users.map((u) => `@${u.ghostId}`),
-    ...recentSearches.map((r) => r.query),
-  ]
-
-  const unique = [...new Set(suggestions)].slice(0, 8)
-
-  return NextResponse.json({ suggestions: unique })
+  try {
+    const suggestions = await getRankedSuggestions(q, campus, user.id, limit)
+    return NextResponse.json(
+      { suggestions },
+      { headers: { "Cache-Control": "private, max-age=30" } }
+    )
+  } catch (err) {
+    console.error("GET /api/search/suggest failed", err)
+    return NextResponse.json({ suggestions: [] })
+  }
 }
