@@ -13,6 +13,7 @@ const MAX_POSTS_PER_HOUR = 10
 const FEED_PAGE_SIZE = 20
 
 async function checkImage(imageUrl: string): Promise<boolean> {
+  if (!process.env.OPENROUTER_API_KEY) return true // moderation disabled — allow
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -30,11 +31,12 @@ async function checkImage(imageUrl: string): Promise<boolean> {
         ],
       }),
     })
+    if (!res.ok) return true // fail open — don't block post if moderation down
     const data = await res.json()
     const verdict = data.choices?.[0]?.message?.content?.trim().toUpperCase()
     return verdict !== "UNSAFE"
   } catch {
-    return false
+    return true // network error — allow post, admin can still moderate via reports
   }
 }
 

@@ -257,13 +257,14 @@ export default function PostDetailClient({ postId }: { postId: string }) {
 
         {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
         {post.imageUrl && (
-          <div className="relative w-full mb-3">
+          <div className="relative w-full h-72 mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <Image
               src={post.imageUrl}
               alt=""
               fill
-              className="rounded-lg w-full h-full object-cover"
+              className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
+              unoptimized
             />
           </div>
         )}

@@ -48,7 +48,8 @@ export default function ComposePage() {
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
     onClientUploadComplete: async (res) => {
-      const url = res?.[0]?.serverData?.url
+      const r: any = res?.[0]
+      const url = r?.serverData?.url || r?.ufsUrl || r?.url
       if (url) setImage(url)
       else alert("Upload completed without an image URL. Check pending images in your lair.")
       await refreshQuota()

@@ -346,13 +346,14 @@ export default function FeedPage() {
                       </p>
                     )}
                     {post.imageUrl && (
-                      <div className="relative w-full max-h-96 mt-2">
+                      <div className="relative w-full h-64 mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
                         <Image
                           src={post.imageUrl}
                           alt=""
                           fill
-                          className="rounded-xl w-full h-full object-cover"
+                          className="object-cover"
                           sizes="(max-width: 768px) 100vw, 50vw"
+                          unoptimized
                         />
                       </div>
                     )}
