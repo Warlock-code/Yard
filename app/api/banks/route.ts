@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   const res = await fetch("https://api.paystack.co/bank?currency=GHS&type=mobile_money", {
     headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },

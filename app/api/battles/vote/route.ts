@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { awardEarning } from "@/lib/earnings"
+import { emitBattleVote } from "@/server/socket"
 
 const PESEWAS_PER_BATTLE_VOTE = 10
 
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Entry required." }, { status: 400 })
   }
 
+  let updatedVotes: number
+  let promptId: string
+
   try {
     await prisma.$transaction(async (tx) => {
       const candidate = await tx.battleEntry.findUnique({ where: { id: entryId }, include: { prompt: true } })
@@ -24,7 +28,10 @@ export async function POST(req: NextRequest) {
         throw new Error("INVALID_BATTLE_VOTE")
       }
       await tx.vote.create({ data: { entryId, userId: user.id } })
-      await tx.battleEntry.update({ where: { id: entryId }, data: { votes: { increment: 1 } } })
+      const updatedEntry = await tx.battleEntry.update({ where: { id: entryId }, data: { votes: { increment: 1 } } })
+
+      updatedVotes = updatedEntry.votes
+      promptId = updatedEntry.promptId
 
       const owner = await tx.user.findUnique({ where: { id: candidate.userId } })
       if (owner && owner.tier === "PRIME") {
@@ -40,6 +47,8 @@ export async function POST(req: NextRequest) {
     }
     throw err
   }
+
+  emitBattleVote(promptId!, entryId, updatedVotes!)
 
   return NextResponse.json({ success: true })
 }

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { awardEarning } from "@/lib/earnings"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
+import { emitVoteUpdate } from "@/server/socket"
 
 const PESEWAS_PER_VOTE = 5
 const MILESTONES = [10, 50, 100, 500, 1000]
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       href: `/post/${post.id}`,
     })
   }
+
+  emitVoteUpdate(post.campus, post.id, post.yeahs)
 
   return NextResponse.json({ post })
 }

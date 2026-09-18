@@ -1,7 +1,6 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  output: "export",
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.ufs.sh" },
@@ -9,6 +8,7 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: true,
   },
+  output: "standalone",
 }
 
 export default nextConfig

@@ -1,6 +1,6 @@
 import crypto from "crypto"
 
-const ENCRYPTION_KEY = process.env.PAYOUT_ENCRYPTION_KEY || process.env.DATABASE_URL?.slice(0, 32).padEnd(32, "0")!
+const ENCRYPTION_KEY = process.env.PAYOUT_ENCRYPTION_KEY || process.env.DATABASE_URL?.slice(0, 32).padEnd(32, "0") || "0".repeat(32)
 const IV_LENGTH = 16
 
 export function encrypt(text: string): string {

@@ -4,6 +4,7 @@ import BottomNav from "@/app/components/BottomNav"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://yardapp.me"),
   title: "Yard — Your Campus Whisper Network",
   description: "Anonymous campus social network for students. Post confessions, gossip, memes, and more. Verified by school email.",
   keywords: ["campus", "anonymous", "social", "students", "confessions", "Ghana"],

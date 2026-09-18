@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { isAdmin } from "@/lib/getAdmin"
+import { getAdminUser } from "@/lib/getAdmin"
 import { UTApi } from "uploadthing/server"
+import { auditLog, AuditAction } from "@/lib/auditLog"
+import { adminActionSchema, validateRequest } from "@/lib/validation"
+
+export const dynamic = "force-dynamic"
 
 const BYTES_PER_MB = 1024 * 1024
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) {
+  const admin = getAdminUser(req)
+  if (!admin) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   }
 
   const { id } = await params
-  const { decision } = await req.json()
-
-  if (decision !== "actioned" && decision !== "dismissed") {
-    return NextResponse.json({ error: "Invalid decision." }, { status: 400 })
+  const body = await req.json().catch(() => ({}))
+  const validation = validateRequest(adminActionSchema, body)
+  if (!validation.success) {
+    return NextResponse.json({ error: validation.error }, { status: 400 })
   }
+  const { decision } = validation.data
 
   const report = await prisma.report.findUnique({ where: { id } })
   if (!report) return NextResponse.json({ error: "Not found." }, { status: 404 })
@@ -24,10 +30,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "This report has already been reviewed." }, { status: 409 })
   }
 
-if (decision === "dismissed" && report.postId) {
+  const actionType: AuditAction = decision === "actioned" ? "admin.report.actioned" : "admin.report.dismissed"
+
+  if (decision === "dismissed" && report.postId) {
     await prisma.$transaction(async (tx) => {
       await tx.report.update({ where: { id }, data: { status: "dismissed" } })
-      // Legacy reports may have hidden a post. Never restore it while another report is waiting.
       const remainingOpenReports = await tx.report.count({
         where: { postId: report.postId!, id: { not: id }, status: "open" },
       })
@@ -35,7 +42,7 @@ if (decision === "dismissed" && report.postId) {
         await tx.post.updateMany({ where: { id: report.postId!, archived: true }, data: { archived: false } })
       }
     })
-} else if (decision === "actioned" && report.postId) {
+  } else if (decision === "actioned" && report.postId) {
     const post = await prisma.post.findUnique({ where: { id: report.postId }, include: { upload: true } })
     if (post) {
       await prisma.$transaction([
@@ -56,6 +63,14 @@ if (decision === "dismissed" && report.postId) {
   } else {
     await prisma.report.update({ where: { id }, data: { status: decision } })
   }
+
+  await auditLog(actionType, "admin", report.id, {
+    reportId: id,
+    postId: report.postId,
+    reporterId: report.reporterId,
+    reason: report.reason,
+    aiVerdict: report.aiVerdict,
+  })
 
   return NextResponse.json({ success: true })
 }

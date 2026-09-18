@@ -8,6 +8,8 @@ import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { blockIfNative } from "@/lib/purchaseGate"
 import RichText from "@/app/components/RichText"
+import { useSocket, useSocketEvent } from "@/lib/socket"
+import SearchBar from "@/app/components/SearchBar"
 
 type Post = {
   id: string
@@ -65,6 +67,8 @@ export default function FeedPage() {
   const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
   const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
   const pendingFollowRequests = useRef(new Set<string>())
+
+  const { connected, on, joinCampus, leaveCampus } = useSocket()
 
   const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/auth/me")
@@ -151,10 +155,25 @@ export default function FeedPage() {
     }
   }, [nextCursor, loading, mode, feedVersion])
 
+  useEffect(() => {
+    if (!connected) return
+    const unsubNewPost = on("new_post", (post: any) => {
+      if (mode === "campus" && post.campus === me?.campus) {
+        setPosts((prev) => [post as Post, ...prev])
+      }
+    })
+    const unsubVote = on("vote_update", ({ postId, yeahs }: { postId: string; yeahs: number }) => {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs } : p)))
+    })
+    return () => {
+      unsubNewPost()
+      unsubVote()
+    }
+  }, [connected, on, mode, me?.campus])
+
   async function handleVote(postId: string) {
     try {
       await apiPost(`/api/posts/${postId}/vote`, {})
-      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs: p.yeahs + 1 } : p)))
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
     }
@@ -271,6 +290,9 @@ export default function FeedPage() {
         <span className="font-black text-lg tracking-tight">
           YARD<span className="text-[#baff39]">.</span>
         </span>
+        <Link href="/search" className="absolute right-4" aria-label="Search">
+          <SearchBar placeholder="Search..." showFilters={false} className="w-48" />
+        </Link>
       </div>
 
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-2 grid grid-cols-4 z-10">

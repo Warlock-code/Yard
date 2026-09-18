@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
 import { UTApi } from "uploadthing/server"
 
+export const dynamic = "force-dynamic"
+
 const BYTES_PER_MB = 1024 * 1024
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { notifyMentions } from "@/lib/mentions"
 import { rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
+import { emitNewPost } from "@/server/socket"
+import { processPostHashtags } from "@/lib/search"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
@@ -139,6 +141,32 @@ export async function POST(req: NextRequest) {
 
   if (text) {
     await notifyMentions({ text, senderUser: user, href: `/post/${post.id}`, excludeUserId: user.id }).catch(() => {})
+    await processPostHashtags(post.id, text, user.campus).catch(() => {})
+  }
+
+  const postWithUser = await prisma.post.findUnique({
+    where: { id: post.id },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
+  })
+
+  if (postWithUser) {
+    emitNewPost(postWithUser.campus, {
+      id: postWithUser.id,
+      text: postWithUser.text,
+      imageUrl: postWithUser.imageUrl,
+      type: postWithUser.type,
+      yeahs: postWithUser.yeahs,
+      commentsCount: postWithUser.commentsCount,
+      boosted: postWithUser.boosted,
+      createdAt: postWithUser.createdAt.toISOString(),
+      user: {
+        id: postWithUser.user.id,
+        ghostId: postWithUser.user.ghostId,
+        avatarEmoji: postWithUser.user.avatarEmoji,
+        tier: postWithUser.user.tier,
+      },
+      campus: postWithUser.campus,
+    })
   }
 
   return NextResponse.json({ post })

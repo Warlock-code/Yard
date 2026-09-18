@@ -4,6 +4,8 @@ import { isAdmin } from "@/lib/getAdmin"
 import { createTransferRecipient, initiateTransfer } from "@/lib/paystack"
 import { decrypt } from "@/lib/payoutEncryption"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 })

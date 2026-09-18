@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { sendPush } from "@/lib/sendPush"
 import { canReadPost } from "@/lib/program"
+import { emitNotification } from "@/server/socket"
 
 type NotificationInput = {
   userId: string
@@ -49,6 +50,17 @@ export async function createNotification(input: NotificationInput) {
   for (const token of tokens) {
     await sendPush(token, input.title, input.body, input.href)
   }
+
+  emitNotification(input.userId, {
+    id: notification.id,
+    type: notification.type,
+    title: notification.title,
+    body: notification.body,
+    href: notification.href,
+    actorName: notification.actorName,
+    readAt: notification.readAt?.toISOString() || null,
+    createdAt: notification.createdAt.toISOString(),
+  })
 
   return notification
 }

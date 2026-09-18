@@ -2,18 +2,28 @@ import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { fulfillPaidTransaction } from "@/lib/paystackFulfillment"
+import { handleCors, addCorsHeaders } from "@/lib/cors"
 
 export async function POST(req: NextRequest) {
+  const corsPreflight = handleCors(req)
+  if (corsPreflight) return corsPreflight
+
   const body = await req.text()
   const signature = req.headers.get("x-paystack-signature")
 
+  const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error("PAYSTACK_WEBHOOK_SECRET not configured")
+    return addCorsHeaders(NextResponse.json({ error: "Webhook not configured" }, { status: 500 }), req.headers.get("origin"))
+  }
+
   const hash = crypto
-    .createHmac("sha512", process.env.PAYSTACK_WEBHOOK_SECRET!)
+    .createHmac("sha512", webhookSecret)
     .update(body)
     .digest("hex")
 
   if (hash !== signature) {
-    return NextResponse.json({ error: "Invalid signature." }, { status: 401 })
+    return addCorsHeaders(NextResponse.json({ error: "Invalid signature." }, { status: 401 }), req.headers.get("origin"))
   }
 
   const event = JSON.parse(body)
@@ -49,5 +59,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ received: true })
+  return addCorsHeaders(NextResponse.json({ received: true }), req.headers.get("origin"))
 }

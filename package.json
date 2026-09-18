@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server/index.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "node server/index.js",
     "lint": "eslint",
     "postinstall": "prisma generate"
   },
@@ -17,16 +17,25 @@
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@prisma/client": "^6.19.3",
+    "@types/qrcode": "^1.5.6",
+    "@types/socket.io-client": "^1.4.36",
     "@uploadthing/react": "^7.3.3",
     "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^13.4.0",
     "googleapis": "^181.0.0",
     "jsonwebtoken": "^9.0.3",
     "next": "16.3.5",
     "prisma": "^6.19.3",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
     "resend": "^6.28.0",
-    "uploadthing": "^7.7.4"
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "uploadthing": "^7.7.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -39,6 +48,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

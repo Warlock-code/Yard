@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
 import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
+import { useSocket } from "@/lib/socket"
 
 type Notification = {
   id: string
@@ -51,6 +52,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
+  const { connected, on } = useSocket()
+
   const loadNotifications = useCallback(async () => {
     try {
       const data = await apiGet("/api/notifications")
@@ -62,9 +65,20 @@ export default function NotificationsPage() {
   }, [])
 
   useEffect(() => {
-    loadNotifications()
-    registerPushToken()
+    const init = async () => {
+      await loadNotifications()
+      await registerPushToken()
+    }
+    init()
   }, [loadNotifications])
+
+  useEffect(() => {
+    if (!connected) return
+    const unsub = on("notification", (notification: Notification) => {
+      setNotifications((prev) => [notification, ...prev])
+    })
+    return () => unsub()
+  }, [connected, on])
 
   async function openNotification(notification: Notification) {
     if (!notification.readAt) {

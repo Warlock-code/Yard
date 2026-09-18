@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 
+export const dynamic = "force-dynamic"
+
 const ADMIN_EMAILS = [process.env.ADMIN_EMAIL || ""]
 
 export async function POST(req: NextRequest) {

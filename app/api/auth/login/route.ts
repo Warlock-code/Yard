@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { comparePassword, signToken } from "@/lib/auth"
-import { rateLimit } from "@/lib/rateLimit"
+import { rateLimitWithInfo } from "@/lib/rateLimit"
+import { loginSchema, validateRequest } from "@/lib/validation"
+
+const MAX_FAILED_ATTEMPTS = 5
+const LOCKOUT_DURATION = 15 * 60 * 1000
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json()
-  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
-  if (!normalizedEmail || typeof password !== "string" || !rateLimit(`login:${normalizedEmail}`, 10, 15 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many login attempts. Try again later." }, { status: 429 })
+  const body = await req.json().catch(() => ({}))
+  const validation = validateRequest(loginSchema, body)
+  if (!validation.success) {
+    return NextResponse.json({ error: validation.error }, { status: 400 })
+  }
+  const { email, password } = validation.data
+  const normalizedEmail = email.trim().toLowerCase()
+
+  const lockoutKey = `lockout:${normalizedEmail}`
+  const lockout = rateLimitWithInfo(lockoutKey, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION)
+  if (!lockout.allowed) {
+    const minutes = Math.ceil((lockout.resetAt - Date.now()) / 60000)
+    return NextResponse.json({ error: `Too many failed attempts. Try again in ${minutes} minutes.` }, { status: 429 })
   }
 
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
@@ -22,6 +35,10 @@ export async function POST(req: NextRequest) {
 
   if (!user.emailVerified) {
     return NextResponse.json({ error: "Verify your email first.", userId: user.id }, { status: 403 })
+  }
+
+  if (user.status !== "ACTIVE") {
+    return NextResponse.json({ error: "Account suspended." }, { status: 403 })
   }
 
   const token = signToken(user.id)

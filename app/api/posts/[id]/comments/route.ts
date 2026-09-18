@@ -5,6 +5,7 @@ import { createNotification } from "@/lib/notifications"
 import { notifyMentions } from "@/lib/mentions"
 import { rateLimit } from "@/lib/rateLimit"
 import { getReadablePostWhere } from "@/lib/programAccess"
+import { emitCommentAdded } from "@/server/socket"
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -86,6 +87,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   await notifyMentions({ text, senderUser: user, href: `/post/${post?.id ?? id}`, excludeUserId: user.id }).catch(() => {})
+
+  emitCommentAdded(post.campus, comment.postId, {
+    postId: comment.postId,
+    comment: {
+      id: comment.id,
+      postId: comment.postId,
+      text: comment.text,
+      ghostId: comment.ghostId,
+      user: {
+        ghostId: comment.user.ghostId,
+        avatarEmoji: comment.user.avatarEmoji,
+      },
+      parentId: comment.parentId,
+      createdAt: comment.createdAt.toISOString(),
+    },
+  })
 
   return NextResponse.json({ comment })
 }

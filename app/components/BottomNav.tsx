@@ -7,7 +7,7 @@ import { apiGet } from "@/lib/useApi"
 
 const TABS = [
   { href: "/feed", icon: "🏠" },
-  { href: "/notifications", icon: "🔔" },
+  { href: "/explore", icon: "🔍" },
   { href: "/battles", icon: "⚔️" },
   { href: "/leaderboard", icon: "🏆" },
   { href: "/shop", icon: "🛍️" },
@@ -19,7 +19,7 @@ export default function BottomNav() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
-  const hidePrefixes = ["/post/", "/admin"]
+  const hidePrefixes = ["/post/", "/admin", "/search"]
 
   useEffect(() => {
     let active = true

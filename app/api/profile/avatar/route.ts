@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { AVATAR_EMOJI_MAP } from "@/lib/avatars"
 
+export const dynamic = "force-dynamic"
+
 const TIER_AVATARS: Record<string, string[]> = {
   FREE: ["👻"],
   PLUS: ["👻", "🐍", "👽"],

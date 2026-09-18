@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import type { Prisma } from "@prisma/client"
 
+export const dynamic = "force-dynamic"
+
 const iconByType: Record<string, string> = {
   mention: "\u{1F4AC}",
   comment: "\u{1F4AC}",

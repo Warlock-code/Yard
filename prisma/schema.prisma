@@ -62,6 +62,10 @@ model User {
   battleChampion Boolean @default(false)
   weeklyChampion Boolean @default(false)
 
+  inviteCode    String   @unique @default(cuid())
+  referredBy    String?
+  referralCount Int      @default(0)
+
   createdAt DateTime @default(now())
 
   posts         Post[]
@@ -75,6 +79,11 @@ model User {
   notifications Notification[]
   deviceTokens  DeviceToken[]
   uploads       MediaUpload[]
+  referrals         Referral[]   @relation("ReferrerReferrals")
+  referredByReferral Referral?    @relation("ReferredReferrals")
+  battleStats       BattleStats?
+  searchHistory     SearchHistory[]
+  savedSearches     SavedSearch[]
 }
 
 model MediaUpload {
@@ -135,9 +144,11 @@ model Post {
   comments Comment[]
   reports  Report[]     @relation("ReportedPost")
   upload   MediaUpload?
+  hashtags PostHashtag[]
 
   @@index([campus, createdAt])
   @@index([campus, programKey, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Comment {
@@ -156,15 +167,69 @@ model Comment {
   @@index([postId, parentId])
 }
 
-model BattlePrompt {
-  id       String   @id @default(cuid())
-  text     String
-  campus   String
-  active   Boolean  @default(true)
-  startsAt DateTime @default(now())
-  endsAt   DateTime
+enum BattleType {
+  SINGLE
+  BRACKET
+  RECURRING
+}
 
-  entries BattleEntry[]
+enum BattleStatus {
+  UPCOMING
+  ACTIVE
+  VOTING
+  COMPLETED
+  CANCELLED
+}
+
+enum BattleEntryType {
+  TEXT
+  IMAGE
+  VOICE
+}
+
+model BattleSeason {
+  id          String       @id @default(cuid())
+  name        String
+  campus      String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  battles     BattlePrompt[]
+  @@index([campus, isActive])
+}
+
+model BattlePrompt {
+  id          String       @id @default(cuid())
+  text        String
+  campus      String
+  active      Boolean      @default(true)
+  type        BattleType   @default(SINGLE)
+  status      BattleStatus @default(UPCOMING)
+  startsAt    DateTime     @default(now())
+  endsAt      DateTime
+  roundNumber Int          @default(1)
+  totalRounds Int          @default(1)
+  seasonId    String?
+  season      BattleSeason? @relation(fields: [seasonId], references: [id])
+  parentPromptId String?
+  parentPrompt   BattlePrompt? @relation("BattleRounds", fields: [parentPromptId], references: [id])
+  childPrompts   BattlePrompt[] @relation("BattleRounds")
+  isPrimeOnly Boolean      @default(false)
+  earlyAccessForPrime Boolean @default(false)
+  entryType   BattleEntryType @default(TEXT)
+  winnerEntryId String?
+  winnerEntry   BattleEntry? @relation("WonBattles", fields: [winnerEntryId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  entries     BattleEntry[]
+  @@index([campus, active, status])
+  @@index([campus, startsAt])
+  @@index([seasonId])
+  @@index([parentPromptId])
 }
 
 model BattleEntry {
@@ -175,16 +240,24 @@ model BattleEntry {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  text    String
-  campus  String
-  votes   Int     @default(0)
-  isPrime Boolean @default(false)
+  text        String?
+  imageUrl    String?
+  voiceUrl    String?
+  entryType   BattleEntryType @default(TEXT)
+  campus      String
+  votes       Int     @default(0)
+  isPrime     Boolean @default(false)
+  roundNumber Int     @default(1)
+  wonRound    Boolean @default(false)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  votesBy Vote[]
+  votesBy       Vote[]
+  wonBattles    BattlePrompt[] @relation("WonBattles")
 
   @@index([campus, promptId])
+  @@index([promptId, roundNumber])
   @@unique([promptId, userId])
 }
 
@@ -197,6 +270,17 @@ model Vote {
   createdAt DateTime    @default(now())
 
   @@unique([entryId, userId])
+}
+
+model PostView {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Transaction {
@@ -309,4 +393,105 @@ model RateLimit {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  actorId   String?
+  targetId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([actorId])
+  @@index([targetId])
+  @@index([createdAt])
+}
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referrer     User     @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId   String   @unique
+  referred     User     @relation("ReferredReferrals", fields: [referredId], references: [id], onDelete: Cascade)
+  status       String   @default("pending") // pending | completed
+  rewardAmount Int      @default(0)
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  @@index([referrerId, status])
+  @@index([referredId])
+}
+
+model BattleStats {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalBattles Int      @default(0)
+  totalEntries Int      @default(0)
+  totalWins    Int      @default(0)
+  totalVotes   Int      @default(0)
+  winRate      Float    @default(0)
+  currentStreak Int     @default(0)
+  bestStreak   Int      @default(0)
+  lastBattleAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Hashtag {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  campus    String
+  postsCount Int     @default(0)
+  trendingScore Float @default(0)
+  lastUsedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  posts PostHashtag[]
+
+  @@index([campus, trendingScore])
+  @@index([campus, lastUsedAt])
+}
+
+model PostHashtag {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtagId String
+  hashtag   Hashtag  @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, hashtagId])
+  @@index([hashtagId])
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  filters   Json?
+  resultsCount Int   @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  query     String
+  filters   Json?
+  alertEnabled Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
 }

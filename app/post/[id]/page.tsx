@@ -1,246 +1,64 @@
-"use client"
+import { Metadata } from "next"
+import { prisma } from "@/lib/prisma"
+import PostDetailClient from "./PostDetailClient"
 
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import Image from "next/image"
-import { apiGet, apiPost } from "@/lib/useApi"
-import { timeAgo } from "@/lib/timeAgo"
-
-type Comment = {
-  id: string
-  text: string
-  ghostId: string
-  user: { ghostId: string; avatarEmoji: string }
-  createdAt: string
-  parentId: string | null
-  replies: Comment[]
+interface Props {
+  params: Promise<{ id: string }>
 }
 
-type Post = {
-  id: string
-  text: string | null
-  imageUrl: string | null
-  yeahs: number
-  commentsCount: number
-  createdAt: string
-  user: { ghostId: string; avatarEmoji: string; tier: string }
-}
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const post = await prisma.post.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      text: true,
+      imageUrl: true,
+      createdAt: true,
+      user: { select: { ghostId: true, avatarEmoji: true } },
+    },
+  })
 
-function CommentThread({
-  comment,
-  onReply,
-}: {
-  comment: Comment
-  onReply: (parentId: string, ghostId: string) => void
-}) {
-  return (
-    <div className="mt-3">
-      <div className="flex gap-2">
-        <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
-          <div className="avatar-circle text-sm w-8 h-8">{comment.user.avatarEmoji}</div>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
-              {comment.user.ghostId}
-            </Link>
-            <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
-          </div>
-          <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
-          <button
-            className="text-xs text-white/40 hover:text-white mt-1"
-            onClick={() => onReply(comment.id, comment.ghostId)}
-          >
-            Reply
-          </button>
-        </div>
-      </div>
-
-      {comment.replies?.length > 0 && (
-        <div className="ml-10 border-l border-white/10 pl-3 mt-2">
-          {comment.replies.map((reply) => (
-            <CommentThread key={reply.id} comment={reply} onReply={onReply} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export default function PostDetailPage() {
-  const params = useParams<{ id: string }>()
-  return <PostDetail key={params.id} postId={params.id} />
-}
-
-function PostDetail({ postId }: { postId: string }) {
-  const router = useRouter()
-
-  const [post, setPost] = useState<Post | null>(null)
-  const [comments, setComments] = useState<Comment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [commentText, setCommentText] = useState("")
-  const [replyingTo, setReplyingTo] = useState<{ id: string; ghostId: string } | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-
-  async function loadComments() {
-    try {
-      const data = await apiGet(`/api/posts/${postId}/comments`)
-      setComments(data.comments)
-    } catch (err) {
-      console.error(err)
+  if (!post) {
+    return {
+      title: "Post Not Found | Yard",
     }
   }
 
-  useEffect(() => {
-    let active = true
+  const postText = post.text || "A post on Yard"
+  const truncatedText = postText.length > 100 ? postText.slice(0, 100) + "..." : postText
+  const imageUrl = post.imageUrl || "/og-image.svg"
+  const postUrl = `https://yardapp.me/post/${post.id}`
 
-    async function loadPost() {
-      try {
-        const response = await fetch(`/api/posts/${postId}`, { credentials: "include", cache: "no-store" })
-        if (!active) return
-        if (response.status === 401) throw new Error("Not authenticated.")
-        if (response.status === 404) return
-        if (!response.ok) throw new Error(`Unable to load post (${response.status}). Please try again.`)
-        const data = await response.json()
-        if (!active) return
-        if (!data.post) throw new Error("Unable to load post. Please try again.")
-        setPost(data.post)
-        try {
-          const data = await apiGet(`/api/posts/${postId}/comments`)
-          if (active) setComments(data.comments)
-        } catch (err) {
-          console.error(err)
-        }
-      } catch (err: unknown) {
-        if (!active) return
-        if (err instanceof Error && err.message === "Not authenticated.") {
-          router.push("/login")
-        }
-        setError(err instanceof Error ? err.message : "Unable to load post. Please try again.")
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-
-    loadPost()
-    return () => { active = false }
-  }, [postId, router])
-
-  async function handleVote() {
-    try {
-      await apiPost(`/api/posts/${postId}/vote`, {})
-      setPost((prev) => (prev ? { ...prev, yeahs: prev.yeahs + 1 } : prev))
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    }
+  return {
+    title: `${post.user.ghostId} on Yard`,
+    description: truncatedText,
+    openGraph: {
+      type: "article",
+      url: postUrl,
+      title: `${post.user.ghostId} on Yard`,
+      description: truncatedText,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `Post by ${post.user.ghostId}`,
+        },
+      ],
+      publishedTime: post.createdAt.toISOString(),
+      authors: [post.user.ghostId],
+    },
+    twitter: {
+      card: post.imageUrl ? "summary_large_image" : "summary",
+      title: `${post.user.ghostId} on Yard`,
+      description: truncatedText,
+      images: [imageUrl],
+    },
   }
+}
 
-  async function handleSubmitComment() {
-    if (!commentText.trim()) return
-    setSubmitting(true)
-    try {
-      await apiPost(`/api/posts/${postId}/comments`, {
-        text: commentText,
-        parentId: replyingTo?.id || null,
-      })
-      setCommentText("")
-      setReplyingTo(null)
-      loadComments()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  if (loading) return <p className="text-center text-white/40 mt-10">Loading...</p>
-  if (error) return <p role="alert" className="text-center text-white/40 mt-10">{error}</p>
-  if (!post) return <p className="text-center text-white/40 mt-10">Post not found.</p>
-
-  return (
-    <main className="min-h-screen max-w-lg mx-auto pb-32">
-      <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center gap-3 z-10">
-        <button onClick={() => router.back()} className="text-white/60 hover:text-white">
-          ← Back
-        </button>
-      </div>
-
-      <div className="card m-4 p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
-            <div className="avatar-circle">{post.user.avatarEmoji}</div>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
-                {post.user.ghostId}
-              </Link>
-              {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-            </div>
-            <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
-          </div>
-        </div>
-
-        {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
-        {post.imageUrl && (
-          <div className="relative w-full mb-3">
-            <Image
-              src={post.imageUrl}
-              alt=""
-              fill
-              className="rounded-lg w-full h-full object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
-          <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
-          <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
-        </div>
-      </div>
-
-      <div className="px-4">
-        <h3 className="text-sm font-semibold text-white/60 mb-2">Comments</h3>
-        {comments.length === 0 ? (
-          <p className="text-white/30 text-sm">No comments yet — start the thread.</p>
-        ) : (
-          comments.map((c) => (
-            <CommentThread
-              key={c.id}
-              comment={c}
-              onReply={(id, ghostId) => setReplyingTo({ id, ghostId })}
-            />
-          ))
-        )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 p-3 max-w-lg mx-auto">
-        {replyingTo && (
-          <div className="flex items-center justify-between text-xs text-white/50 mb-2 px-1">
-            <span>Replying to {replyingTo.ghostId}</span>
-            <button onClick={() => setReplyingTo(null)}>✕</button>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            className="input flex-1"
-            placeholder="Add a comment..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmitComment()}
-          />
-          <button
-            className="btn-primary px-4"
-            onClick={handleSubmitComment}
-            disabled={submitting || !commentText.trim()}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </main>
-  )
+export default async function PostPage({ params }: Props) {
+  const { id } = await params
+  return <PostDetailClient postId={id} />
 }
