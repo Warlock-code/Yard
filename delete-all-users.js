@@ -2,59 +2,56 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+async function safe(name, fn) {
+  try {
+    const r = await fn()
+    console.log(`Deleted ${name}`, r.count ?? "")
+  } catch (err) {
+    // P2021 = table doesn't exist yet, P2022 = column missing (drift) — skip
+    console.log(`Skipped ${name}: ${err.code || err.message}`)
+  }
+}
+
 async function main() {
   console.log("Deleting all users and related data...")
 
-  await prisma.comment.deleteMany({})
-  console.log("Deleted comments")
+  // Break BattlePrompt -> BattleEntry winner circular FK first
+  await safe("battle winner links", () =>
+    prisma.battlePrompt.updateMany({ data: { winnerEntryId: null } })
+  ).catch(() => {})
 
-  await prisma.vote.deleteMany({})
-  console.log("Deleted votes")
+  await safe("comments", () => prisma.comment.deleteMany({}))
+  await safe("comments (self-FK retry)", () => prisma.comment.deleteMany({}))
+  await safe("votes", () => prisma.vote.deleteMany({}))
+  await safe("post votes", () => prisma.postVote.deleteMany({}))
+  await safe("post views", () => prisma.postView.deleteMany({}))
+  await safe("earnings", () => prisma.earning.deleteMany({}))
+  await safe("payouts", () => prisma.payout.deleteMany({}))
+  await safe("transactions", () => prisma.transaction.deleteMany({}))
+  await safe("reports", () => prisma.report.deleteMany({}))
+  await safe("notifications", () => prisma.notification.deleteMany({}))
+  await safe("device tokens", () => prisma.deviceToken.deleteMany({}))
+  await safe("media uploads", () => prisma.mediaUpload.deleteMany({}))
+  await safe("battle entries", () => prisma.battleEntry.deleteMany({}))
+  await safe("battle prompts", () => prisma.battlePrompt.deleteMany({}))
+  await safe("battle seasons", () => prisma.battleSeason.deleteMany({}))
+  await safe("battle stats", () => prisma.battleStats.deleteMany({}))
+  await safe("follows", () => prisma.follow.deleteMany({}))
+  await safe("AI drafts", () => prisma.aiDraft.deleteMany({}))
+  await safe("search history", () => prisma.searchHistory.deleteMany({}))
+  await safe("saved searches", () => prisma.savedSearch.deleteMany({}))
+  await safe("referrals", () => prisma.referral.deleteMany({}))
+  await safe("audit logs", () => prisma.auditLog.deleteMany({}))
 
-  await prisma.postVote.deleteMany({})
-  console.log("Deleted post votes")
+  await safe("posts", () => prisma.post.deleteMany({}))
 
-  await prisma.earning.deleteMany({})
-  console.log("Deleted earnings")
-
-  await prisma.payout.deleteMany({})
-  console.log("Deleted payouts")
-
-  await prisma.transaction.deleteMany({})
-  console.log("Deleted transactions")
-
-  await prisma.report.deleteMany({})
-  console.log("Deleted reports")
-
-  await prisma.notification.deleteMany({})
-  console.log("Deleted notifications")
-
-  await prisma.deviceToken.deleteMany({})
-  console.log("Deleted device tokens")
-
-  await prisma.mediaUpload.deleteMany({})
-  console.log("Deleted media uploads")
-
-  await prisma.battleEntry.deleteMany({})
-  console.log("Deleted battle entries")
-
-  await prisma.battlePrompt.deleteMany({})
-  console.log("Deleted battle prompts")
-
-  await prisma.follow.deleteMany({})
-  console.log("Deleted follows")
-
-  await prisma.aiDraft.deleteMany({})
-  console.log("Deleted AI drafts")
-
-  await prisma.post.deleteMany({})
-  console.log("Deleted posts")
-
-  const deletedUsers = await prisma.user.deleteMany({})
+  const deletedUsers = await prisma.user.deleteMany({}).catch((err) => {
+    console.log(`Skipped users: ${err.code || err.message}`)
+    return { count: 0 }
+  })
   console.log(`Deleted ${deletedUsers.count} users`)
 
-  await prisma.rateLimit.deleteMany({})
-  console.log("Deleted rate limits")
+  await safe("rate limits", () => prisma.rateLimit.deleteMany({}))
 }
 
 main()
