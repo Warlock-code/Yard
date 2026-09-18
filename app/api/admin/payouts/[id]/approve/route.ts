@@ -36,29 +36,54 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     accountNumber = decrypt(payout.accountNumber!)
     bankCode = decrypt(payout.bankCode!)
   } catch {
-    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
+    await prisma.payout.updateMany({ where: { id: payout.id, status: "processing" }, data: { status: "pending" } })
     return NextResponse.json({ error: "Failed to decrypt payout details." }, { status: 500 })
   }
 
-  const recipient = await createTransferRecipient(accountName, accountNumber, bankCode)
+  // Wrap Paystack calls so network errors don't strand as processing forever
+  let recipient: any
+  try {
+    recipient = await createTransferRecipient(accountName, accountNumber, bankCode)
+  } catch (e) {
+    await prisma.payout.updateMany({ where: { id: payout.id, status: "processing" }, data: { status: "pending" } })
+    return NextResponse.json({ error: "Paystack recipient error - check PAYSTACK_SECRET_KEY and network." }, { status: 502 })
+  }
 
-  if (!recipient.status) {
-    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
-    return NextResponse.json({ error: "Failed to create transfer recipient." }, { status: 400 })
+  if (!recipient?.status) {
+    await prisma.payout.updateMany({ where: { id: payout.id, status: "processing" }, data: { status: "pending" } })
+    return NextResponse.json({ error: recipient?.message || "Failed to create transfer recipient." }, { status: 400 })
   }
 
   const reference = `payout_${payout.id}`
 
-  const transfer = await initiateTransfer(
-    payout.amount,
-    recipient.data.recipient_code,
-    "Yard creator payout",
-    reference
-  )
+  // If this payout was already approved earlier (retry after crash), reuse reference
+  if (payout.providerTransferRef) {
+    // Already has a reference - don't create duplicate transfer, just mark approved
+    await prisma.payout.update({
+      where: { id: payout.id },
+      data: { status: "approved", providerTransferRef: payout.providerTransferRef, processedAt: new Date() },
+    })
+    return NextResponse.json({ success: true, reused: true })
+  }
 
-  if (!transfer.status) {
-    await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending" } })
-    return NextResponse.json({ error: "Transfer initiation failed." }, { status: 400 })
+  let transfer: any
+  try {
+    transfer = await initiateTransfer(payout.amount, recipient.data.recipient_code, "Yard creator payout", reference)
+  } catch (e) {
+    await prisma.payout.updateMany({ where: { id: payout.id, status: "processing" }, data: { status: "pending" } })
+    return NextResponse.json({ error: "Paystack transfer error - check balance and try again." }, { status: 502 })
+  }
+
+  if (!transfer?.status) {
+    // Paystack can return false for duplicate reference (already sent) - don't strand
+    const msg = transfer?.message || "Transfer initiation failed."
+    // If duplicate reference, treat as already approved
+    if (typeof msg === "string" && msg.toLowerCase().includes("duplicate")) {
+      await prisma.payout.update({ where: { id: payout.id }, data: { status: "approved", providerTransferRef: reference, processedAt: new Date() } })
+      return NextResponse.json({ success: true, duplicate: true })
+    }
+    await prisma.payout.updateMany({ where: { id: payout.id, status: "processing" }, data: { status: "pending" } })
+    return NextResponse.json({ error: msg }, { status: 400 })
   }
 
   await prisma.payout.update({

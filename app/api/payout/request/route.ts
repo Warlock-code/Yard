@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { encrypt, maskAccountNumber } from "@/lib/payoutEncryption"
+import { isTierActive } from "@/lib/tier"
 
 function inPayoutWindow() {
   const day = new Date().getDate()
@@ -11,12 +12,25 @@ function inPayoutWindow() {
   return inEndOfMonth || inMidMonth
 }
 
+const MOMO_BANK_CODES = new Set(["MTN", "VOD", "ATL", "AFB", "TIGO", "MTN_GH", "VOD_GH"])
+
 function validateGhanaAccount(accountNumber: string, bankCode: string) {
+  const normalized = bankCode.trim().toUpperCase()
+  const isMomo = MOMO_BANK_CODES.has(normalized)
+  if (isMomo) {
+    if (!/^\d{10,15}$/.test(accountNumber)) {
+      throw new Error("Invalid MoMo number (10-15 digits).")
+    }
+    if (!/^[A-Z0-9]{3,6}$/i.test(bankCode)) {
+      throw new Error("Invalid MoMo bank code.")
+    }
+    return
+  }
   if (!/^\d{10,15}$/.test(accountNumber)) {
     throw new Error("Invalid account number format (10-15 digits).")
   }
   if (!/^\d{6}$/.test(bankCode)) {
-    throw new Error("Invalid bank code (6 digits).")
+    throw new Error("Invalid bank code (6 digits for GHIPSS banks, or MTN/VOD/ATL etc. for MoMo).")
   }
 }
 
@@ -24,17 +38,17 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PRIME") {
-    return NextResponse.json({ error: "Only Prime accounts can request payouts." }, { status: 403 })
+  if (!isTierActive(user as any)) {
+    return NextResponse.json({ error: user.tier !== "PRIME" ? "Only Prime accounts can request payouts." : "Your Prime expired — renew at yardapp.me/upgrade to request payouts.", }, { status: 403 })
   }
 
   if (!inPayoutWindow()) {
     return NextResponse.json({ error: "Payouts open at month-end and mid-month (14th–16th) only." }, { status: 400 })
   }
 
-  const pending = await prisma.payout.findFirst({ where: { userId: user.id, status: "pending" } })
+  const pending = await prisma.payout.findFirst({ where: { userId: user.id, status: { in: ["pending", "processing", "approved"] } } })
   if (pending) {
-    return NextResponse.json({ error: "You already have a payout request pending approval." }, { status: 409 })
+    return NextResponse.json({ error: "You already have a payout in progress (pending/processing/approved). Wait for it to settle." }, { status: 409 })
   }
 
   const { bankCode, accountNumber, accountName } = await req.json()
@@ -54,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   const earnings = await prisma.earning.aggregate({ where: { userId: user.id }, _sum: { amount: true } })
   const alreadyPaid = await prisma.payout.aggregate({
-    where: { userId: user.id, status: { in: ["approved", "paid"] } },
+    where: { userId: user.id, status: { in: ["pending", "processing", "approved", "paid"] } },
     _sum: { amount: true },
   })
   const available = (earnings._sum.amount || 0) - (alreadyPaid._sum.amount || 0)

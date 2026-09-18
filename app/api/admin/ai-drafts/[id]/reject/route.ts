@@ -10,6 +10,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
   const { id } = await params
 
-  await prisma.aiDraft.update({ where: { id }, data: { status: "rejected" } })
-  return NextResponse.json({ success: true })
+  try {
+    await prisma.aiDraft.update({ where: { id }, data: { status: "rejected" } })
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    if (e?.code === "P2025") return NextResponse.json({ error: "Draft not found." }, { status: 404 })
+    return NextResponse.json({ error: "Failed to reject." }, { status: 500 })
+  }
 }

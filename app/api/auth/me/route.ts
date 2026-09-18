@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { verifyToken } from "@/lib/auth"
+import { getEffectiveTier, getTierDaysLeft } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   if (!payload) return NextResponse.json({ user: null })
 
   const user = await prisma.user.findUnique({ where: { id: payload.userId } })
-  if (!user) return NextResponse.json({ user: null })
+  if (!user || user.status !== "ACTIVE") return NextResponse.json({ user: null })
 
   const postCount = await prisma.post.count({ where: { userId: user.id } })
   const followersCount = await prisma.follow.count({ where: { followingId: user.id } })
@@ -34,6 +35,8 @@ export async function GET(req: NextRequest) {
 
   const totalEarned = earningsSum._sum.amount || 0
   const totalPaidOut = paidOutSum._sum.amount || 0
+  const effectiveTier = getEffectiveTier(user)
+  const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
 
   return NextResponse.json({
     user: {
@@ -43,7 +46,10 @@ export async function GET(req: NextRequest) {
       avatarEmoji: user.avatarEmoji,
       campus: user.campus,
       program: user.program,
-      tier: user.tier,
+      tier: effectiveTier,
+      rawTier: user.tier,
+      tierExpiresAt: user.tierExpiresAt,
+      tierDaysLeft: daysLeft,
       streakCount: user.streakCount,
       ghostCoins: user.ghostCoins,
       ownedCosmetics: user.ownedCosmetics,

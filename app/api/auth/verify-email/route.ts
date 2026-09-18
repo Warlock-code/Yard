@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { signToken } from "@/lib/auth"
+import { signToken, verifyToken } from "@/lib/auth"
 import { rateLimitWithInfo } from "@/lib/rateLimit"
 import { verifyEmailSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
@@ -12,7 +12,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.error }, { status: 400 })
   }
   const { code } = validation.data
-  const userId = req.cookies.get("yard_token")?.value || body.userId
+  // Prefer body.userId (signup flow), fallback to JWT in cookie (verified session)
+  let userId: string | null = typeof body.userId === "string" ? body.userId : null
+  if (!userId) {
+    const token = req.cookies.get("yard_token")?.value
+    if (token) {
+      const payload = verifyToken(token)
+      if (payload) userId = payload.userId
+    }
+  }
 
   if (!userId) {
     return NextResponse.json({ error: "User ID required." }, { status: 400 })

@@ -7,3 +7,18 @@ export function blockIfNative(): boolean {
   }
   return false
 }
+
+export async function openPaystackCheckout(url: string) {
+  if (isNativeApp()) {
+    try {
+      const { Browser } = await import("@capacitor/browser")
+      await Browser.open({ url, windowName: "_blank", presentationStyle: "popover" })
+      return
+    } catch {
+      // fallback to system browser
+      window.open(url, "_blank")
+      return
+    }
+  }
+  window.location.href = url
+}

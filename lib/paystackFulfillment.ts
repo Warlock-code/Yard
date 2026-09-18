@@ -34,16 +34,28 @@ export async function validatePaystackCharge(reference: string, charge: Paystack
   })
   if (!tx) throw new Error("Unknown transaction.")
 
+  // For subscription plans (plus/prime) Paystack amount is authoritative — allow stored amount to be corrected
+  const isSubscription = tx.kind === "plus" || tx.kind === "prime"
+  const amountMatches = isSubscription
+    ? Number.isSafeInteger(charge.amount) && (charge.amount as number) > 0
+    : charge.amount === tx.amount
+
   if (
     charge.status !== "success" ||
     charge.reference !== reference ||
     !Number.isSafeInteger(charge.amount) ||
-    charge.amount !== tx.amount ||
+    !amountMatches ||
     charge.currency !== "GHS" ||
     typeof charge.customer?.email !== "string" ||
     charge.customer.email.trim().toLowerCase() !== tx.user.email.trim().toLowerCase()
   ) {
     throw new Error("Payment details do not match this transaction.")
+  }
+
+  // Auto-correct stored amount for subscriptions if Paystack amount differs (legacy 0 or price change)
+  if (isSubscription && (charge.amount as number) !== tx.amount) {
+    await prisma.transaction.update({ where: { reference }, data: { amount: charge.amount as number } })
+    tx.amount = charge.amount as number
   }
 
   return tx
@@ -118,8 +130,12 @@ export async function fulfillPaidTransaction(reference: string) {
         break
       case "plus":
       case "prime": {
-        const tier = transaction.kind.toUpperCase() as "PLUS" | "PRIME"
-        await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: new Date(Date.now() + 31 * 24 * 60 * 60 * 1000) } })
+        const tier = (transaction.kind.toUpperCase() as "PLUS" | "PRIME") as any
+        // Extend from max(now, current expiry) so early renewal doesn't lose days
+        const u = await db.user.findUnique({ where: { id: userId }, select: { tierExpiresAt: true } })
+        const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
+        const next = new Date(base + 31 * 24 * 60 * 60 * 1000)
+        await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: next } })
         break
       }
       default:

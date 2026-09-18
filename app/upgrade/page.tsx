@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
-import { blockIfNative } from "@/lib/purchaseGate"
+import { openPaystackCheckout } from "@/lib/purchaseGate"
 
 export default function UpgradePage() {
   const router = useRouter()
@@ -22,11 +22,10 @@ export default function UpgradePage() {
 
   async function handleSubscribe(tier: "plus" | "prime") {
     if (!me || loading || me.tier === "PRIME" || (tier === "plus" && me.tier === "PLUS")) return
-    if (blockIfNative()) return
     setLoading(true)
     try {
       const data = await apiPost(`/api/subscribe/${tier}`, {})
-      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
+      if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     prisma.user.count({ where: { tier: "PRIME" } }),
     prisma.user.count({ where: { tier: "PLUS" } }),
     prisma.transaction.aggregate({ where: { status: "success" }, _sum: { amount: true } }),
-    prisma.payout.aggregate({ where: { status: "pending" }, _sum: { amount: true } }),
+    prisma.payout.aggregate({ where: { status: { in: ["pending", "processing", "approved"] } }, _sum: { amount: true } }),
     prisma.payout.aggregate({ where: { status: "paid" }, _sum: { amount: true } }),
   ])
 

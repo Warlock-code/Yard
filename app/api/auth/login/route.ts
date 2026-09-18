@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { comparePassword, signToken } from "@/lib/auth"
-import { rateLimitWithInfo } from "@/lib/rateLimit"
+import { rateLimitWithInfo, clearRateLimit } from "@/lib/rateLimit"
 import { loginSchema, validateRequest } from "@/lib/validation"
 
 const MAX_FAILED_ATTEMPTS = 5
@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
   if (user.status !== "ACTIVE") {
     return NextResponse.json({ error: "Account suspended." }, { status: 403 })
   }
+
+  // Success: clear failed lockout count
+  clearRateLimit(lockoutKey)
 
   const token = signToken(user.id)
   const res = NextResponse.json({ success: true, ghostId: user.ghostId })

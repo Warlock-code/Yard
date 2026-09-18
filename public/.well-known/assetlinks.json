@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "me.yardapp.app",
+      "sha256_cert_fingerprints": [
+        "75:91:98:AB:99:C0:D9:D8:E2:40:41:A9:CA:95:35:93:8A:D6:A4:89:64:EA:40:F6:BD:C0:80:D3:3B:81:4B:E2",
+        "0B:FE:63:E9:07:9A:7D:47:0C:0D:49:0D:23:2C:83:DC:3E:5A:28:81:8D:BA:BC:04:93:60:AB:10:7A:EB:BF:9E"
+      ]
+    }
+  }
+]

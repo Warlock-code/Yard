@@ -14,19 +14,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const draft = await prisma.aiDraft.findUnique({ where: { id } })
   if (!draft) return NextResponse.json({ error: "Not found." }, { status: 404 })
+  if (draft.status !== "pending") return NextResponse.json({ error: "Draft already processed." }, { status: 409 })
 
   let systemUser = await prisma.user.findUnique({ where: { email: SYSTEM_GHOST_EMAIL } })
   if (!systemUser) {
-    systemUser = await prisma.user.create({
-      data: {
-        email: SYSTEM_GHOST_EMAIL,
-        passwordHash: "not_a_real_account",
-        emailVerified: true,
-        campus: "GCTU",
-        ghostId: "CampusWire",
-        avatarEmoji: "📡",
-      },
-    })
+    try {
+      systemUser = await prisma.user.create({
+        data: {
+          email: SYSTEM_GHOST_EMAIL,
+          passwordHash: "not_a_real_account",
+          emailVerified: true,
+          campus: "GCTU",
+          ghostId: "CampusWire",
+          avatarEmoji: "📡",
+        },
+      })
+    } catch (e: any) {
+      if (e?.code === "P2002") {
+        systemUser = await prisma.user.findUnique({ where: { email: SYSTEM_GHOST_EMAIL } })
+        if (!systemUser) return NextResponse.json({ error: "System user conflict." }, { status: 500 })
+      } else throw e
+    }
   }
 
   await prisma.post.create({

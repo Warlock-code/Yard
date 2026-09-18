@@ -21,7 +21,8 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ username, password }),
         credentials: "include",
       })
-      if (!res.ok) throw new Error("Invalid credentials.")
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Invalid credentials.")
       router.push("/admin")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.")

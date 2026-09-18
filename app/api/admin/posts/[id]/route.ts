@@ -21,11 +21,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     prisma.post.delete({ where: { id } }),
   ])
   if (post.upload) {
-    await prisma.user.update({
-      where: { id: post.userId },
-      data: { storageUsed: { decrement: post.upload.sizeBytes / BYTES_PER_MB } },
-    })
-    await new UTApi().deleteFiles(post.upload.fileKey)
+    const user = await prisma.user.findUnique({ where: { id: post.userId }, select: { storageUsed: true } })
+    const decrement = post.upload.sizeBytes / BYTES_PER_MB
+    const newVal = Math.max(0, (user?.storageUsed || 0) - decrement)
+    await prisma.user.update({ where: { id: post.userId }, data: { storageUsed: newVal } })
+    try { await new UTApi().deleteFiles(post.upload.fileKey) } catch {}
   }
   return NextResponse.json({ success: true })
 }

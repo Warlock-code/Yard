@@ -53,11 +53,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         prisma.post.delete({ where: { id: post.id } }),
       ])
       if (post.upload) {
-        await prisma.user.update({
-          where: { id: post.userId },
-          data: { storageUsed: { decrement: post.upload.sizeBytes / BYTES_PER_MB } },
-        })
-        await new UTApi().deleteFiles(post.upload.fileKey)
+        const user = await prisma.user.findUnique({ where: { id: post.userId }, select: { storageUsed: true } })
+        const newVal = Math.max(0, (user?.storageUsed || 0) - post.upload.sizeBytes / BYTES_PER_MB)
+        await prisma.user.update({ where: { id: post.userId }, data: { storageUsed: newVal } })
+        try { await new UTApi().deleteFiles(post.upload.fileKey) } catch {}
       }
     } else {
       await prisma.report.update({ where: { id }, data: { status: "actioned" } })

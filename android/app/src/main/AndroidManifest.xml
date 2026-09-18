@@ -36,6 +36,25 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- App Links: handle https://yardapp.me/payment/callback in-app for frictionless Paystack return -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="yardapp.me" android:pathPrefix="/payment/callback" />
+                <data android:scheme="https" android:host="www.yardapp.me" android:pathPrefix="/payment/callback" />
+                <data android:scheme="https" android:host="yardapp.me" android:pathPrefix="/upgrade" />
+                <data android:scheme="https" android:host="yardapp.me" android:pathPrefix="/shop" />
+                <data android:scheme="https" android:host="yardapp.me" android:pathPrefix="/lair" />
+            </intent-filter>
+            <!-- Custom scheme fallback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="yardapp" android:host="payment" />
+                <data android:scheme="me.yardapp.app" android:host="payment" />
+            </intent-filter>
 
         </activity>
 

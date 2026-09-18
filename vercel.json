@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "crons": [
     { "path": "/api/cron/generate-post", "schedule": "0 0 * * *" },
-    { "path": "/api/cron/return-reminder", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/return-reminder", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/tier-expiry", "schedule": "0 2 * * *" }
   ]
 }

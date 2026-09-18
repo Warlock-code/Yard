@@ -32,10 +32,10 @@ export async function initializeSubscription(email: string, planCode: string, re
   return res.json()
 }
 
-const MOMO_BANK_CODES = new Set(["MTN", "VOD", "ATL", "AFB", "GCB", "TIGO"])
+const MOMO_BANK_CODES = new Set(["MTN", "VOD", "ATL", "AFB", "TIGO", "MTN_GH", "VOD_GH"])
 
 export async function createTransferRecipient(name: string, accountNumber: string, bankCode: string) {
-  const isMomo = MOMO_BANK_CODES.has(bankCode.toUpperCase())
+  const isMomo = MOMO_BANK_CODES.has(bankCode.trim().toUpperCase())
   const res = await fetch("https://api.paystack.co/transferrecipient", {
     method: "POST",
     headers: {

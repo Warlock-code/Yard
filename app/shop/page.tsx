@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
-import { blockIfNative } from "@/lib/purchaseGate"
+import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS } from "@/lib/avatars"
 
 const CATEGORIES = [
@@ -25,12 +25,11 @@ export default function ShopPage() {
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
-    if (blockIfNative()) return
     setLoading(key)
     try {
       const data = await apiPost(endpoint, body)
       if (data.data?.authorization_url) {
-        window.location.href = data.data.authorization_url
+        await openPaystackCheckout(data.data.authorization_url)
       } else {
         alert("Purchased!")
       }

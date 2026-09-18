@@ -36,6 +36,10 @@ export function rateLimitWithInfo(key: string, max: number, windowMs: number) {
   return { allowed: true, remaining: max - record.count, resetAt: record.resetAt }
 }
 
+export function clearRateLimit(key: string) {
+  hits.delete(key)
+}
+
 setInterval(() => {
   const now = Date.now()
   for (const [key, record] of hits.entries()) {
