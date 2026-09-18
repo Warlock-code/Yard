@@ -129,19 +129,20 @@ export default function ComposePage() {
         />
 
         {image && (
-          <div className="relative mt-3 w-full max-h-80">
+          <div className="relative mt-3 w-full h-64 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <Image
               src={image}
-              alt=""
+              alt="preview"
               fill
-              className="rounded-lg w-full h-full object-cover"
+              className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
+              unoptimized
             />
             <button
               onClick={handleRemoveImage}
               disabled={removing || posting || isUploading}
               aria-label={removing ? "Removing image" : "Remove image"}
-              className="absolute top-2 right-2 z-10 bg-black/70 rounded-full w-7 h-7 text-sm disabled:opacity-40"
+              className="absolute top-2 right-2 z-10 bg-black/80 border border-white/20 rounded-full w-7 h-7 text-sm disabled:opacity-40 grid place-items-center"
             >
               ✕
             </button>

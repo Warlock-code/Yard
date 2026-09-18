@@ -61,34 +61,48 @@ export default function ShopPage() {
         ))}
       </div>
 
+      {category === "tier" && !me && (
+        <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
+      )}
       {category === "tier" && me?.tier === "PRIME" && (
-        <div className="card p-4 mt-2">
+        <div className="card p-4 mt-2 border-[#facc15]/20 bg-[#facc15]/5">
           <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
-          <p className="font-semibold text-sm text-white/70">You&apos;re on the highest plan.</p>
+          <p className="font-semibold text-sm text-white/70">You&apos;re on the highest plan — no further upgrade.</p>
         </div>
       )}
-
-      {category === "tier" && me?.tier !== "PRIME" && (
+      {category === "tier" && me?.tier === "PLUS" && (
+        <div className="card p-5 mt-2 border-[#facc15]/30">
+          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
+          <p className="font-bold text-lg mb-2">Upgrade to Prime — GHS 20</p>
+          <p className="text-white/40 text-xs mb-3">You&apos;re on Plus — Prime adds earnings & all avatars.</p>
+          <button
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading !== null}
+            onClick={() => buy("/api/subscribe/prime", "prime")}
+          >
+            {loading === "prime" ? "..." : "Go Prime"}
+          </button>
+        </div>
+      )}
+      {category === "tier" && me?.tier === "FREE" && (
         <div className="space-y-3 mt-2">
-          {me?.tier !== "PLUS" && (
-            <div className="card p-5">
-              <p className="text-xs text-white/40 uppercase mb-1">Plus</p>
-              <p className="font-bold text-lg mb-2">More perks, more style</p>
-              <button
-                className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!me || loading !== null}
-                onClick={() => buy("/api/subscribe/plus", "plus")}
-              >
-                {loading === "plus" ? "..." : "Subscribe"}
-              </button>
-            </div>
-          )}
+          <div className="card p-5">
+            <p className="text-xs text-white/40 uppercase mb-1">Plus — GHS 10</p>
+            <p className="font-bold text-lg mb-2">More perks, more style</p>
+            <button
+              className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading !== null}
+              onClick={() => buy("/api/subscribe/plus", "plus")}
+            >
+              {loading === "plus" ? "..." : "Subscribe"}
+            </button>
+          </div>
           <div className="card p-5 border-[#facc15]/30">
-            <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
+            <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime — GHS 20</p>
             <p className="font-bold text-lg mb-2">Every tier avatar. Real earnings. Early access.</p>
             <button
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!me || loading !== null}
+              disabled={loading !== null}
               onClick={() => buy("/api/subscribe/prime", "prime")}
             >
               {loading === "prime" ? "..." : "Go Prime"}

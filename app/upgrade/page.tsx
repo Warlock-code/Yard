@@ -40,42 +40,65 @@ export default function UpgradePage() {
         <h1 className="text-xl font-bold">Upgrade</h1>
       </div>
 
-      {me?.tier === "PRIME" ? (
-        <div className="card p-5">
-          <p className="font-bold text-lg mb-1">You&apos;re on Prime</p>
+      {!me ? (
+        <div className="space-y-4">
+          <div className="card p-5 animate-pulse"><div className="h-4 w-32 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
+          <div className="card p-5 animate-pulse"><div className="h-4 w-32 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
+        </div>
+      ) : me.tier === "PRIME" ? (
+        <div className="card p-5 border-[#facc15]/30 bg-[#facc15]/5">
+          <p className="font-bold text-lg mb-1 text-[#facc15]">👑 You&apos;re on Prime</p>
+          <p className="text-white/60 text-sm">You have all perks — no need to upgrade again.</p>
+        </div>
+      ) : me.tier === "PLUS" ? (
+        <div className="card p-5 border-[#facc15]/30">
+          <p className="font-bold text-lg mb-1 text-[#facc15]">👑 Prime — GHS 20/month</p>
+          <p className="text-white/50 text-xs mb-2">You&apos;re on Plus — upgrade to Prime for earnings & all avatars.</p>
+          <ul className="text-sm text-white/70 space-y-1 mb-4 mt-2">
+            <li>✓ Everything in Plus</li>
+            <li>✓ All tier avatars unlocked</li>
+            <li>✓ Real cash earnings from votes & battle wins</li>
+            <li>✓ Request payouts (min GHS 20)</li>
+            <li>✓ Early access to new features</li>
+          </ul>
+          <button
+            className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+            onClick={() => handleSubscribe("prime")}
+          >
+            Go Prime
+          </button>
         </div>
       ) : (
         <>
-          {me?.tier !== "PLUS" && (
-            <div className="card p-5 mb-4">
-              <p className="font-bold text-lg mb-1">Plus — GHS 10/month</p>
-              <ul className="text-sm text-white/70 space-y-1 mb-4 mt-2">
-                <li>✓ 3 avatar options (Ghost, Snake, Alien)</li>
-                <li>✓ Edit your posts</li>
-                <li>✓ Priority in Battles</li>
-              </ul>
-              <button
-                className="btn-ghost w-full disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!me || me.tier !== "FREE" || loading}
-                onClick={() => handleSubscribe("plus")}
-              >
-                Get Plus
-              </button>
-            </div>
-          )}
+          <div className="card p-5 mb-4">
+            <p className="font-bold text-lg mb-1">Plus — GHS 10/month</p>
+            <ul className="text-sm text-white/70 space-y-1 mb-4 mt-2">
+              <li>✓ 3 avatar options (Ghost, Snake, Alien)</li>
+              <li>✓ Edit your posts</li>
+              <li>✓ Priority in Battles</li>
+            </ul>
+            <button
+              className="btn-ghost w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+              onClick={() => handleSubscribe("plus")}
+            >
+              Get Plus
+            </button>
+          </div>
 
           <div className="card p-5 border-[#facc15]/30">
             <p className="font-bold text-lg mb-1 text-[#facc15]">👑 Prime — GHS 20/month</p>
             <ul className="text-sm text-white/70 space-y-1 mb-4 mt-2">
               <li>✓ Everything in Plus</li>
-                <li>✓ All tier avatars unlocked</li>
+              <li>✓ All tier avatars unlocked</li>
               <li>✓ Real cash earnings from votes & battle wins</li>
               <li>✓ Request payouts (min GHS 20)</li>
               <li>✓ Early access to new features</li>
             </ul>
             <button
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!me || loading}
+              disabled={loading}
               onClick={() => handleSubscribe("prime")}
             >
               Go Prime
