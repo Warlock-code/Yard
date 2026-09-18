@@ -1,19 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, Suspense } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { blockIfNative } from "@/lib/purchaseGate"
+import { openPaystackCheckout } from "@/lib/purchaseGate"
 import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
-import SearchBar from "@/app/components/SearchBar"
-
-function SearchBarWrapper() {
-  return <SearchBar />
-}
 
 type Post = {
   id: string
@@ -184,7 +179,6 @@ export default function FeedPage() {
   }
 
   async function handleBoost(postId: string) {
-    if (blockIfNative()) return
     try {
       await apiPost(`/api/boost/${postId}`, {})
       alert("Boosted for 24h!")
@@ -250,10 +244,9 @@ export default function FeedPage() {
 
   async function handleNameChange() {
     if (!newName.trim()) return
-    if (blockIfNative()) return
     try {
       const data = await apiPost("/api/shop/custom-name", { newName })
-      if (data.data?.authorization_url) window.location.href = data.data.authorization_url
+      if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
     }
@@ -294,11 +287,7 @@ export default function FeedPage() {
         <span className="font-black text-lg tracking-tight">
           YARD<span className="text-[#baff39]">.</span>
         </span>
-        <Link href="/search" className="absolute right-4" aria-label="Search">
-          <Suspense fallback={<div className="h-10 w-48 bg-white/5 border border-white/10 rounded-full animate-pulse" />}>
-            <SearchBar placeholder="Search..." showFilters={false} className="w-48" />
-          </Suspense>
-        </Link>
+        <div className="absolute right-4 w-10" aria-hidden="true" />
       </div>
 
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-2 grid grid-cols-4 z-10">

@@ -11,7 +11,6 @@ const TABS = [
   { href: "/battles", icon: "⚔️", label: "Battles" },
   { href: "/leaderboard", icon: "🏆", label: "Boards" },
   { href: "/shop", icon: "🛍️", label: "Market" },
-  { href: "/lair", icon: "👻", label: "Lair" },
 ]
 
 export default function BottomNav() {
@@ -98,8 +97,8 @@ export default function BottomNav() {
             >
               <span aria-hidden="true">{tab.icon}</span>
               {active && <span className="text-xs font-bold tracking-tight">{tab.label}</span>}
-              {/* No /notifications route in TABS — unread haunts surface on the Lair. */}
-              {tab.href === "/lair" && unreadCount > 0 && (
+              {/* No /notifications route — unread haunts surface on Feed. Lair lives in the sidebar drawer. */}
+              {tab.href === "/feed" && unreadCount > 0 && (
                 <span
                   aria-label={`${unreadCount} unread haunts`}
                   role="status"
