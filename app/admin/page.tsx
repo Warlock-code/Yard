@@ -255,6 +255,56 @@ export default function AdminPage() {
           </div>
           <p className="text-xs text-white/30 mt-2">Control Center · Ghana campuses</p>
         </div>
+        {/* Tier mini stats — makes sidebar feel used */}
+        <div className="px-3 pt-3">
+          {stats ? (
+            <div className="card p-3 bg-white/[0.02] border-white/[0.06]">
+              <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-2">Tier breakdown</p>
+              <div className="space-y-2">
+                {(() => {
+                  const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
+                  const total = Math.max(1, stats.userCount)
+                  const items = [
+                    { label: "Prime", icon: "👑", count: stats.primeCount, price: "GHS 20", color: "text-[#facc15]", bg: "bg-[#facc15]/15 border-[#facc15]/20", bar: "bg-[#facc15]" },
+                    { label: "Plus", icon: "⭐", count: stats.plusCount, price: "GHS 10", color: "text-sky-300", bg: "bg-sky-500/10 border-sky-500/20", bar: "bg-sky-400" },
+                    { label: "Free", icon: "👻", count: freeCount, price: "Free", color: "text-white/60", bg: "bg-white/5 border-white/10", bar: "bg-white/20" },
+                  ]
+                  return items.map((it) => {
+                    const pct = Math.round((it.count / total) * 100)
+                    return (
+                      <div key={it.label} className="flex items-center gap-2.5">
+                        <span className={`w-7 h-7 rounded-lg border flex items-center justify-center text-xs ${it.bg}`}>{it.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-bold ${it.color}`}>{it.label}</span>
+                            <span className="text-xs font-black">{it.count}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                              <div className={`h-full rounded-full ${it.bar}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-white/25 font-medium">{pct}% · {it.price}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+              <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                <span className="text-white/30">{stats.userCount} total · {stats.activeUsers} active 7d</span>
+                <span className="text-white/20 font-mono">{ghs(stats.revenuePesewas)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-3 bg-white/[0.02] border-white/[0.06] animate-pulse">
+              <div className="h-3 w-20 bg-white/10 rounded mb-3" />
+              <div className="space-y-2">
+                {[1,2,3].map(i=> <div key={i} className="h-8 bg-white/5 rounded" />)}
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-6 no-scrollbar">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
@@ -293,6 +343,28 @@ export default function AdminPage() {
               <span className="font-black text-lg">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] tracking-widest text-white/30 ml-1">ADMIN</span></span>
               <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60">✕</button>
             </div>
+            {stats && (
+              <div className="px-3 pt-3">
+                <div className="card p-3 bg-white/[0.02] border-white/10">
+                  <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-2">Tiers</p>
+                  <div className="space-y-2">
+                    {(() => {
+                      const freeCount = Math.max(0, stats.userCount - stats.primeCount - stats.plusCount)
+                      return [
+                        { label: "Prime", icon: "👑", count: stats.primeCount, color: "text-[#facc15]" },
+                        { label: "Plus", icon: "⭐", count: stats.plusCount, color: "text-sky-300" },
+                        { label: "Free", icon: "👻", count: freeCount, color: "text-white/60" },
+                      ].map(it => (
+                        <div key={it.label} className="flex items-center justify-between text-xs">
+                          <span className={it.color}>{it.icon} {it.label}</span>
+                          <span className="font-bold">{it.count}</span>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-3 space-y-6">
               {NAV_GROUPS.map((group) => (
                 <div key={group.label}>
