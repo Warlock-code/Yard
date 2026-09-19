@@ -55,7 +55,8 @@ export function prefetchOnHover(href: string) {
 export function useHoverPrefetch() {
   useEffect(() => {
     const handleMouseEnter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
+      const target = e.target as Node
+      if (!(target instanceof Element)) return
       const link = target.closest("a[href]") as HTMLAnchorElement | null
       if (link) {
         const href = link.getAttribute("href")
