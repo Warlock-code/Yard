@@ -13,7 +13,6 @@ const TABS = [
   { href: "/leaderboard", icon: "🏆", label: "Boards" },
   { href: "/shop", icon: "🛍️", label: "Market" },
   { href: "/notifications", icon: "🔔", label: "Notifications" },
-  { href: "/lair", icon: "🏰", label: "Lair" },
 ]
 
 export default function BottomNav() {
@@ -76,9 +75,9 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-6"
+      className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-4"
     >
-      <div className="flex gap-1 bg-[#0a0a0a]/20 backdrop-blur-sm border border-white/10 rounded-full px-2 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+      <div className="flex gap-0.5 bg-[#0a0a0a]/20 backdrop-blur-sm border border-white/10 rounded-full px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
         {TABS.map((tab) => {
           const active =
             pathname === tab.href ||
@@ -94,20 +93,19 @@ export default function BottomNav() {
               href={tab.href}
               aria-label={tab.label}
               aria-current={active ? "page" : undefined}
-              className={`relative flex h-11 items-center justify-center gap-1.5 rounded-full text-lg transition-all ${
+              className={`relative flex h-9 items-center justify-center gap-1 rounded-full text-base transition-all ${
                 active
-                  ? "bg-[#baff39]/15 text-[#baff39] px-3.5"
-                  : "w-11 text-white/40 hover:text-white/70"
+                  ? "bg-[#baff39]/15 text-[#baff39] px-3"
+                  : "w-9 text-white/40 hover:text-white/70"
               }`}
             >
-              <span aria-hidden="true">{tab.icon}</span>
-              {active && <span className="text-xs font-bold tracking-tight">{tab.label}</span>}
-              {/* No /notifications route — unread haunts surface on Feed. Lair lives in the sidebar drawer. */}
+              <span aria-hidden="true" className="text-xl">{tab.icon}</span>
+              {active && <span className="text-[11px] font-bold tracking-tight">{tab.label}</span>}
               {tab.href === "/feed" && unreadCount > 0 && (
                 <span
                   aria-label={`${unreadCount} unread haunts`}
                   role="status"
-                  className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#ff4d6d] border-2 border-[#0a0a0a]"
+                  className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-[#ff4d6d] border-2 border-[#0a0a0a]"
                 />
               )}
             </Link>
