@@ -53,12 +53,8 @@ type Post = {
   type: string
   yeahs: number
   commentsCount: number
-  repostsCount: number
-  bookmarksCount: number
   boosted: boolean
   isFollowing: boolean
-  isReposted: boolean
-  isBookmarked: boolean
   createdAt: string
   user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
 }
@@ -116,7 +112,6 @@ export default function FeedPage() {
   const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
   const pendingFollowRequests = useRef(new Set<string>())
   const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
-  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set())
   const [pullToRefresh, setPullToRefresh] = useState(false)
   const pullStartRef = useRef<number | null>(null)
 
@@ -286,36 +281,6 @@ export default function FeedPage() {
     }
   }
 
-  async function handleRepost(postId: string) {
-    try {
-      await apiPost(`/api/posts/${postId}/repost`, {})
-      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, isReposted: true, repostsCount: p.repostsCount + 1 } : p))
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    }
-  }
-
-  async function handleBookmark(postId: string) {
-    try {
-      await apiPost(`/api/posts/${postId}/bookmark`, {})
-      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, isBookmarked: !p.isBookmarked, bookmarksCount: p.isBookmarked ? p.bookmarksCount - 1 : p.bookmarksCount + 1 } : p))
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    }
-  }
-
-  async function handleShare(postId: string) {
-    const url = `${window.location.origin}/post/${postId}`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Yard Post", url })
-      } catch {}
-    } else {
-      await navigator.clipboard.writeText(url)
-      alert("Link copied!")
-    }
-  }
-
   function handleTouchStart(e: React.TouchEvent) {
     pullStartRef.current = e.touches[0].clientY
   }
@@ -335,15 +300,6 @@ export default function FeedPage() {
     }
     setPullToRefresh(false)
     pullStartRef.current = null
-  }
-
-  function toggleExpand(postId: string) {
-    setExpandedPosts((prev) => {
-      const next = new Set(prev)
-      if (next.has(postId)) next.delete(postId)
-      else next.add(postId)
-      return next
-    })
   }
 
   async function handleDelete(postId: string) {
@@ -460,9 +416,7 @@ export default function FeedPage() {
             const isOwn = me && post.user.id === me.id
             const isFollowing = followingByAuthor[post.user.id] ?? post.isFollowing
             const followPending = pendingFollows.has(post.user.id)
-            const isExpanded = expandedPosts.has(post.id)
             const images = post.imageUrls && post.imageUrls.length > 0 ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])
-            const showMore = post.text && post.text.split('\n').length > 3
 
             return (
               <div key={post.id} className="relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
@@ -491,19 +445,7 @@ export default function FeedPage() {
 
                     {post.text && (
                       <p className="text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
-                        {isExpanded || !showMore ? (
-                          <RichText text={post.text} />
-                        ) : (
-                          <>
-                            <RichText text={post.text.split('\n').slice(0, 3).join('\n')} />
-                            <button
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleExpand(post.id) }}
-                              className="text-[#baff39] text-sm mt-1 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#baff39]"
-                            >
-                              Show more
-                            </button>
-                          </>
-                        )}
+                        <RichText text={post.text} />
                       </p>
                     )}
 
@@ -534,50 +476,27 @@ export default function FeedPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between px-1 py-2 text-sm text-white/60 border-t border-white/[0.04]">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
+                      {isOwn ? (
+                        <span className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
+                      ) : (
+                        <button onClick={() => handleVote(post.id)} aria-label={`Add heat, ${post.yeahs} heat`} className="text-orange-200 hover:text-orange-100 gap-1">
+                          🔥 {post.yeahs}
+                        </button>
+                      )}
                       <button
                         onClick={() => router.push(`/post/${post.id}`)}
-                        aria-label={`Reply, ${post.commentsCount} replies`}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors"
+                        aria-label={`View comments, ${post.commentsCount} comments`}
+                        className="text-sky-200 hover:text-sky-100 gap-1"
                       >
-                        <span aria-hidden="true">💬</span>
-                        <span>{post.commentsCount}</span>
+                        💬 {post.commentsCount}
                       </button>
-                      <button
-                        onClick={() => handleRepost(post.id)}
-                        aria-label={`Repost, ${post.repostsCount} reposts`}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${post.isReposted ? 'text-[#baff39]' : ''}`}
-                      >
-                        <span aria-hidden="true">🔁</span>
-                        <span>{post.repostsCount}</span>
-                      </button>
-                      <button
-                        onClick={() => handleVote(post.id)}
-                        aria-label={`Like, ${post.yeahs} likes`}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${isOwn ? 'text-orange-200' : ''}`}
-                      >
-                        <span aria-hidden="true">🔥</span>
-                        <span>{post.yeahs}</span>
-                      </button>
-                      <button
-                        onClick={() => handleShare(post.id)}
-                        aria-label="Share"
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors"
-                      >
-                        <span aria-hidden="true">📤</span>
-                      </button>
-                      <button
-                        onClick={() => handleBookmark(post.id)}
-                        aria-label={`Bookmark, ${post.bookmarksCount} bookmarks`}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${post.isBookmarked ? 'text-[#baff39]' : ''}`}
-                      >
-                        <span aria-hidden="true">🔖</span>
-                        <span>{post.bookmarksCount}</span>
-                      </button>
-                    </div>
-
-                    {!isOwn && (
-                      <div className="flex items-center gap-2 pt-1">
+                      {isOwn && (
+                        <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
+                          🚀
+                        </button>
+                      )}
+                      {!isOwn && (
                         <button
                           onClick={() => handleFollow(post.user.id)}
                           disabled={!me || followPending}
@@ -585,30 +504,29 @@ export default function FeedPage() {
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
                           title={isFollowing ? "Following" : "Follow"}
-                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${isFollowing ? "bg-[#baff39]/15 text-[#baff39] border border-[#baff39]/30" : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-[#baff39] border border-white/10"} disabled:opacity-50 disabled:cursor-wait`}
+                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait`}
                         >
-                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d={isFollowing ? "M5 12l4 4L19 6" : "M12 5v14M5 12h14"} />
                           </svg>
-                          {isFollowing ? "Following" : "Follow"}
                         </button>
-                        {isOwn && me && me.tier !== "FREE" && (
-                          <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39] text-white/50 text-sm px-2">
-                            ✎ Edit
-                          </button>
-                        )}
-                        {isOwn && (
-                          <button onClick={() => handleDelete(post.id)} className="hover:text-red-400 text-white/50 text-sm px-2">
-                            🗑 Delete
-                          </button>
-                        )}
-                        {!isOwn && (
-                          <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs text-white/40 px-2">
-                            ⚑ Report
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {isOwn && me && me.tier !== "FREE" && (
+                        <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39]">
+                          ✎
+                        </button>
+                      )}
+                      {isOwn && (
+                        <button onClick={() => handleDelete(post.id)} className="hover:text-red-400">
+                          🗑
+                        </button>
+                      )}
+                      {!isOwn && (
+                        <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
+                          ⚑
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
