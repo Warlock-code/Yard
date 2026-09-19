@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { hashPassword, makeGhostId, makeVerifyCode, generateSecureToken } from "@/lib/auth"
+import { hashPassword, makeGhostId, makeVerifyCode } from "@/lib/auth"
 import { getCampusFromEmail } from "@/lib/schoolEmails"
 import { sendVerifyEmail } from "@/lib/resend"
 import { rateLimit, rateLimitWithInfo } from "@/lib/rateLimit"
@@ -10,6 +10,7 @@ import { auditLog } from "@/lib/auditLog"
 import { generateInviteCode } from "@/lib/share"
 
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json().catch(() => ({}))
   const validation = validateRequest(signupSchema, body)
   if (!validation.success) {
@@ -91,9 +92,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await sendVerifyEmail(normalizedEmail, verifyCode)
+  try {
+    await sendVerifyEmail(normalizedEmail, verifyCode)
+  } catch (emailErr) {
+    console.error("[signup] sendVerifyEmail failed for", normalizedEmail, emailErr)
+    // Don't fail signup if email fails — user can resend code
+    // Still audit and return success but include a warning
+    await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, emailFailed: true })
+    return NextResponse.json({ userId: user.id, ghostId: user.ghostId, emailFailed: true, message: emailErr instanceof Error ? emailErr.message : "Failed to send verification email. Please resend code." })
+  }
 
   await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip })
 
   return NextResponse.json({ userId: user.id, ghostId: user.ghostId })
+  } catch (err) {
+    console.error("[signup] unexpected error", err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong. Please try again." }, { status: 500 })
+  }
 }

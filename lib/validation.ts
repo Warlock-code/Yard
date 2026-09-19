@@ -7,8 +7,8 @@ export const signupSchema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number")
     .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
-  programLevel: z.string().optional(),
-  program: z.string().optional(),
+  programLevel: z.string().trim().min(1, "Program level is required").max(50, "Program level too long"),
+  program: z.string().trim().min(1, "Program is required").max(100, "Program too long"),
 })
 
 export const loginSchema = z.object({
@@ -50,7 +50,7 @@ export const payoutRequestSchema = z.object({
 })
 
 export const verifyEmailSchema = z.object({
-  code: z.string().length(6, "Code must be 6 digits"),
+  code: z.string().trim().length(6, "Code must be 6 digits").regex(/^\d{6}$/, "Code must be 6 digits"),
 })
 
 export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {

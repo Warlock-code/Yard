@@ -1,4 +1,5 @@
-export async function apiPost(url: string, body: unknown) {
+/* eslint-disable @typescript-eslint/no-explicit-any -- api helpers intentionally return any for backward compat */
+export async function apiPost(url: string, body: unknown): Promise<any> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -7,31 +8,46 @@ export async function apiPost(url: string, body: unknown) {
   })
 
   const text = await res.text()
-  const data = text ? JSON.parse(text) : {}
+  let data: any = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
+  }
 
-  if (!res.ok) throw new Error(data.error || "Something went wrong.")
+  if (!res.ok) throw new Error(data?.error || data?.message || `Something went wrong (${res.status}). Please try again.`)
   return data
 }
 
-export async function apiGet(url: string) {
+export async function apiGet(url: string): Promise<any> {
   const res = await fetch(url, { credentials: "include" })
 
   const text = await res.text()
-  const data = text ? JSON.parse(text) : {}
+  let data: any = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
+  }
 
-  if (!res.ok) throw new Error(data.error || "Something went wrong.")
+  if (!res.ok) throw new Error(data?.error || data?.message || `Something went wrong (${res.status}).`)
   return data
 }
 
-export async function apiDelete(url: string) {
+export async function apiDelete(url: string): Promise<any> {
   const res = await fetch(url, { method: "DELETE", credentials: "include" })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : {}
-  if (!res.ok) throw new Error(data.error || "Something went wrong.")
+  let data: any = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
+  }
+  if (!res.ok) throw new Error(data?.error || data?.message || `Something went wrong (${res.status}).`)
   return data
 }
 
-export async function apiPatch(url: string, body: unknown) {
+export async function apiPatch(url: string, body: unknown): Promise<any> {
   const res = await fetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -39,7 +55,12 @@ export async function apiPatch(url: string, body: unknown) {
     credentials: "include",
   })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : {}
-  if (!res.ok) throw new Error(data.error || "Something went wrong.")
+  let data: any = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
+  }
+  if (!res.ok) throw new Error(data?.error || data?.message || `Something went wrong (${res.status}).`)
   return data
 }

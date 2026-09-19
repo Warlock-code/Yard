@@ -6,6 +6,7 @@ import { verifyEmailSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
 
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json().catch(() => ({}))
   const validation = validateRequest(verifyEmailSchema, body)
   if (!validation.success) {
@@ -13,7 +14,9 @@ export async function POST(req: NextRequest) {
   }
   const { code } = validation.data
   // Prefer body.userId (signup flow), fallback to JWT in cookie (verified session)
-  let userId: string | null = typeof body.userId === "string" ? body.userId : null
+  let userId: string | null = typeof body.userId === "string" ? body.userId.trim() : null
+  // normalize - handle empty string
+  if (userId === "") userId = null
   if (!userId) {
     const token = req.cookies.get("yard_token")?.value
     if (token) {
@@ -22,8 +25,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Also allow email fallback if userId missing but email provided
+  if (!userId && typeof body.email === "string" && body.email.trim()) {
+    const byEmail = await prisma.user.findUnique({ where: { email: body.email.trim().toLowerCase() } })
+    if (byEmail) userId = byEmail.id
+  }
+
   if (!userId) {
-    return NextResponse.json({ error: "User ID required." }, { status: 400 })
+    return NextResponse.json({ error: "Missing account. Please sign up again or log in." }, { status: 400 })
   }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
@@ -38,8 +47,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User not found." }, { status: 404 })
   }
 
-  // Already verified — idempotent success (user retried after success, DB has verifyCode null)
-  if (user.emailVerified && !user.verifyCode) {
+  // Already verified — idempotent success
+  if (user.emailVerified) {
+    // Clean up stale verifyCode if needed
+    if (user.verifyCode) {
+      await prisma.user.update({ where: { id: userId }, data: { verifyCode: null } })
+    }
     const token = signToken(user.id)
     const res = NextResponse.json({ success: true, ghostId: user.ghostId, alreadyVerified: true })
     res.cookies.set("yard_token", token, {
@@ -52,10 +65,15 @@ export async function POST(req: NextRequest) {
     return res
   }
 
-  // Trim code — email clients sometimes add spaces
-  const cleanCode = code.trim()
+  if (!user.verifyCode) {
+    await auditLog("user.verify_email", userId, userId, { success: false, reason: "No code", ipAddress: ip })
+    return NextResponse.json({ error: "No verification code found. Please request a new code." }, { status: 400 })
+  }
+
+  // Normalize code — strip spaces and non-digits just in case user pasted with formatting
+  const cleanCode = code.trim().replace(/\s+/g, "")
   if (user.verifyCode !== cleanCode) {
-    await auditLog("user.verify_email", userId, userId, { success: false, reason: "Invalid code", ipAddress: ip })
+    await auditLog("user.verify_email", userId, userId, { success: false, reason: "Invalid code", ipAddress: ip, attemptedCode: cleanCode })
     return NextResponse.json({ error: "Invalid code. Check your email or request a new code." }, { status: 400 })
   }
 
@@ -77,4 +95,8 @@ export async function POST(req: NextRequest) {
   await auditLog("user.verify_email", userId, userId, { success: true, ipAddress: ip })
 
   return res
+  } catch (err) {
+    console.error("[verify-email] unexpected", err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong. Please try again." }, { status: 500 })
+  }
 }

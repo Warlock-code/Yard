@@ -18,11 +18,28 @@ export default function SignupPage() {
     setLoading(true)
     setError("")
 
+    if (!programLevel.trim()) {
+      setError("Program level is required (e.g. Level 200).")
+      setLoading(false)
+      return
+    }
+    if (!program.trim()) {
+      setError("Program is required (e.g. Software Engineering).")
+      setLoading(false)
+      return
+    }
+
     try {
-      const data = await apiPost("/api/auth/signup", { email, password, programLevel, program })
-      router.push(`/verify-email?userId=${data.userId}`)
+      const data = await apiPost("/api/auth/signup", {
+        email: email.trim(),
+        password,
+        programLevel: programLevel.trim(),
+        program: program.trim(),
+      }) as { userId: string; emailFailed?: boolean }
+      const suffix = data.emailFailed ? "&emailFailed=1" : ""
+      router.push(`/verify-email?userId=${data.userId}${suffix}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -45,10 +62,11 @@ export default function SignupPage() {
         <input
           className="input"
           type="password"
-          placeholder="Password"
+          placeholder="Password (8+ chars, upper, lower, number, symbol)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={8}
         />
         <input
           className="input"
@@ -56,6 +74,7 @@ export default function SignupPage() {
           placeholder="Program level (e.g. Level 200)"
           value={programLevel}
           onChange={(e) => setProgramLevel(e.target.value)}
+          required
         />
         <input
           className="input"
@@ -63,11 +82,12 @@ export default function SignupPage() {
           placeholder="Program (e.g. Software Engineering)"
           value={program}
           onChange={(e) => setProgram(e.target.value)}
+          required
         />
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">{error}</p>}
 
-                <button className="btn-primary w-full" type="submit" disabled={loading}>
+        <button className="btn-primary w-full" type="submit" disabled={loading}>
           {loading ? "Creating account..." : "Sign up"}
         </button>
       </form>
@@ -84,7 +104,7 @@ export default function SignupPage() {
           Download Yard
         </a>
       </p>
-            <p className="text-center text-white/30 text-xs mt-4 px-4">
+      <p className="text-center text-white/30 text-xs mt-4 px-4">
         By signing up you agree to our{" "}
         <a href="/terms" className="underline">Terms</a>,{" "}
         <a href="/privacy" className="underline">Privacy Policy</a>, and{" "}
