@@ -740,7 +740,7 @@ export default function AdminPage() {
         </div>
 
         {/* Content area */}
-        <main className="flex-1 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto md:mx-0 relative z-10" ref={mainRef}>
+        <main className="flex-1 px-4 md:px-8 py-6 w-full relative z-10" ref={mainRef}>
           <AnimatePresence mode="wait">
             <motion.div
               key={section}
