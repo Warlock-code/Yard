@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { motion, AnimatePresence } from "framer-motion"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
@@ -114,6 +115,17 @@ export default function FeedPage() {
   const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
   const [pullToRefresh, setPullToRefresh] = useState(false)
   const pullStartRef = useRef<number | null>(null)
+
+  // Expand + inline comments (X-style tap anywhere)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [inlineComments, setInlineComments] = useState<Record<string, any[]>>({})
+  const [inlineLoading, setInlineLoading] = useState<Record<string, boolean>>({})
+  const [inlineDraft, setInlineDraft] = useState<Record<string, string>>({})
+  const [inlineSubmitting, setInlineSubmitting] = useState<Record<string, boolean>>({})
+  // Heat optimistic + animation
+  const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
+  const [poppingId, setPoppingId] = useState<string | null>(null)
+  const pendingVotes = useRef(new Set<string>())
 
   const { connected, on, joinCampus, leaveCampus } = useSocket()
 
@@ -228,17 +240,102 @@ export default function FeedPage() {
     const unsubVote = on("vote_update", ({ postId, yeahs }: { postId: string; yeahs: number }) => {
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs } : p)))
     })
+    const unsubComment = on("comment_added", ({ postId, comment }: { postId: string; comment: any }) => {
+      // if expanded inline, append without dupe
+      setInlineComments((prev) => {
+        if (!prev[postId]) return prev
+        if (prev[postId].some((c) => c.id === comment.id)) return prev
+        // replace temp if same text/ghost
+        const filtered = prev[postId].filter((c) => !String(c.id).startsWith("temp-"))
+        return { ...prev, [postId]: [...filtered, comment] }
+      })
+      setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p)))
+    })
     return () => {
       unsubNewPost()
       unsubVote()
+      unsubComment()
     }
   }, [connected, on, mode, me?.campus])
 
   async function handleVote(postId: string) {
+    if (pendingVotes.current.has(postId) || votedIds.has(postId)) return
+    const prev = posts.find((p) => p.id === postId)
+    if (!prev) return
+    pendingVotes.current.add(postId)
+    setVotedIds((s) => new Set(s).add(postId))
+    setPosts((prevPs) => prevPs.map((p) => (p.id === postId ? { ...p, yeahs: p.yeahs + 1 } : p)))
+    setPoppingId(postId)
+    setTimeout(() => setPoppingId((c) => (c === postId ? null : c)), 420)
     try {
-      await apiPost(`/api/posts/${postId}/vote`, {})
+      const res: any = await apiPost(`/api/posts/${postId}/vote`, {})
+      if (res?.post?.yeahs != null) {
+        setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, yeahs: res.post.yeahs } : p)))
+      }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      // revert on error (already voted / own post / network)
+      setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, yeahs: prev.yeahs } : p)))
+      setVotedIds((s) => {
+        const n = new Set(s)
+        n.delete(postId)
+        return n
+      })
+      const msg = err instanceof Error ? err.message : "Something went wrong."
+      if (!msg.includes("already voted")) alert(msg)
+    } finally {
+      pendingVotes.current.delete(postId)
+    }
+  }
+
+  async function toggleExpand(postId: string) {
+    if (expandedId === postId) {
+      setExpandedId(null)
+      return
+    }
+    setExpandedId(postId)
+    if (inlineComments[postId]) return
+    setInlineLoading((s) => ({ ...s, [postId]: true }))
+    try {
+      const data: any = await apiGet(`/api/posts/${postId}/comments`)
+      setInlineComments((s) => ({ ...s, [postId]: data.comments || [] }))
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setInlineLoading((s) => ({ ...s, [postId]: false }))
+    }
+  }
+
+  async function handleInlineSubmit(postId: string) {
+    const text = inlineDraft[postId]?.trim()
+    if (!text || !me) return
+    const tempId = `temp-${Date.now()}`
+    const optimistic: any = {
+      id: tempId,
+      text,
+      ghostId: me.ghostId,
+      user: { ghostId: me.ghostId, avatarEmoji: me.avatarEmoji },
+      createdAt: new Date().toISOString(),
+      parentId: null,
+      replies: [],
+    }
+    setInlineComments((s) => ({ ...s, [postId]: [...(s[postId] || []), optimistic] }))
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p)))
+    setInlineDraft((s) => ({ ...s, [postId]: "" }))
+    setInlineSubmitting((s) => ({ ...s, [postId]: true }))
+    try {
+      const data: any = await apiPost(`/api/posts/${postId}/comments`, { text, parentId: null })
+      const real = data.comment || data
+      setInlineComments((s) => ({
+        ...s,
+        [postId]: (s[postId] || []).map((c) => (c.id === tempId ? { ...real, replies: real.replies || [] } : c)),
+      }))
+    } catch (err: unknown) {
+      setInlineComments((s) => ({ ...s, [postId]: (s[postId] || []).filter((c) => c.id !== tempId) }))
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) } : p)))
+      setInlineDraft((s) => ({ ...s, [postId]: text }))
+      alert(err instanceof Error ? err.message : "Failed to comment")
+    } finally {
+      setInlineSubmitting((s) => ({ ...s, [postId]: false }))
     }
   }
 
@@ -427,14 +524,30 @@ export default function FeedPage() {
             const followPending = pendingFollows.has(post.user.id)
             const images = post.imageUrls && post.imageUrls.length > 0 ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])
 
+            const expanded = expandedId === post.id
+            const isLong = (post.text?.length ?? 0) > 280
             return (
-              <div key={post.id} className="relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
-                <Link href={`/post/${post.id}`} aria-label={`Open post by ${post.user.ghostId}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]" />
+              <motion.article
+                key={post.id}
+                layout
+                onClick={() => toggleExpand(post.id)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    toggleExpand(post.id)
+                  }
+                }}
+                className={`relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02] cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39] touch-manipulation ${expanded ? "bg-white/[0.03]" : ""}`}
+              >
                 <div className="flex items-start gap-3">
                   <Link
                     href={`/u/${encodeURIComponent(post.user.ghostId)}`}
                     aria-label={`View ${post.user.ghostId}'s profile`}
-                    className="relative z-10 flex-shrink-0 focus-visible:outline-[#baff39]"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-shrink-0 focus-visible:outline-[#baff39]"
                   >
                     <Avatar emoji={post.user.avatarEmoji} size={40} />
                   </Link>
@@ -443,7 +556,8 @@ export default function FeedPage() {
                       <Link
                         href={`/u/${encodeURIComponent(post.user.ghostId)}`}
                         aria-label={`View ${post.user.ghostId}'s profile`}
-                        className="font-semibold relative z-10 focus-visible:outline-[#baff39]"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-semibold focus-visible:outline-[#baff39]"
                       >
                         {post.user.ghostId}
                       </Link>
@@ -453,9 +567,20 @@ export default function FeedPage() {
                     </div>
 
                     {post.text && (
-                      <p className="text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
-                        <RichText text={post.text} />
-                      </p>
+                      <motion.div
+                        initial={false}
+                        animate={{ height: expanded ? "auto" : undefined }}
+                        transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <p
+                          className={`text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base ${expanded ? "" : "clamp-3 line-clamp-3"}`}
+                          style={{ lineHeight: 1.5 }}
+                        >
+                          <RichText text={post.text} />
+                        </p>
+                        {!expanded && isLong && <span className="text-xs text-white/40">… Show more</span>}
+                      </motion.div>
                     )}
 
                     {images.length > 0 && (
@@ -466,6 +591,7 @@ export default function FeedPage() {
                         {images.map((img, idx) => (
                           <div
                             key={idx}
+                            onClick={(e) => e.stopPropagation()}
                             className="relative aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10"
                             style={{
                               gridColumn: images.length === 3 && idx === 0 ? 'span 2' : images.length === 4 && idx < 2 ? undefined : undefined,
@@ -485,35 +611,49 @@ export default function FeedPage() {
                       </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
                       {isOwn ? (
-                        <span className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
+                        <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
                       ) : (
-                        <button onClick={() => handleVote(post.id)} aria-label={`Add heat, ${post.yeahs} heat`} className="text-orange-200 hover:text-orange-100 gap-1">
-                          🔥 {post.yeahs}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleVote(post.id)
+                          }}
+                          disabled={pendingVotes.current.has(post.id) || votedIds.has(post.id)}
+                          aria-pressed={votedIds.has(post.id)}
+                          aria-label={`Add heat, ${post.yeahs} heat`}
+                          className={`gap-1 touch-manipulation transition-transform will-change-transform ${poppingId === post.id ? "animate-fire-pop text-orange-100" : "text-orange-200 hover:text-orange-100"} disabled:opacity-60 active:scale-95`}
+                        >
+                          <span className={`${poppingId === post.id ? "inline-block animate-fire-pop" : "inline-block"}`}>🔥</span>
+                          <span className={`${poppingId === post.id ? "inline-block animate-count-tick" : ""}`}>{post.yeahs}</span>
                         </button>
                       )}
                       <button
-                        onClick={() => router.push(`/post/${post.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleExpand(post.id)
+                        }}
+                        aria-expanded={expanded}
                         aria-label={`View comments, ${post.commentsCount} comments`}
-                        className="text-sky-200 hover:text-sky-100 gap-1"
+                        className="text-sky-200 hover:text-sky-100 gap-1 touch-manipulation"
                       >
                         💬 {post.commentsCount}
                       </button>
                       {isOwn && (
-                        <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
+                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-[#baff39] touch-manipulation">
                           🚀
                         </button>
                       )}
                       {!isOwn && (
                         <button
-                          onClick={() => handleFollow(post.user.id)}
+                          onClick={(e) => { e.stopPropagation(); handleFollow(post.user.id) }}
                           disabled={!me || followPending}
                           aria-label={`${isFollowing ? "Unfollow" : "Follow"} ${post.user.ghostId}`}
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
                           title={isFollowing ? "Following" : "Follow"}
-                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait`}
+                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait touch-manipulation`}
                         >
                           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d={isFollowing ? "M5 12l4 4L19 6" : "M12 5v14M5 12h14"} />
@@ -521,24 +661,88 @@ export default function FeedPage() {
                         </button>
                       )}
                       {isOwn && me && me.tier !== "FREE" && (
-                        <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39]">
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(post.id, post.text) }} className="hover:text-[#baff39] touch-manipulation">
                           ✎
                         </button>
                       )}
                       {isOwn && (
-                        <button onClick={() => handleDelete(post.id)} className="hover:text-red-400">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id) }} className="hover:text-red-400 touch-manipulation">
                           🗑
                         </button>
                       )}
                       {!isOwn && (
-                        <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
+                        <button onClick={(e) => { e.stopPropagation(); handleReport(post.id) }} className="hover:text-white/70 ml-auto text-xs touch-manipulation">
                           ⚑
                         </button>
                       )}
                     </div>
+
+                    <AnimatePresence initial={false}>
+                      {expanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.22, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="mt-3 pt-3 border-t border-white/10 -mx-4 px-4 bg-white/[0.02] rounded-b-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-white/40">{post.commentsCount} comment{post.commentsCount !== 1 ? "s" : ""}</span>
+                              <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-semibold text-[#baff39] hover:text-[#d4ff70]">
+                                Open thread →
+                              </Link>
+                            </div>
+                            {inlineLoading[post.id] ? (
+                              <p className="text-xs text-white/30 py-2">Loading comments...</p>
+                            ) : (inlineComments[post.id]?.length ?? 0) === 0 ? (
+                              <p className="text-xs text-white/30 py-2">No comments yet — be first.</p>
+                            ) : (
+                              <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pr-1">
+                                {inlineComments[post.id]?.slice(-3).map((c: any) => (
+                                  <div key={c.id} className="flex gap-2 py-1.5">
+                                    <Avatar emoji={c.user?.avatarEmoji || "💬"} size={24} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-xs">{c.user?.ghostId || c.ghostId}</span>
+                                        <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
+                                      </div>
+                                      <p className="text-sm text-white/90 line-clamp-2">{c.text}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {post.commentsCount > 3 && (inlineComments[post.id]?.length || 0) >= 3 && (
+                                  <p className="text-xs text-white/30">+{post.commentsCount - 3} more in thread</p>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex gap-2 mt-3">
+                              <input
+                                className="input flex-1 h-9 text-sm"
+                                placeholder="Add a comment..."
+                                value={inlineDraft[post.id] || ""}
+                                onChange={(e) => setInlineDraft((s) => ({ ...s, [post.id]: e.target.value }))}
+                                onKeyDown={(e) => e.key === "Enter" && handleInlineSubmit(post.id)}
+                              />
+                              <button
+                                className="btn-primary px-4 h-9 text-sm touch-manipulation disabled:opacity-50"
+                                onClick={() => handleInlineSubmit(post.id)}
+                                disabled={inlineSubmitting[post.id] || !inlineDraft[post.id]?.trim()}
+                              >
+                                {inlineSubmitting[post.id] ? "..." : "Send"}
+                              </button>
+                            </div>
+                            <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="inline-block mt-2 mb-1 text-[11px] text-white/30 hover:text-white/50">
+                              View all comments →
+                            </Link>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
-              </div>
+              </motion.article>
             )
           })}
           {loadingMore && <p className="text-center text-white/30 text-sm py-4">Loading more...</p>}

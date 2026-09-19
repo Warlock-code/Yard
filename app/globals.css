@@ -244,6 +244,29 @@ h1, h2, h3 {
   animation: yard-shimmer 1.4s linear infinite;
 }
 
+@keyframes yard-fire-pop {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.42) rotate(-6deg); }
+  50% { transform: scale(0.92) rotate(4deg); }
+  75% { transform: scale(1.12) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes yard-count-tick {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-fire-pop {
+  animation: yard-fire-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform;
+}
+
+.animate-count-tick {
+  animation: yard-count-tick 300ms ease-out both;
+}
+
 /* Horizontal tab rails: scrollable but chromeless */
 .no-scrollbar {
   scrollbar-width: none;
@@ -307,8 +330,14 @@ a:focus-visible {
   html,
   .search-dropdown,
   .skeleton-shimmer,
-  .tabs-scroll {
-    animation: none;
+  .tabs-scroll,
+  .animate-fire-pop,
+  .animate-count-tick {
+    animation: none !important;
     scroll-behavior: auto;
   }
+}
+
+button, a {
+  touch-action: manipulation;
 }
