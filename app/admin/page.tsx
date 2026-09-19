@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
@@ -134,11 +134,20 @@ function StatCard({ icon, label, value, sub, accent = "#baff39", delay = 0 }: { 
 
 export default function AdminPage() {
   const router = useRouter()
+  const mainRef = useRef<HTMLDivElement>(null)
   const [section, setSection] = useState<SectionKey>("Overview")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notAllowed, setNotAllowed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mobileTab, setMobileTab] = useState<SectionKey>("Overview")
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [denseMode, setDenseMode] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("admin-dense") === "true"
+    return false
+  })
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [keySequence, setKeySequence] = useState("")
 
   const [stats, setStats] = useState<Stats | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -197,6 +206,107 @@ export default function AdminPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [section, postSearch])
+
+  // Dense mode persistence
+  useEffect(() => {
+    localStorage.setItem("admin-dense", String(denseMode))
+    document.documentElement.classList.toggle("admin-dense", denseMode)
+  }, [denseMode])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+        if (e.key === "Escape") {
+          ;(e.target as HTMLElement).blur()
+        }
+        return
+      }
+
+      // Show shortcuts help
+      if (e.key === "?") {
+        e.preventDefault()
+        setShowShortcuts(true)
+        return
+      }
+
+      // Command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setShowCommandPalette(true)
+        return
+      }
+
+      // Escape closes modals
+      if (e.key === "Escape") {
+        setShowShortcuts(false)
+        setShowCommandPalette(false)
+        setMobileOpen(false)
+        return
+      }
+
+      // Goto shortcuts (g + key)
+      if (keySequence === "g") {
+        const shortcuts: Record<string, SectionKey> = {
+          o: "Overview",
+          r: "Reports",
+          p: "Payouts",
+          u: "Users",
+          P: "Posts",
+          b: "Battles",
+        }
+        if (shortcuts[e.key]) {
+          e.preventDefault()
+          handleSectionChange(shortcuts[e.key])
+          setKeySequence("")
+          return
+        }
+      }
+
+      // Single key shortcuts
+      switch (e.key) {
+        case "r":
+          handleRefresh()
+          break
+        case "/":
+          e.preventDefault()
+          // Focus appropriate search
+          if (section === "Users") {
+            ;(document.getElementById("user-search") as HTMLInputElement)?.focus()
+          } else if (section === "Posts") {
+            ;(document.getElementById("post-search") as HTMLInputElement)?.focus()
+          } else if (section === "Battles") {
+            ;(document.getElementById("battle-prompt") as HTMLInputElement)?.focus()
+          }
+          break
+        case "n":
+          if (section === "Battles") {
+            ;(document.getElementById("battle-prompt") as HTMLInputElement)?.focus()
+          }
+          break
+        case "d":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            setDenseMode(!denseMode)
+          }
+          break
+        case "g":
+          setKeySequence("g")
+          setTimeout(() => setKeySequence(""), 1000)
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [section, denseMode, keySequence])
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    await loadAll()
+    setIsRefreshing(false)
+  }, [loadAll])
 
   async function handleReportAction(id: string, decision: "actioned" | "dismissed") {
     if (busyId) return
@@ -289,6 +399,27 @@ export default function AdminPage() {
     setMobileTab(s)
     setMobileOpen(false)
   }
+
+  // Command Palette items
+  const commandItems = [
+    { label: "Overview", action: () => handleSectionChange("Overview"), shortcut: "g o", section: "Dashboard" },
+    { label: "Reports", action: () => handleSectionChange("Reports"), shortcut: "g r", section: "Moderation" },
+    { label: "Payouts", action: () => handleSectionChange("Payouts"), shortcut: "g p", section: "Money" },
+    { label: "Users", action: () => handleSectionChange("Users"), shortcut: "g u", section: "Content" },
+    { label: "Posts", action: () => handleSectionChange("Posts"), shortcut: "g P", section: "Content" },
+    { label: "Battles", action: () => handleSectionChange("Battles"), shortcut: "g b", section: "Engagement" },
+    { label: "Refresh Data", action: handleRefresh, shortcut: "r", section: "Actions" },
+    { label: "Toggle Dense Mode", action: () => setDenseMode(!denseMode), shortcut: "⌘D", section: "View" },
+    { label: "Show Shortcuts", action: () => setShowShortcuts(true), shortcut: "?", section: "Help" },
+  ]
+
+  // Filter command items based on input
+  const [commandFilter, setCommandFilter] = useState("")
+  const filteredCommands = commandItems.filter((item) =>
+    item.label.toLowerCase().includes(commandFilter.toLowerCase()) ||
+    item.shortcut.toLowerCase().includes(commandFilter.toLowerCase()) ||
+    item.section.toLowerCase().includes(commandFilter.toLowerCase())
+  )
 
   if (notAllowed) return null
   if (loading) return <p className="text-center text-white/40 mt-20">Loading admin…</p>
@@ -520,7 +651,7 @@ export default function AdminPage() {
                   </>
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-6">
+              <div className="flex-1 overflow-y-auto p-3 space-y-6 pb-24">
                 {NAV_GROUPS.map((group) => (
                   <div key={group.label}>
                     <p className="text-[10px] font-bold tracking-[0.14em] text-white/25 uppercase mb-2 px-2">{group.label}</p>
@@ -555,8 +686,8 @@ export default function AdminPage() {
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile header */}
         <header className="md:hidden sticky top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/10 flex items-center gap-3 px-4 py-3">
-          <button onClick={() => setMobileOpen(true)} aria-label="Open navigation" className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-white/80 hover:bg-white/10 transition-colors">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <button onClick={() => setMobileOpen(true)} aria-label="Open navigation" className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 grid place-items-center text-white/80 hover:bg-white/10 transition-colors active:scale-95">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
@@ -609,7 +740,7 @@ export default function AdminPage() {
         </div>
 
         {/* Content area */}
-        <main className="flex-1 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto md:mx-0 relative z-10">
+        <main className="flex-1 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto md:mx-0 relative z-10" ref={mainRef}>
           <AnimatePresence mode="wait">
             <motion.div
               key={section}
@@ -618,14 +749,21 @@ export default function AdminPage() {
               exit={{ opacity: 0, y: -16 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
+              {/* Pull to refresh indicator (mobile) */}
+              {isRefreshing && (
+                <div className="md:hidden fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-full shadow-lg">
+                  <motion.div className="w-4 h-4 border-2 border-[#baff39] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm font-medium text-[#baff39]">Refreshing...</span>
+                </div>
+              )}
               {/* ===== OVERVIEW ===== */}
               {section === "Overview" && stats && (
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                   {/* Hero revenue card */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="relative overflow-hidden card p-6 md:p-8 border-[#baff39]/20"
+                    className="relative overflow-hidden card p-5 md:p-8 border-[#baff39]/20"
                     style={{ background: "linear-gradient(135deg, rgba(186,255,57,0.08) 0%, rgba(186,255,57,0.02) 50%, rgba(186,255,57,0.04) 100%)" }}
                   >
                     <div className="absolute top-0 right-0 w-40 h-40 bg-[#baff39]/[0.06] rounded-full blur-[60px]" aria-hidden="true" />
@@ -642,8 +780,8 @@ export default function AdminPage() {
                     </div>
                   </motion.div>
 
-                  {/* Stat grid */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Stat grid - stacked on mobile, grid on desktop */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <StatCard icon="👥" label="Users" value={stats.userCount} sub="total registered" accent="#baff39" delay={0.1} />
                     <StatCard icon="⚡" label="Active 7d" value={stats.activeUsers} sub="post/comment/vote" accent="#38bdf8" delay={0.2} />
                     <StatCard icon="📝" label="Posts" value={stats.postCount} sub="total" accent="#facc15" delay={0.3} />
@@ -651,7 +789,7 @@ export default function AdminPage() {
                   </div>
 
                   {/* Tier distribution chart + Payouts */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -731,41 +869,30 @@ export default function AdminPage() {
               {/* ===== REPORTS ===== */}
               {section === "Reports" && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <p className="text-sm text-white/40">{reports.length} open {reports.length === 1 ? "report" : "reports"} · AI verdict helps triage</p>
-                    <button onClick={() => loadAll()} className="text-xs text-white/40 hover:text-white/70 transition-colors">Refresh</button>
+                    <button onClick={handleRefresh} className="btn-ghost text-xs whitespace-nowrap" disabled={isRefreshing}>
+                      {isRefreshing ? <span className="flex items-center gap-1"><motion.div className="w-3 h-3 border-2 border-[#baff39] border-t-transparent rounded-full animate-spin" /> Refreshing...</span> : 'Refresh'}
+                    </button>
                   </div>
                   {reports.length === 0 ? (
-                    <div className="card p-10 text-center">
-                      <p className="text-4xl mb-2">✅</p>
-                      <p className="text-white/40 text-sm">No open reports. All clear.</p>
+                    <div className="card p-12 text-center">
+                      <p className="text-5xl mb-3">✅</p>
+                      <p className="text-white/40 text-sm font-medium">No open reports</p>
+                      <p className="text-white/20 text-xs mt-1">All clear. Community is healthy.</p>
                     </div>
-                  ) : reports.map((r) => (
-                    <motion.div
-                      key={r.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="card p-4 md:p-5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-xs text-white/40">Reported by <span className="text-white/70 font-semibold">{r.reporter.ghostId}</span> · ID {r.id.slice(0, 8)}…</p>
-                        {r.aiVerdict && (
-                          <span className={`badge flex-shrink-0 ${r.aiVerdict === "VIOLATION" ? "badge-prime" : "badge-boosted"}`}>AI: {r.aiVerdict}</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-white/80 mt-2">Reason: <span className="text-white font-medium">{r.reason}</span></p>
-                      <p className="text-white/90 text-sm mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 whitespace-pre-wrap">{r.post?.text || "(no text / image post)"}</p>
-                      <div className="flex gap-2 mt-4">
-                        <button disabled={!!busyId} className="btn-ghost flex-1 disabled:opacity-50" onClick={() => handleReportAction(r.id, "dismissed")}>
-                          {busyId === r.id ? "…" : "Dismiss"}
-                        </button>
-                        <button disabled={!!busyId} className="btn-primary flex-1 disabled:opacity-50" onClick={() => handleReportAction(r.id, "actioned")}>
-                          {busyId === r.id ? "Working…" : "Remove post"}
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                  ) : (
+                    <div className="space-y-2">
+                      {reports.map((r) => (
+                        <ReportCard
+                          key={r.id}
+                          report={r}
+                          busyId={busyId}
+                          onAction={(decision) => handleReportAction(r.id, decision)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -781,41 +908,30 @@ export default function AdminPage() {
                       <li>If Transfer fails, payout reverts to <b className="text-white/70">pending</b> for retry.</li>
                     </ul>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
                     <p className="text-white/40">{payouts.length} pending payout{payouts.length !== 1 ? "s" : ""} · Total {ghs(payouts.reduce((a, p) => a + p.amount, 0))}</p>
-                    <button onClick={() => loadAll()} className="text-xs text-white/40 hover:text-white/70 transition-colors">Refresh</button>
+                    <button onClick={handleRefresh} className="btn-ghost text-xs whitespace-nowrap" disabled={isRefreshing}>
+                      {isRefreshing ? <span className="flex items-center gap-1"><motion.div className="w-3 h-3 border-2 border-[#baff39] border-t-transparent rounded-full animate-spin" /> Refreshing...</span> : 'Refresh'}
+                    </button>
                   </div>
                   {payouts.length === 0 ? (
-                    <div className="card p-10 text-center">
-                      <p className="text-3xl mb-2">💸</p>
-                      <p className="text-white/40 text-sm">No pending payouts.</p>
+                    <div className="card p-12 text-center">
+                      <p className="text-5xl mb-3">💸</p>
+                      <p className="text-white/40 text-sm font-medium">No pending payouts</p>
                       <p className="text-white/20 text-xs mt-1">Approved/paid and failed are hidden here.</p>
                     </div>
-                  ) : payouts.map((p) => (
-                    <motion.div
-                      key={p.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="card p-4 md:p-5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold truncate">{p.user.ghostId}</p>
-                          <p className="text-xs text-white/40 truncate">{p.user.email} · {p.id.slice(0, 8)}…</p>
-                        </div>
-                        <span className="text-sm font-black bg-[#baff39]/10 border border-[#baff39]/20 text-[#baff39] px-3 py-1 rounded-full flex-shrink-0">{ghs(p.amount)}</span>
-                      </div>
-                      <div className="mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
-                        <p className="text-[11px] tracking-widest font-bold text-white/25 uppercase">Recipient</p>
-                        <p className="text-xs text-white/60 mt-1 break-all">{p.accountName || "—"} · {p.accountNumber || "—"} · <span className="font-mono">{p.bankCode || "—"}</span></p>
-                        <p className="text-[11px] text-white/20 mt-1">If you see hex like "a3f1:…" it means details are still encrypted — do not approve until readable.</p>
-                      </div>
-                      <button disabled={!!busyId} className="btn-primary w-full mt-3 disabled:opacity-50" onClick={() => handleApprovePayout(p.id)}>
-                        {busyId === p.id ? "Processing…" : "Approve & Pay via Paystack"}
-                      </button>
-                    </motion.div>
-                  ))}
+                  ) : (
+                    <div className="space-y-2">
+                      {payouts.map((p) => (
+                        <PayoutCard
+                          key={p.id}
+                          payout={p}
+                          busyId={busyId}
+                          onApprove={() => handleApprovePayout(p.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -823,30 +939,24 @@ export default function AdminPage() {
               {section === "Users" && (
                 <div className="space-y-4">
                   <div>
-                    <input className="input" placeholder="Search ghost name…" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
+                    <input id="user-search" className="input" placeholder="Search ghost name…" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} />
                     <p className="text-[11px] text-white/25 mt-1.5 px-1">Search is debounced · 30 max · clear to list recent</p>
                   </div>
                   {users.length === 0 ? (
-                    <p className="text-white/30 text-sm text-center py-8">{userSearch ? "No ghosts match." : "Type to search users."}</p>
+                    <div className="card p-12 text-center">
+                      <p className="text-5xl mb-3">{userSearch ? "🔍" : "👻"}</p>
+                      <p className="text-white/40 text-sm font-medium">{userSearch ? "No ghosts match." : "Type to search users."}</p>
+                      <p className="text-white/20 text-xs mt-1">Results limited to 30 most recent.</p>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {users.map((u) => (
-                        <motion.div
+                        <UserCard
                           key={u.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="card p-3 flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold truncate">{u.ghostId} {u.tier !== "FREE" && <span className="badge badge-prime ml-1">{u.tier}</span>}</p>
-                            <p className="text-xs text-white/40 truncate">{u.email} · {u.campus}</p>
-                            <p className="text-[11px] font-mono text-white/20 truncate">{u.id}</p>
-                          </div>
-                          <button disabled={!!busyId} className={`text-xs font-bold px-3 py-1.5 rounded-full border flex-shrink-0 disabled:opacity-50 transition-all ${busyId === u.id ? "bg-white/5 border-white/10 text-white/30" : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/15"}`} onClick={() => handleDeleteUser(u.id)}>
-                            {busyId === u.id ? "…" : "Manage"}
-                          </button>
-                        </motion.div>
+                          user={u}
+                          busyId={busyId}
+                          onManage={() => handleDeleteUser(u.id)}
+                        />
                       ))}
                     </div>
                   )}
@@ -858,29 +968,24 @@ export default function AdminPage() {
               {section === "Posts" && (
                 <div className="space-y-4">
                   <div>
-                    <input className="input" placeholder="Search post text…" value={postSearch} onChange={(e) => setPostSearch(e.target.value)} />
+                    <input id="post-search" className="input" placeholder="Search post text…" value={postSearch} onChange={(e) => setPostSearch(e.target.value)} />
                     <p className="text-[11px] text-white/25 mt-1.5 px-1">Debounced · 30 max · shows ghost + snippet</p>
                   </div>
                   {posts.length === 0 ? (
-                    <p className="text-white/30 text-sm text-center py-8">{postSearch ? "No posts match." : "Type to search posts."}</p>
+                    <div className="card p-12 text-center">
+                      <p className="text-5xl mb-3">{postSearch ? "🔍" : "📝"}</p>
+                      <p className="text-white/40 text-sm font-medium">{postSearch ? "No posts match." : "Type to search posts."}</p>
+                      <p className="text-white/20 text-xs mt-1">Results limited to 30 most recent.</p>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {posts.map((p) => (
-                        <motion.div
+                        <PostCard
                           key={p.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="card p-3 flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs text-white/40">{p.user.ghostId} · <span className="font-mono text-white/20">{p.id.slice(0, 8)}…</span></p>
-                            <p className="text-sm truncate">{p.text || "(image/voice post)"}</p>
-                          </div>
-                          <button disabled={!!busyId} className="text-red-400 text-xs font-bold px-3 py-1.5 rounded-full border border-red-500/20 bg-red-500/10 hover:bg-red-500/15 disabled:opacity-50 flex-shrink-0 transition-all" onClick={() => handleDeletePost(p.id)}>
-                            {busyId === p.id ? "…" : "Delete"}
-                          </button>
-                        </motion.div>
+                          post={p}
+                          busyId={busyId}
+                          onDelete={() => handleDeletePost(p.id)}
+                        />
                       ))}
                     </div>
                   )}
@@ -893,11 +998,11 @@ export default function AdminPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="card p-5"
+                    className="card p-5 md:p-6"
                   >
                     <p className="font-bold text-lg">Create Battle Prompt</p>
                     <p className="text-xs text-white/30 mt-1">Campus + prompt creates an ACTIVE prompt lasting 7 days.</p>
-                    <input className="input mt-4" placeholder="Prompt text — e.g. Best Jollof on campus?" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
+                    <input id="battle-prompt" className="input mt-4" placeholder="Prompt text — e.g. Best Jollof on campus?" value={promptText} onChange={(e) => setPromptText(e.target.value)} />
                     <select className="input mt-2" value={campus} onChange={(e) => setCampus(e.target.value)}>
                       <option value="">Select school</option>
                       {CAMPUSES.map((c) => (
@@ -964,6 +1069,232 @@ export default function AdminPage() {
 
       {/* Spacer for bottom nav */}
       <div className="md:hidden h-[70px]" aria-hidden="true" />
+
+      {/* Command Palette Modal */}
+      <AnimatePresence>
+        {showCommandPalette && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-start justify-center pt-20"
+            onClick={() => { setShowCommandPalette(false); setCommandFilter("") }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-2xl mx-4 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-white/10 flex items-center gap-3">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/40 flex-shrink-0">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                <input
+                  id="command-palette-input"
+                  type="text"
+                  value={commandFilter}
+                  onChange={(e) => setCommandFilter(e.target.value)}
+                  placeholder="Type a command or search…"
+                  className="flex-1 bg-transparent border-none outline-none text-white text-sm font-mono"
+                  autoFocus
+                />
+                <kbd className="text-[10px] text-white/30 bg-white/5 px-2 py-1 rounded">⌘K</kbd>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {filteredCommands.length === 0 ? (
+                  <div className="p-8 text-center text-white/30">No commands match</div>
+                ) : (
+                  <div className="py-2">
+                    {filteredCommands.map((item, idx) => (
+                      <button
+                        key={item.label + idx}
+                        onClick={() => { item.action(); setShowCommandPalette(false); setCommandFilter("") }}
+                        className="w-full px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/5 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-white">{item.label}</p>
+                          <p className="text-[10px] text-white/30 uppercase tracking-wider">{item.section}</p>
+                        </div>
+                        <kbd className="text-[10px] text-white/30 bg-white/5 px-2 py-1 rounded font-mono">{item.shortcut}</kbd>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-3 border-t border-white/10 text-right">
+                <p className="text-[10px] text-white/20">Press <kbd className="bg-white/5 px-1.5 py-0.5 rounded">Esc</kbd> to close</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <AnimatePresence>
+        {showShortcuts && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowShortcuts(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <p className="font-bold">Keyboard Shortcuts</p>
+                <button onClick={() => setShowShortcuts(false)} className="w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60 hover:bg-white/10 transition-colors">✕</button>
+              </div>
+              <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                {[
+                  { title: "Navigation", items: [
+                    { key: "g o", desc: "Go to Overview" },
+                    { key: "g r", desc: "Go to Reports" },
+                    { key: "g p", desc: "Go to Payouts" },
+                    { key: "g u", desc: "Go to Users" },
+                    { key: "g P", desc: "Go to Posts" },
+                    { key: "g b", desc: "Go to Battles" },
+                  ]},
+                  { title: "Actions", items: [
+                    { key: "r", desc: "Refresh current section" },
+                    { key: "/", desc: "Focus search (context-aware)" },
+                    { key: "n", desc: "New battle prompt (in Battles)" },
+                    { key: "⌘D", desc: "Toggle dense mode" },
+                  ]},
+                  { title: "Global", items: [
+                    { key: "⌘K", desc: "Open command palette" },
+                    { key: "?", desc: "Show this help" },
+                    { key: "Esc", desc: "Close modals / blur inputs" },
+                  ]},
+                ].map((group) => (
+                  <div key={group.title} className="space-y-2">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{group.title}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.items.map((item) => (
+                        <div key={item.key} className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-xl">
+                          <span className="text-sm text-white/80">{item.desc}</span>
+                          <kbd className="text-[10px] font-mono text-white/40 bg-white/5 px-2 py-1 rounded">{item.key}</kbd>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-3 border-t border-white/10 text-center">
+                <p className="text-[10px] text-white/20">Press <kbd className="bg-white/5 px-1.5 py-0.5 rounded">Esc</kbd> to close</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+/* ===== REUSABLE CARD COMPONENTS ===== */
+
+function ReportCard({ report, busyId, onAction }: { report: Report; busyId: string | null; onAction: (decision: "actioned" | "dismissed") => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="card p-4 md:p-5"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-white/40">Reported by <span className="text-white/70 font-semibold">{report.reporter.ghostId}</span> · ID {report.id.slice(0, 8)}…</p>
+        {report.aiVerdict && (
+          <span className={`badge flex-shrink-0 ${report.aiVerdict === "VIOLATION" ? "badge-prime" : "badge-boosted"}`}>AI: {report.aiVerdict}</span>
+        )}
+      </div>
+      <p className="text-sm text-white/80 mt-2">Reason: <span className="text-white font-medium">{report.reason}</span></p>
+      <p className="text-white/90 text-sm mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 whitespace-pre-wrap">{report.post?.text || "(no text / image post)"}</p>
+      <div className="flex gap-2 mt-4">
+        <button disabled={!!busyId} className="btn-ghost flex-1 disabled:opacity-50 active:scale-[0.98]" onClick={() => onAction("dismissed")}>
+          {busyId === report.id ? "…" : "Dismiss"}
+        </button>
+        <button disabled={!!busyId} className="btn-primary flex-1 disabled:opacity-50 active:scale-[0.98]" onClick={() => onAction("actioned")}>
+          {busyId === report.id ? "Working…" : "Remove post"}
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+function PayoutCard({ payout, busyId, onApprove }: { payout: Payout; busyId: string | null; onApprove: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="card p-4 md:p-5"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold truncate">{payout.user.ghostId}</p>
+          <p className="text-xs text-white/40 truncate">{payout.user.email} · {payout.id.slice(0, 8)}…</p>
+        </div>
+        <span className="text-sm font-black bg-[#baff39]/10 border border-[#baff39]/20 text-[#baff39] px-3 py-1 rounded-full flex-shrink-0">{ghs(payout.amount)}</span>
+      </div>
+      <div className="mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+        <p className="text-[11px] tracking-widest font-bold text-white/25 uppercase">Recipient</p>
+        <p className="text-xs text-white/60 mt-1 break-all">{payout.accountName || "—"} · {payout.accountNumber || "—"} · <span className="font-mono">{payout.bankCode || "—"}</span></p>
+        <p className="text-[11px] text-white/20 mt-1">If you see hex like "a3f1:…" it means details are still encrypted — do not approve until readable.</p>
+      </div>
+      <button disabled={!!busyId} className="btn-primary w-full mt-3 disabled:opacity-50 active:scale-[0.98]" onClick={onApprove}>
+        {busyId === payout.id ? "Processing…" : "Approve & Pay via Paystack"}
+      </button>
+    </motion.div>
+  )
+}
+
+function UserCard({ user, busyId, onManage }: { user: AdminUser; busyId: string | null; onManage: () => void }) {
+  return (
+    <motion.div
+      key={user.id}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.15 }}
+      className="card p-3 flex items-center justify-between gap-3"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold truncate">{user.ghostId} {user.tier !== "FREE" && <span className="badge badge-prime ml-1">{user.tier}</span>}</p>
+        <p className="text-xs text-white/40 truncate">{user.email} · {user.campus}</p>
+        <p className="text-[11px] font-mono text-white/20 truncate">{user.id}</p>
+      </div>
+      <button disabled={!!busyId} className={`text-xs font-bold px-3 py-1.5 rounded-full border flex-shrink-0 disabled:opacity-50 transition-all active:scale-[0.95] ${busyId === user.id ? "bg-white/5 border-white/10 text-white/30" : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/15"}`} onClick={onManage}>
+        {busyId === user.id ? "…" : "Manage"}
+      </button>
+    </motion.div>
+  )
+}
+
+function PostCard({ post, busyId, onDelete }: { post: AdminPost; busyId: string | null; onDelete: () => void }) {
+  return (
+    <motion.div
+      key={post.id}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.15 }}
+      className="card p-3 flex items-center justify-between gap-3"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-white/40">{post.user.ghostId} · <span className="font-mono text-white/20">{post.id.slice(0, 8)}…</span></p>
+        <p className="text-sm truncate">{post.text || "(image/voice post)"}</p>
+      </div>
+      <button disabled={!!busyId} className="text-red-400 text-xs font-bold px-3 py-1.5 rounded-full border border-red-500/20 bg-red-500/10 hover:bg-red-500/15 disabled:opacity-50 flex-shrink-0 transition-all active:scale-[0.95]" onClick={onDelete}>
+        {busyId === post.id ? "…" : "Delete"}
+      </button>
+    </motion.div>
   )
 }
