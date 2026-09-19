@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
+import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
 
 type Me = {
   ghostId: string
@@ -187,11 +188,8 @@ export default function LairPage() {
       />
 
       <div className="flex flex-col items-center mt-8 mb-4 relative">
-        <div
-          className="avatar-circle text-4xl w-24 h-24 mb-3"
-          style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}
-        >
-          {me.avatarEmoji}
+        <div className="relative w-24 h-24 mb-3" style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
+          <Avatar emoji={me.avatarEmoji} size={96} />
         </div>
         <p className="text-xs text-white/30 uppercase tracking-widest mb-1">The Den</p>
         <h1 className="text-xl font-bold">{me.ghostId}</h1>
@@ -261,12 +259,13 @@ export default function LairPage() {
             {uploads.map((upload) => (
               <li key={upload.id} className="flex items-center gap-3">
                 <div className="relative w-16 h-16 flex-shrink-0">
-                  <Image
+                  <OptimizedImage
                     src={upload.url}
                     alt="Unposted upload"
                     fill
-                    className="rounded-lg object-cover"
                     sizes="64px"
+                    rounded
+                    unoptimized
                   />
                 </div>
                 <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} MB</span>

@@ -3,23 +3,62 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { BarChart, Bar, ResponsiveContainer, XAxis } from "recharts"
 import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
+import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
+
+function PostSkeleton() {
+  return (
+    <div className="px-4 py-3 border-b border-white/[0.06]">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <div className="w-10 h-10 rounded-full skeleton-shimmer" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap text-sm">
+            <div className="h-4 w-32 skeleton-shimmer rounded" />
+            <div className="h-4 w-16 skeleton-shimmer rounded" />
+            <div className="h-4 w-24 skeleton-shimmer rounded ml-auto" />
+          </div>
+          <div className="mt-1 space-y-2">
+            <div className="h-4 w-full skeleton-shimmer rounded" />
+            <div className="h-4 w-5/6 skeleton-shimmer rounded" />
+            <div className="h-4 w-3/4 skeleton-shimmer rounded" />
+            <div className="h-4 w-1/2 skeleton-shimmer rounded" />
+          </div>
+          <div className="relative w-full h-64 mt-2 rounded-xl skeleton-shimmer bg-white/5 border border-white/10" />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-2">
+            <div className="h-5 w-14 skeleton-shimmer rounded-full" />
+            <div className="h-5 w-16 skeleton-shimmer rounded-full" />
+            <div className="h-5 w-10 skeleton-shimmer rounded-full" />
+            <div className="h-5 w-10 skeleton-shimmer rounded-full" />
+            <div className="h-5 w-8 skeleton-shimmer rounded-full ml-auto" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 type Post = {
   id: string
   text: string | null
   imageUrl: string | null
+  imageUrls?: string[]
   type: string
   yeahs: number
   commentsCount: number
+  repostsCount: number
+  bookmarksCount: number
   boosted: boolean
   isFollowing: boolean
+  isReposted: boolean
+  isBookmarked: boolean
   createdAt: string
   user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
 }
@@ -77,6 +116,9 @@ export default function FeedPage() {
   const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
   const pendingFollowRequests = useRef(new Set<string>())
   const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set())
+  const [pullToRefresh, setPullToRefresh] = useState(false)
+  const pullStartRef = useRef<number | null>(null)
 
   const { connected, on, joinCampus, leaveCampus } = useSocket()
 
@@ -244,6 +286,66 @@ export default function FeedPage() {
     }
   }
 
+  async function handleRepost(postId: string) {
+    try {
+      await apiPost(`/api/posts/${postId}/repost`, {})
+      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, isReposted: true, repostsCount: p.repostsCount + 1 } : p))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    }
+  }
+
+  async function handleBookmark(postId: string) {
+    try {
+      await apiPost(`/api/posts/${postId}/bookmark`, {})
+      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, isBookmarked: !p.isBookmarked, bookmarksCount: p.isBookmarked ? p.bookmarksCount - 1 : p.bookmarksCount + 1 } : p))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    }
+  }
+
+  async function handleShare(postId: string) {
+    const url = `${window.location.origin}/post/${postId}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Yard Post", url })
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url)
+      alert("Link copied!")
+    }
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    pullStartRef.current = e.touches[0].clientY
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (pullStartRef.current === null) return
+    const delta = e.touches[0].clientY - pullStartRef.current
+    if (delta > 0 && window.scrollY === 0) {
+      e.preventDefault()
+      setPullToRefresh(delta > 80)
+    }
+  }
+
+  function handleTouchEnd() {
+    if (pullToRefresh && pullStartRef.current !== null) {
+      loadFeed()
+    }
+    setPullToRefresh(false)
+    pullStartRef.current = null
+  }
+
+  function toggleExpand(postId: string) {
+    setExpandedPosts((prev) => {
+      const next = new Set(prev)
+      if (next.has(postId)) next.delete(postId)
+      else next.add(postId)
+      return next
+    })
+  }
+
   async function handleDelete(postId: string) {
     if (!confirm("Delete this post?")) return
     try {
@@ -302,10 +404,15 @@ export default function FeedPage() {
   }
 
   return (
-    <main className="min-h-screen max-w-lg mx-auto pb-28 relative">
+    <main 
+      className="min-h-screen max-w-lg mx-auto pb-28 relative" 
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="relative flex items-center justify-center px-4 py-3">
         <button onClick={() => setShowDrawer(true)} className="absolute left-4">
-          <div className="avatar-circle">{me?.avatarEmoji || "👻"}</div>
+          <Avatar emoji={me?.avatarEmoji || "👻"} size={32} />
         </button>
         <span className="font-black text-lg tracking-tight">
           YARD<span className="text-[#baff39]">.</span>
@@ -326,9 +433,22 @@ export default function FeedPage() {
           </button>
         ))}
       </div>
+      {pullToRefresh && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
+          <div className="bg-black/80 backdrop-blur border border-white/10 rounded-full px-4 py-2 text-sm text-[#baff39] font-medium animate-pulse">
+            Release to refresh
+          </div>
+        </div>
+      )}
 
       {loading ? (
-        <p className="text-center text-white/40 mt-10">Loading feed...</p>
+        <div>
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+        </div>
       ) : posts.length === 0 ? (
         <div className="text-center mt-14 px-8">
           <p className="text-3xl mb-3">👻</p>
@@ -340,6 +460,10 @@ export default function FeedPage() {
             const isOwn = me && post.user.id === me.id
             const isFollowing = followingByAuthor[post.user.id] ?? post.isFollowing
             const followPending = pendingFollows.has(post.user.id)
+            const isExpanded = expandedPosts.has(post.id)
+            const images = post.imageUrls && post.imageUrls.length > 0 ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])
+            const showMore = post.text && post.text.split('\n').length > 3
+
             return (
               <div key={post.id} className="relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]">
                 <Link href={`/post/${post.id}`} aria-label={`Open post by ${post.user.ghostId}`} className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]" />
@@ -349,7 +473,7 @@ export default function FeedPage() {
                     aria-label={`View ${post.user.ghostId}'s profile`}
                     className="relative z-10 flex-shrink-0 focus-visible:outline-[#baff39]"
                   >
-                    <div className="avatar-circle text-base">{post.user.avatarEmoji}</div>
+                    <Avatar emoji={post.user.avatarEmoji} size={40} />
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap text-sm">
@@ -360,50 +484,100 @@ export default function FeedPage() {
                       >
                         {post.user.ghostId}
                       </Link>
-                      {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                      {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ Prime</span>}
                       {post.boosted && <span className="badge badge-boosted">Boosted</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
 
                     {post.text && (
-                      <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">
-                        <RichText text={post.text} />
+                      <p className="text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
+                        {isExpanded || !showMore ? (
+                          <RichText text={post.text} />
+                        ) : (
+                          <>
+                            <RichText text={post.text.split('\n').slice(0, 3).join('\n')} />
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleExpand(post.id) }}
+                              className="text-[#baff39] text-sm mt-1 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#baff39]"
+                            >
+                              Show more
+                            </button>
+                          </>
+                        )}
                       </p>
                     )}
-                    {post.imageUrl && (
-                      <div className="relative w-full h-64 mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
-                        <Image
-                          src={post.imageUrl}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                          unoptimized
-                        />
+
+                    {images.length > 0 && (
+                      <div className="mt-2 grid gap-1" style={{
+                        gridTemplateColumns: images.length === 1 ? '1fr' : images.length === 2 ? '1fr 1fr' : images.length === 3 ? '1fr 1fr' : '1fr 1fr',
+                        gridTemplateRows: images.length === 3 ? '1fr 1fr' : images.length === 4 ? '1fr 1fr' : 'auto'
+                      }}>
+                        {images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="relative aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10"
+                            style={{
+                              gridColumn: images.length === 3 && idx === 0 ? 'span 2' : images.length === 4 && idx < 2 ? undefined : undefined,
+                              gridRow: images.length === 3 && idx === 0 ? 'span 2' : undefined,
+                              aspectRatio: images.length === 1 ? '16/9' : images.length === 3 && idx === 0 ? '1/1' : '16/9'
+                            }}
+                          >
+                            <OptimizedImage
+                              src={img}
+                              alt=""
+                              fill
+                              sizes="(max-width: 768px) 100vw, 50vw"
+                              rounded
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:relative [&_button]:z-10 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
-                      {isOwn ? (
-                        <span className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
-                      ) : (
-                        <button onClick={() => handleVote(post.id)} aria-label={`Add heat, ${post.yeahs} heat`} className="text-orange-200 hover:text-orange-100 gap-1">
-                          🔥 {post.yeahs}
-                        </button>
-                      )}
+                    <div className="flex items-center justify-between px-1 py-2 text-sm text-white/60 border-t border-white/[0.04]">
                       <button
                         onClick={() => router.push(`/post/${post.id}`)}
-                        aria-label={`View comments, ${post.commentsCount} comments`}
-                        className="text-sky-200 hover:text-sky-100 gap-1"
+                        aria-label={`Reply, ${post.commentsCount} replies`}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors"
                       >
-                        💬 {post.commentsCount}
+                        <span aria-hidden="true">💬</span>
+                        <span>{post.commentsCount}</span>
                       </button>
-                      {isOwn && (
-                        <button onClick={() => handleBoost(post.id)} className="hover:text-[#baff39]">
-                          🚀
-                        </button>
-                      )}
-                      {!isOwn && (
+                      <button
+                        onClick={() => handleRepost(post.id)}
+                        aria-label={`Repost, ${post.repostsCount} reposts`}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${post.isReposted ? 'text-[#baff39]' : ''}`}
+                      >
+                        <span aria-hidden="true">🔁</span>
+                        <span>{post.repostsCount}</span>
+                      </button>
+                      <button
+                        onClick={() => handleVote(post.id)}
+                        aria-label={`Like, ${post.yeahs} likes`}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${isOwn ? 'text-orange-200' : ''}`}
+                      >
+                        <span aria-hidden="true">🔥</span>
+                        <span>{post.yeahs}</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare(post.id)}
+                        aria-label="Share"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors"
+                      >
+                        <span aria-hidden="true">📤</span>
+                      </button>
+                      <button
+                        onClick={() => handleBookmark(post.id)}
+                        aria-label={`Bookmark, ${post.bookmarksCount} bookmarks`}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-white/5 transition-colors ${post.isBookmarked ? 'text-[#baff39]' : ''}`}
+                      >
+                        <span aria-hidden="true">🔖</span>
+                        <span>{post.bookmarksCount}</span>
+                      </button>
+                    </div>
+
+                    {!isOwn && (
+                      <div className="flex items-center gap-2 pt-1">
                         <button
                           onClick={() => handleFollow(post.user.id)}
                           disabled={!me || followPending}
@@ -411,29 +585,30 @@ export default function FeedPage() {
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
                           title={isFollowing ? "Following" : "Follow"}
-                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait`}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${isFollowing ? "bg-[#baff39]/15 text-[#baff39] border border-[#baff39]/30" : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-[#baff39] border border-white/10"} disabled:opacity-50 disabled:cursor-wait`}
                         >
-                          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d={isFollowing ? "M5 12l4 4L19 6" : "M12 5v14M5 12h14"} />
                           </svg>
+                          {isFollowing ? "Following" : "Follow"}
                         </button>
-                      )}
-                      {isOwn && me && me.tier !== "FREE" && (
-                        <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39]">
-                          ✎
-                        </button>
-                      )}
-                      {isOwn && (
-                        <button onClick={() => handleDelete(post.id)} className="hover:text-red-400">
-                          🗑
-                        </button>
-                      )}
-                      {!isOwn && (
-                        <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs">
-                          ⚑
-                        </button>
-                      )}
-                    </div>
+                        {isOwn && me && me.tier !== "FREE" && (
+                          <button onClick={() => handleEdit(post.id, post.text)} className="hover:text-[#baff39] text-white/50 text-sm px-2">
+                            ✎ Edit
+                          </button>
+                        )}
+                        {isOwn && (
+                          <button onClick={() => handleDelete(post.id)} className="hover:text-red-400 text-white/50 text-sm px-2">
+                            🗑 Delete
+                          </button>
+                        )}
+                        {!isOwn && (
+                          <button onClick={() => handleReport(post.id)} className="hover:text-white/70 ml-auto text-xs text-white/40 px-2">
+                            ⚑ Report
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -455,7 +630,9 @@ export default function FeedPage() {
           <div className="w-72 bg-black border-r border-white/10 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto p-5 no-scrollbar">
               <div className="flex items-center gap-3 mb-3">
-                <div className="avatar-circle text-xl w-14 h-14">{me.avatarEmoji}</div>
+                <div className="relative w-14 h-14 flex-shrink-0">
+                  <Avatar emoji={me.avatarEmoji} size={56} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-boosted text-[10px]">Plus</span>}</p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
@@ -535,9 +712,9 @@ export default function FeedPage() {
                 <button
                   key={emoji}
                   onClick={() => handlePickAvatar(emoji)}
-                  className="avatar-circle text-2xl w-14 h-14 mx-auto hover:bg-[#baff39]/20"
+                  className="relative w-14 h-14 mx-auto hover:bg-[#baff39]/20"
                 >
-                  {emoji}
+                  <Avatar emoji={emoji} size={56} />
                 </button>
               ))}
             </div>

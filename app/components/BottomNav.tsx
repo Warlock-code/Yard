@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
+import { useHoverPrefetch } from "@/lib/prefetch"
 
 const TABS = [
   { href: "/feed", icon: "🏠", label: "Feed" },
@@ -11,15 +12,19 @@ const TABS = [
   { href: "/battles", icon: "⚔️", label: "Battles" },
   { href: "/leaderboard", icon: "🏆", label: "Boards" },
   { href: "/shop", icon: "🛍️", label: "Market" },
+  { href: "/notifications", icon: "🔔", label: "Notifications" },
+  { href: "/lair", icon: "🏰", label: "Lair" },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
-  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose"]
-  // Visible on /search + /explore like X; hidden on post detail, admin, auth, compose.
-  const hidePrefixes = ["/post/", "/admin"]
+  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade"]
+  // Visible on /search + /explore like X; hidden on post detail, admin, user profiles, auth, compose, payment.
+  const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
+
+  useHoverPrefetch()
 
   useEffect(() => {
     let active = true

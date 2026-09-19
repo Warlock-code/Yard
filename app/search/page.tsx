@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import SearchBar from "@/app/components/SearchBar"
 import { timeAgo } from "@/lib/timeAgo"
 import RichText from "@/app/components/RichText"
+import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
 
 type Post = {
   id: string
@@ -114,7 +115,7 @@ function PostCard({ post }: { post: Post }) {
       />
       <div className="flex items-start gap-3 relative z-10">
         <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="flex-shrink-0">
-          <div className="avatar-circle text-base">{post.user.avatarEmoji}</div>
+          <Avatar emoji={post.user.avatarEmoji} size={36} />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-sm">
@@ -133,12 +134,12 @@ function PostCard({ post }: { post: Post }) {
           )}
           {post.imageUrl && (
             <div className="relative w-full max-h-96 mt-2">
-              <Image
+              <OptimizedImage
                 src={post.imageUrl}
                 alt=""
                 fill
-                className="rounded-xl w-full h-full object-cover"
                 sizes="(max-width: 768px) 100vw, 50vw"
+                rounded
               />
             </div>
           )}
@@ -596,7 +597,7 @@ function SearchPageContent() {
         className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02]"
       >
         <Link href={`/u/${encodeURIComponent(user.ghostId)}`} className="flex-shrink-0">
-          <div className="avatar-circle text-lg">{user.avatarEmoji}</div>
+          <Avatar emoji={user.avatarEmoji} size={40} />
         </Link>
         <Link href={`/u/${encodeURIComponent(user.ghostId)}`} className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -1020,11 +1021,10 @@ function SearchPageContent() {
                             className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-[#baff39]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                           >
                             {post.imageUrl && (
-                              <Image
+                              <OptimizedImage
                                 src={post.imageUrl}
                                 alt=""
                                 fill
-                                className="object-cover"
                                 sizes="(max-width: 768px) 33vw, 170px"
                               />
                             )}

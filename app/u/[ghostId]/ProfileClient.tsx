@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
+import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
 
 type Post = {
   id: string
@@ -140,11 +141,8 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
       </div>
 
       <div className="flex flex-col items-center mt-2 mb-4 relative">
-        <div
-          className="avatar-circle text-4xl w-24 h-24 mb-3"
-          style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}
-        >
-          {profile.avatarEmoji}
+        <div className="relative w-24 h-24 mb-3" style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
+          <Avatar emoji={profile.avatarEmoji} size={96} />
         </div>
         <h1 className="text-xl font-bold">{profile.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
@@ -226,12 +224,12 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
             {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
             {p.imageUrl && (
               <div className="relative w-full max-h-72 mt-2">
-                <Image
+                <OptimizedImage
                   src={p.imageUrl}
                   alt=""
                   fill
-                  className="rounded-lg w-full h-full object-cover"
                   sizes="(max-width: 768px) 100vw, 50vw"
+                  rounded
                 />
               </div>
             )}

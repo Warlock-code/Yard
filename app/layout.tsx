@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import BottomNav from "@/app/components/BottomNav"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
+import { useRoutePrefetch } from "@/lib/prefetch"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://yardapp.me"),
@@ -57,9 +58,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <PushNotificationsSetup />
+        <RoutePrefetcher />
         {children}
         <BottomNav />
       </body>
     </html>
   )
+}
+
+function RoutePrefetcher() {
+  useRoutePrefetch()
+  return null
 }

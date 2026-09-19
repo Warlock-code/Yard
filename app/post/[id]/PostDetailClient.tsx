@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
+import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
 
 type Comment = {
   id: string
@@ -40,7 +41,7 @@ function CommentThread({
     <div className="mt-3">
       <div className="flex gap-2">
         <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
-          <div className="avatar-circle text-sm w-8 h-8">{comment.user.avatarEmoji}</div>
+          <Avatar emoji={comment.user.avatarEmoji} size={32} />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
@@ -242,7 +243,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       <div className="card m-4 p-4">
         <div className="flex items-center gap-3 mb-3">
           <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
-            <div className="avatar-circle">{post.user.avatarEmoji}</div>
+            <Avatar emoji={post.user.avatarEmoji} size={40} />
           </Link>
           <div>
             <div className="flex items-center gap-2">
@@ -258,13 +259,12 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
         {post.imageUrl && (
           <div className="relative w-full h-72 mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
-            <Image
+            <OptimizedImage
               src={post.imageUrl}
               alt=""
               fill
-              className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
-              unoptimized
+              rounded
             />
           </div>
         )}

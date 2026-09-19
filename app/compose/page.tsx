@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { useUploadThing } from "@/lib/uploadthing"
 import { getProgramKey } from "@/lib/program"
+import OptimizedImage from "@/app/components/OptimizedImage"
 
 type StorageQuota = {
   campus: string
@@ -231,13 +231,13 @@ export default function ComposePage() {
 
         {image && (
           <div className="relative mt-4 w-full h-64 rounded-xl overflow-hidden bg-white/5 border border-white/10">
-            <Image
+            <OptimizedImage
               src={image}
               alt="preview"
               fill
-              className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
               unoptimized
+              rounded
             />
             <button
               onClick={handleRemoveImage}
