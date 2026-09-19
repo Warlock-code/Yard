@@ -5,21 +5,27 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiPost } from "@/lib/useApi"
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState("")
   const [error, setError] = useState("")
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setMessage("")
 
     try {
-      await apiPost("/api/auth/login", { email, password })
-      router.push("/feed")
+      const data = await apiPost("/api/auth/forgot-password", { email })
+      setMessage(data.message || "If the email exists, a reset link has been sent.")
+      if (data.emailFailed) {
+        setError("Could not send email. Please try again or contact support.")
+      } else {
+        setTimeout(() => router.push("/login"), 3000)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
@@ -29,10 +35,10 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
-      <h1 className="text-4xl font-black mb-2">Welcome back</h1>
-      <p className="text-white/60 mb-8">Log in as your ghost.</p>
+      <h1 className="text-4xl font-black mb-2">Reset password</h1>
+      <p className="text-white/60 mb-8">Enter your school email to get a reset link.</p>
 
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
           className="input"
           type="email"
@@ -41,33 +47,19 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
-
-        <Link
-          href="/forgot-password"
-          className="text-sm text-white/60 hover:text-white underline self-end mr-2"
-        >
-          Forgot password?
-        </Link>
+        {message && !error && <p className="text-[#baff39] text-sm">{message}</p>}
 
         <button className="btn-primary w-full" type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Log in"}
+          {loading ? "Sending..." : "Send reset link"}
         </button>
       </form>
 
       <p className="text-center text-white/40 text-sm mt-5">
-        New here?{" "}
-        <Link href="/signup" className="text-white font-semibold">
-          Create an account
+        Remember your password?{" "}
+        <Link href="/login" className="text-white font-semibold">
+          Log in
         </Link>
       </p>
     </main>

@@ -29,6 +29,8 @@ model User {
   passwordHash  String
   emailVerified Boolean @default(false)
   verifyCode    String?
+  resetToken    String?   @unique
+  resetTokenExpiry DateTime?
   campus        String
   programLevel  String?
   pushToken     String?

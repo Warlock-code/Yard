@@ -1,0 +1,124 @@
+{
+  "posts": [
+    {
+      "id": "gh_gist_01",
+      "campus": "UG",
+      "type": "gossip",
+      "visibility": "school",
+      "text": "6:30am lecture for Legon?? Herrh this lecturer enter class like ein wife beat am for dawn 😭 Shout dey give everybody 'WHY YOU LATE' my guy we self we never sleep, we dey battle trotro since 5am. Chale abolish 6:30am lectures abeg! #LegonWahala #630AMTorture #GhanaUniLife",
+      "hashtags": ["#LegonWahala", "#630AMTorture", "#GhanaUniLife"],
+      "yeahs": 234,
+      "boosted": true,
+      "boostedUntil": "2026-09-26T06:00:00.000Z",
+      "trending": true,
+      "comments": [
+        {
+          "ghostId": "LegonSleeper",
+          "text": "Chale that man need therapy not students 😂 6:30am be human rights abuse fr"
+        },
+        {
+          "ghostId": "TrotroSurvivor",
+          "text": "You for see ein face, like he no chop morning food plus beatings 😭😭"
+        },
+        {
+          "ghostId": "Katanga2Legon",
+          "text": "Eii UG lecturers dey vex pass KNUST own?? This one wild"
+        }
+      ]
+    },
+    {
+      "id": "gh_gist_02",
+      "campus": "UCC",
+      "type": "meme",
+      "visibility": "school",
+      "text": "UCC library no be library again, na TikTok headquarters 😂 Assignment due midnight but Auntie for aisle 3 dey do 'everybody tap tap' challenge with ring light. Books dey cry for corner, GPA dey sink but views dey rise. Chale we choose cruise over first class fr #UCCAfterClass #TikTokOverBooks #CampusLife",
+      "hashtags": ["#UCCAfterClass", "#TikTokOverBooks", "#CampusLife"],
+      "yeahs": 178,
+      "boosted": false,
+      "trending": false,
+      "comments": [
+        {
+          "ghostId": "CapeCoastBookie",
+          "text": "Facts 😭 I go library go read, I come back with 3 drafts for TikTok"
+        },
+        {
+          "ghostId": "ScholarByMistake",
+          "text": "The girl wey dey dance get 4.2 GPA sef, how for do??"
+        }
+      ]
+    },
+    {
+      "id": "gh_gist_03",
+      "campus": "KNUST",
+      "type": "gossip",
+      "visibility": "school",
+      "text": "Katanga vs Unity hall gist too loud chale 😭 You dey try sleep midnight then next room dey host bedroom conference, morning you hear for staircase 'so na you dey date hall secretary AND SRC babe?' Eii who dey sleep with who for this hall sef?? WiFi no dey work but gossip dey stream for 5G #KNUSTGist #HallGossip #WhoDeySleepWithWho",
+      "hashtags": ["#KNUSTGist", "#HallGossip", "#WhoDeySleepWithWho"],
+      "yeahs": 267,
+      "boosted": true,
+      "boostedUntil": "2026-09-27T12:00:00.000Z",
+      "trending": true,
+      "comments": [
+        {
+          "ghostId": "Katkatanomics",
+          "text": "Katanga hall never disappoints 😂 By 2am you go know everybody ein body count"
+        },
+        {
+          "ghostId": "UnityAnon",
+          "text": "Hall gossip dey move faster than KNUST WiFi wey no dey move at all 💀"
+        },
+        {
+          "ghostId": "HallWatcher99",
+          "text": "Mention hall sec name make we verify story na 😏"
+        }
+      ]
+    },
+    {
+      "id": "gh_gist_04",
+      "campus": "UPSA",
+      "type": "confession",
+      "visibility": "school",
+      "text": "That next-best-couple for UPSA wey dey match outfit everyday for canteen 😍 my guy my GPA dey match like kente design - D for here, F for there, C for corner 😭 Relationship goals plenty but first class no dey. Herrh who we go envy pass? #UPSARealities #CoupleGoalsVsGPA #CampusGist",
+      "hashtags": ["#UPSARealities", "#CoupleGoalsVsGPA", "#CampusGist"],
+      "yeahs": 142,
+      "boosted": false,
+      "trending": false,
+      "comments": [
+        {
+          "ghostId": "SingleAndPassed",
+          "text": "Give me GPA over couple goals any day, love no dey pay fees 😂"
+        },
+        {
+          "ghostId": "MatchingFits",
+          "text": "Chale that couple ein GPA be 3.8 oh, no dey judge 😭 some people dey manage both"
+        }
+      ]
+    },
+    {
+      "id": "gh_gist_05",
+      "campus": "KNUST",
+      "type": "meme",
+      "visibility": "school",
+      "text": "Eii that KNUST pure water CEO wey dey hawk for campus in full corporate attire with tie and shiny shoe?? 😂 Boss viral for LinkedIn, TikTok and lecturer WhatsApp group same day! Meanwhile we queue for canteen 45mins for indomie wey boiler no light, WiFi no dey so we for use eye take chew menu. Hustle be real! #KNUSTHustle #PureWaterCEO #CanteenQueue #WiFiFail",
+      "hashtags": ["#KNUSTHustle", "#PureWaterCEO", "#CanteenQueue", "#WiFiFail"],
+      "yeahs": 251,
+      "boosted": true,
+      "boostedUntil": "2026-09-28T08:00:00.000Z",
+      "trending": true,
+      "comments": [
+        {
+          "ghostId": "CorporateHustler",
+          "text": "Forbes 30 under 30 loading 😂 Pure water in suit hits different"
+        },
+        {
+          "ghostId": "CanteenVeteran",
+          "text": "45mins?? You lucky, we do 1 hour for GCUC canteen dey look stew 😭"
+        },
+        {
+          "ghostId": "WiFiGhost",
+          "text": "KNUST WiFi only work when you no need am, exam time e go vanish gyee"
+        }
+      ]
+    }
+  ]
+}

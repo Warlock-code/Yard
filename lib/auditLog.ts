@@ -26,13 +26,8 @@ export type AuditAction =
   | "user.delete_account"
   | "user.verify_email"
   | "user.referral"
-  | "payout.approved"
-  | "payout.paid"
-  | "payout.rejected"
-  | "user.signup"
-  | "user.login"
-  | "user.delete_account"
-  | "user.verify_email"
+  | "user.forgot_password"
+  | "user.reset_password"
 
 export async function auditLog(
   action: AuditAction,
