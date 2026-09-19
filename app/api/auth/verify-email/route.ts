@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
   return res
   } catch (err) {
     console.error("[verify-email] unexpected", err)
+    if (err instanceof Error && err.message.includes("JWT_SECRET")) {
+      return NextResponse.json({ error: "Service temporarily unavailable. Please try again later." }, { status: 500 })
+    }
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong. Please try again." }, { status: 500 })
   }
 }

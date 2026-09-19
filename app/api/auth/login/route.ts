@@ -8,6 +8,7 @@ const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 * 1000
 
 export async function POST(req: NextRequest) {
+  try {
   const body = await req.json().catch(() => ({}))
   const validation = validateRequest(loginSchema, body)
   if (!validation.success) {
@@ -55,4 +56,11 @@ export async function POST(req: NextRequest) {
   })
 
   return res
+  } catch (err) {
+    console.error("[login] unexpected", err)
+    if (err instanceof Error && err.message.includes("JWT_SECRET")) {
+      return NextResponse.json({ error: "Service temporarily unavailable. Please try again later." }, { status: 500 })
+    }
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+  }
 }
