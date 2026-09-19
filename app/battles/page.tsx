@@ -2,7 +2,10 @@ import { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import BattlesClient from "./BattlesClient"
 
+export const dynamic = "force-dynamic"
+
 export async function generateMetadata(): Promise<Metadata> {
+  try {
   const prompt = await prisma.battlePrompt.findFirst({
     where: { active: true },
     orderBy: { startsAt: "desc" },
@@ -43,6 +46,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description: `Battle: ${truncatedText}`,
       images: ["/og-image.svg"],
     },
+  }
+  } catch {
+    return { title: "Battles | Yard", description: "Campus battles on Yard" }
   }
 }
 

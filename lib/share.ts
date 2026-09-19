@@ -138,7 +138,16 @@ export function generateInviteCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
   let code = ""
   for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
+    const cryptoObj = globalThis.crypto as unknown as { getRandomValues?: (a: Uint32Array) => Uint32Array } | undefined
+    if (typeof crypto !== "undefined" && typeof (crypto as any).randomInt === "function") {
+      code += chars.charAt((crypto as any).randomInt(chars.length))
+    } else if (cryptoObj?.getRandomValues) {
+      const arr = new Uint32Array(1)
+      cryptoObj.getRandomValues(arr)
+      code += chars.charAt(arr[0] % chars.length)
+    } else {
+      code += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
   }
   return code
 }

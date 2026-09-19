@@ -1,11 +1,15 @@
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY!
+function getPaystackSecret(): string {
+  const s = process.env.PAYSTACK_SECRET_KEY
+  if (!s) throw new Error("PAYSTACK_SECRET_KEY missing")
+  return s
+}
 const CALLBACK_URL = "https://yardapp.me/payment/callback"
 
 export async function initializePaystack(email: string, amountKobo: number, reference: string) {
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      Authorization: `Bearer ${getPaystackSecret()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, amount: amountKobo, reference, callback_url: CALLBACK_URL }),
@@ -15,7 +19,7 @@ export async function initializePaystack(email: string, amountKobo: number, refe
 
 export async function verifyPaystack(reference: string) {
   const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-    headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+    headers: { Authorization: `Bearer ${getPaystackSecret()}` },
   })
   return res.json()
 }
@@ -24,7 +28,7 @@ export async function initializeSubscription(email: string, planCode: string, re
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      Authorization: `Bearer ${getPaystackSecret()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, plan: planCode, reference, callback_url: CALLBACK_URL }),
@@ -39,7 +43,7 @@ export async function createTransferRecipient(name: string, accountNumber: strin
   const res = await fetch("https://api.paystack.co/transferrecipient", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      Authorization: `Bearer ${getPaystackSecret()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -62,7 +66,7 @@ export async function initiateTransfer(
   const res = await fetch("https://api.paystack.co/transfer", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      Authorization: `Bearer ${getPaystackSecret()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

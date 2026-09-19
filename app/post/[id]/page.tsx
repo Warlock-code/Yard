@@ -6,7 +6,10 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+export const dynamic = "force-dynamic"
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  try {
   const { id } = await params
   const post = await prisma.post.findUnique({
     where: { id },
@@ -55,6 +58,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: truncatedText,
       images: [imageUrl],
     },
+  }
+  } catch {
+    return { title: "Yard — Post" }
   }
 }
 

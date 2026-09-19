@@ -2,7 +2,11 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
 
-const JWT_SECRET = process.env.JWT_SECRET!
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET
+  if (!s || s.length < 16) throw new Error("JWT_SECRET missing or too short")
+  return s
+}
 
 export function hashPassword(password: string) {
   return bcrypt.hash(password, 12)
@@ -13,12 +17,12 @@ export function comparePassword(password: string, hash: string) {
 }
 
 export function signToken(userId: string) {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" })
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: "30d" })
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string }
+    return jwt.verify(token, getJwtSecret()) as { userId: string }
   } catch {
     return null
   }
@@ -37,9 +41,9 @@ const ghostNouns = [
 ]
 
 export function makeGhostId() {
-  const adj = ghostAdjectives[Math.floor(Math.random() * ghostAdjectives.length)]
-  const noun = ghostNouns[Math.floor(Math.random() * ghostNouns.length)]
-  const num = Math.floor(1000 + Math.random() * 9000)
+  const adj = ghostAdjectives[crypto.randomInt(ghostAdjectives.length)]
+  const noun = ghostNouns[crypto.randomInt(ghostNouns.length)]
+  const num = crypto.randomInt(1000, 10000)
   return `${adj}${noun}_${num}`
 }
 

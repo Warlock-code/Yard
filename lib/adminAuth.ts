@@ -1,14 +1,18 @@
 import jwt from "jsonwebtoken"
 
-const ADMIN_SECRET = process.env.ADMIN_JWT_SECRET!
+function getAdminSecret(): string {
+  const s = process.env.ADMIN_JWT_SECRET
+  if (!s || s.length < 16) throw new Error("ADMIN_JWT_SECRET missing or too short")
+  return s
+}
 
 export function signAdminToken() {
-  return jwt.sign({ role: "admin" }, ADMIN_SECRET, { expiresIn: "7d" })
+  return jwt.sign({ role: "admin" }, getAdminSecret(), { expiresIn: "7d" })
 }
 
 export function verifyAdminToken(token: string): boolean {
   try {
-    const payload = jwt.verify(token, ADMIN_SECRET) as { role: string }
+    const payload = jwt.verify(token, getAdminSecret()) as { role: string }
     return payload.role === "admin"
   } catch {
     return false
