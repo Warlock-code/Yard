@@ -14,6 +14,8 @@ type Comment = {
   id: string
   text: string
   ghostId: string
+  yeahs: number
+  heated?: boolean
   user: { ghostId: string; avatarEmoji: string }
   createdAt: string
   parentId: string | null
@@ -33,9 +35,11 @@ type Post = {
 function CommentThread({
   comment,
   onReply,
+  onHeat,
 }: {
   comment: Comment
   onReply: (parentId: string, ghostId: string) => void
+  onHeat: (commentId: string) => void
 }) {
   return (
     <div className="mt-3">
@@ -51,19 +55,28 @@ function CommentThread({
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
-          <button
-            className="text-xs text-white/40 hover:text-white mt-1"
-            onClick={() => onReply(comment.id, comment.ghostId)}
-          >
-            Reply
-          </button>
+          <div className="flex items-center gap-4 mt-1">
+            <button
+              onClick={() => onHeat(comment.id)}
+              aria-label={`Add heat to comment, ${comment.yeahs ?? 0} heat`}
+              className={`text-xs inline-flex items-center gap-1 ${comment.heated ? "text-orange-200" : "text-white/40 hover:text-orange-200"}`}
+            >
+              🔥 {comment.yeahs ?? 0}
+            </button>
+            <button
+              className="text-xs text-white/40 hover:text-white"
+              onClick={() => onReply(comment.id, comment.ghostId)}
+            >
+              Reply
+            </button>
+          </div>
         </div>
       </div>
 
       {comment.replies?.length > 0 && (
         <div className="ml-10 border-l border-white/10 pl-3 mt-2">
           {comment.replies.map((reply) => (
-            <CommentThread key={reply.id} comment={reply} onReply={onReply} />
+            <CommentThread key={reply.id} comment={reply} onReply={onReply} onHeat={onHeat} />
           ))}
         </div>
       )}
@@ -119,15 +132,63 @@ export default function PostDetailClient({ postId }: { postId: string }) {
   const [commentText, setCommentText] = useState("")
   const [replyingTo, setReplyingTo] = useState<{ id: string; ghostId: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [commentSort, setCommentSort] = useState<"top" | "latest">("top")
 
   const { connected, on } = useSocket()
 
-  async function loadComments() {
+  function patchCommentTree(list: Comment[], id: string, patch: (c: Comment) => Comment): Comment[] {
+    return list.map((c) =>
+      c.id === id
+        ? patch(c)
+        : { ...c, replies: patchCommentTree(c.replies ?? [], id, patch) }
+    )
+  }
+
+  async function loadComments(sort: "top" | "latest" = commentSort) {
     try {
-      const data = await apiGet(`/api/posts/${postId}/comments`)
+      const data = await apiGet(`/api/posts/${postId}/comments?sort=${sort}`)
       setComments(data.comments)
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  function selectCommentSort(next: "top" | "latest") {
+    if (next === commentSort) return
+    setCommentSort(next)
+    loadComments(next)
+  }
+
+  function findComment(list: Comment[], id: string): Comment | null {
+    for (const c of list) {
+      if (c.id === id) return c
+      const found = findComment(c.replies ?? [], id)
+      if (found) return found
+    }
+    return null
+  }
+
+  async function handleHeatComment(commentId: string) {
+    let alreadyHeated = false
+    setComments((prev) => {
+      alreadyHeated = findComment(prev, commentId)?.heated === true
+      if (alreadyHeated) return prev
+      return patchCommentTree(prev, commentId, (c) => ({ ...c, yeahs: (c.yeahs ?? 0) + 1, heated: true }))
+    })
+    if (alreadyHeated) return
+    try {
+      const data = await apiPost(`/api/comments/${commentId}/vote`, {})
+      const yeahs = data.comment?.yeahs
+      if (typeof yeahs === "number") {
+        setComments((prev) => patchCommentTree(prev, commentId, (c) => ({ ...c, yeahs })))
+      }
+    } catch (err: unknown) {
+      setComments((prev) =>
+        patchCommentTree(prev, commentId, (c) =>
+          c.heated ? { ...c, yeahs: Math.max(0, (c.yeahs ?? 1) - 1), heated: false } : c
+        )
+      )
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -170,17 +231,23 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     if (!connected || !post) return
     const unsubComment = on("comment_added", ({ postId: pId, comment }: { postId: string; comment: Comment }) => {
       if (pId === postId) {
+        const incoming = { ...comment, yeahs: comment.yeahs ?? 0, replies: comment.replies ?? [] }
         setComments((prev) => {
-          if (comment.parentId) {
+          if (incoming.parentId) {
             return prev.map((c) => {
-              if (c.id === comment.parentId) {
-                return { ...c, replies: [...c.replies, comment] }
+              if (c.id === incoming.parentId) {
+                return { ...c, replies: [...c.replies, incoming] }
               }
               return c
             })
           }
-          return [...prev, comment]
+          return [...prev, incoming]
         })
+      }
+    })
+    const unsubCommentVote = on("comment_vote", ({ postId: pId, commentId, yeahs }: { postId: string; commentId: string; yeahs: number }) => {
+      if (pId === postId) {
+        setComments((prev) => patchCommentTree(prev, commentId, (c) => ({ ...c, yeahs })))
       }
     })
     const unsubVote = on("vote_update", ({ postId: pId, yeahs }: { postId: string; yeahs: number }) => {
@@ -188,6 +255,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     })
     return () => {
       unsubComment()
+      unsubCommentVote()
       unsubVote()
     }
   }, [connected, on, postId, post])
@@ -277,7 +345,22 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       </div>
 
       <div className="px-4">
-        <h3 className="text-sm font-semibold text-white/60 mb-2">Comments</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-white/60">Comments</h3>
+          <div className="flex items-center gap-1 text-xs bg-white/5 rounded-full p-0.5" role="tablist" aria-label="Sort comments">
+            {(["top", "latest"] as const).map((s) => (
+              <button
+                key={s}
+                role="tab"
+                aria-selected={commentSort === s}
+                onClick={() => selectCommentSort(s)}
+                className={`px-2.5 py-1 rounded-full capitalize ${commentSort === s ? "bg-[#baff39] text-black font-semibold" : "text-white/50 hover:text-white"}`}
+              >
+                {s === "top" ? "Top" : "Latest"}
+              </button>
+            ))}
+          </div>
+        </div>
         {comments.length === 0 ? (
           <p className="text-white/30 text-sm">No comments yet — start the thread.</p>
         ) : (
@@ -286,6 +369,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               key={c.id}
               comment={c}
               onReply={(id, ghostId) => setReplyingTo({ id, ghostId })}
+              onHeat={handleHeatComment}
             />
           ))
         )}

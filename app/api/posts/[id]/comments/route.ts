@@ -100,11 +100,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         avatarEmoji: comment.user.avatarEmoji,
       },
       parentId: comment.parentId,
+      yeahs: 0,
       createdAt: comment.createdAt.toISOString(),
     },
   })
 
-  return NextResponse.json({ comment })
+  return NextResponse.json({ comment: { ...comment, yeahs: 0 } })
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -114,22 +115,59 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const post = await prisma.post.findFirst({ where: { id, AND: [await getReadablePostWhere(user)] }, select: { id: true } })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
 
-  const comments = await prisma.comment.findMany({
-    where: { postId: id, parentId: null },
-    orderBy: { createdAt: "asc" },
+  const sort = new URL(req.url).searchParams.get("sort") === "latest" ? "latest" : "top"
+
+  const all = await prisma.comment.findMany({
+    where: { postId: id },
     include: {
       user: { select: { ghostId: true, avatarEmoji: true } },
-      replies: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          user: { select: { ghostId: true, avatarEmoji: true } },
-          replies: {
-            include: { user: { select: { ghostId: true, avatarEmoji: true } } },
-          },
-        },
-      },
+      votes: { where: { userId: user.id }, select: { id: true } },
     },
   })
 
-  return NextResponse.json({ comments })
+  type Node = (typeof all)[number] & { heated: boolean; replies: Node[] }
+  const byId = new Map<string, Node>()
+  for (const c of all) byId.set(c.id, { ...c, heated: c.votes.length > 0, replies: [] })
+  const roots: Node[] = []
+  for (const node of byId.values()) {
+    if (node.parentId && byId.has(node.parentId)) {
+      byId.get(node.parentId)!.replies.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  // X-style weighing: heat matters, but fresh comments still get a shot (HN-style gravity).
+  function hotScore(yeahs: number, createdAt: Date) {
+    const ageHrs = Math.max(0, (Date.now() - createdAt.getTime()) / 3.6e6)
+    return yeahs / Math.pow(ageHrs + 2, 1.2)
+  }
+
+  function sortReplies(nodes: Node[]) {
+    nodes.sort((a, b) => b.yeahs - a.yeahs || a.createdAt.getTime() - b.createdAt.getTime())
+    for (const n of nodes) sortReplies(n.replies)
+  }
+
+  if (sort === "latest") {
+    roots.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  } else {
+    roots.sort(
+      (a, b) => hotScore(b.yeahs, b.createdAt) - hotScore(a.yeahs, a.createdAt)
+    )
+  }
+  for (const r of roots) sortReplies(r.replies)
+
+  const strip = (n: Node): unknown => ({
+    id: n.id,
+    text: n.text,
+    ghostId: n.ghostId,
+    yeahs: n.yeahs,
+    heated: n.heated,
+    createdAt: n.createdAt,
+    parentId: n.parentId,
+    user: n.user,
+    replies: n.replies.map(strip),
+  })
+
+  return NextResponse.json({ comments: roots.map(strip), sort })
 }

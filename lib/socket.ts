@@ -7,6 +7,7 @@ type SocketEvents = {
   new_post: (post: any) => void
   vote_update: (data: { postId: string; yeahs: number }) => void
   comment_added: (data: { postId: string; comment: any }) => void
+  comment_vote: (data: { postId: string; commentId: string; yeahs: number }) => void
   notification: (notification: any) => void
   battle_vote: (data: { entryId: string; votes: number }) => void
   battle_update: (data: any) => void

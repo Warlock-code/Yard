@@ -35,6 +35,7 @@ interface CommentData {
       avatarEmoji: string
     }
     parentId: string | null
+    yeahs: number
     createdAt: string
   }
 }
@@ -154,6 +155,10 @@ export function emitVoteUpdate(campus: string, postId: string, yeahs: number) {
 
 export function emitCommentAdded(campus: string, postId: string, comment: CommentData) {
   ioInstance?.to(`campus:${campus}`).emit("comment_added", { postId, comment })
+}
+
+export function emitCommentVote(campus: string, postId: string, commentId: string, yeahs: number) {
+  ioInstance?.to(`campus:${campus}`).emit("comment_vote", { postId, commentId, yeahs })
 }
 
 export function emitNotification(userId: string, notification: NotificationData) {
