@@ -7,6 +7,7 @@ import Image from "next/image"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
+import { BarChart, Bar, ResponsiveContainer, XAxis } from "recharts"
 import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
 
@@ -75,6 +76,7 @@ export default function FeedPage() {
   const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
   const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
   const pendingFollowRequests = useRef(new Set<string>())
+  const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
 
   const { connected, on, joinCampus, leaveCampus } = useSocket()
 
@@ -106,6 +108,18 @@ export default function FeedPage() {
     loadMe(() => active)
     return () => { active = false }
   }, [loadMe])
+
+  // Prime earnings chart for drawer
+  useEffect(() => {
+    if (me?.tier !== "PRIME") return
+    let active = true
+    apiGet("/api/analytics/earnings?range=7d&period=day").then((d) => {
+      if (!active || !d.byDate) return
+      const mapped = d.byDate.map((r: any) => ({ date: r.date.slice(5), total: r.total / 100 }))
+      setPrimeEarnings(mapped.length ? mapped : null)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [me?.tier])
 
   useEffect(() => {
     let active = true
@@ -453,10 +467,10 @@ export default function FeedPage() {
                 <div className="ml-auto flex items-center gap-1 text-xs text-white/30"><span>🔥 {me.streakCount}</span></div>
               </div>
 
-              {/* Prime — useful filled card */}
+              {/* Prime — mini stats + earnings chart, no upgrade */}
               {me.tier === "PRIME" && (
                 <div className="card p-3 mb-3 border-[#facc15]/20 bg-[#facc15]/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-[#facc15]/70 uppercase mb-2">Prime • useful</p>
+                  <p className="text-[10px] font-bold tracking-widest text-[#facc15]/70 uppercase mb-2">Prime • earnings</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-black/30 rounded-lg p-2 border border-white/5">
                       <p className="text-[10px] text-white/30">Earned</p>
@@ -468,11 +482,19 @@ export default function FeedPage() {
                       {me.hasPendingPayout && <p className="text-[10px] text-amber-400">⏳ pending</p>}
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <button className="btn-primary flex-1 text-xs py-1.5" onClick={() => { setShowDrawer(false); router.push("/lair") }}>Lair → payout</button>
-                    <button className="btn-ghost flex-1 text-xs py-1.5" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Manage</button>
-                  </div>
-                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)} / {me.storageLimit} MB • {me.ghostCoins||0} coins</p>
+                  {primeEarnings && primeEarnings.length > 0 ? (
+                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 p-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={primeEarnings}>
+                          <XAxis dataKey="date" hide />
+                          <Bar dataKey="total" fill="#facc15" radius={[4,4,0,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 grid place-items-center text-[11px] text-white/25">No earnings last 7d</div>
+                  )}
+                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)}/{me.storageLimit} MB • {me.ghostCoins||0} coins • {me.tierDaysLeft ?? 0}d left</p>
                 </div>
               )}
               {me.tier === "PLUS" && (
@@ -483,16 +505,7 @@ export default function FeedPage() {
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} MB</p>
                 </div>
               )}
-              {me.tier === "FREE" && (
-                <div className="card p-3 mb-3 bg-white/[0.03] border-white/10">
-                  <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-1">Upgrade</p>
-                  <p className="text-xs text-white/50 mb-2">Get Plus (GHS 10) or Prime (GHS 20) for more.</p>
-                  <div className="flex gap-2">
-                    <button className="btn-ghost flex-1 text-xs" onClick={() => { setShowDrawer(false); router.push("/shop") }}>Shop</button>
-                    <button className="btn-primary flex-1 text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Upgrade</button>
-                  </div>
-                </div>
-              )}
+              {/* Free: nothing else — just nav below */}
 
               <div className="space-y-1">
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/lair") }}>👻 My Lair <span className="ml-auto text-white/20">›</span></button>
