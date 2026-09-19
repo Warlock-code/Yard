@@ -29,9 +29,18 @@ type Me = {
   avatarEmoji: string
   campus: string
   tier: string
+  rawTier?: string
+  tierExpiresAt?: string | null
+  tierDaysLeft?: number | null
   streakCount: number
   followersCount: number
   followingCount: number
+  totalEarnedPesewas?: number
+  availableBalancePesewas?: number
+  hasPendingPayout?: boolean
+  storageUsed?: number
+  storageLimit?: number
+  ghostCoins?: number
 }
 
 const TABS = [
@@ -427,34 +436,74 @@ export default function FeedPage() {
 
       {showDrawer && me && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="w-72 bg-black border-r border-white/10 p-5 flex flex-col overflow-y-auto">
-            <div className="avatar-circle text-xl w-14 h-14 mb-3">{me.avatarEmoji}</div>
-            <p className="font-bold">{me.ghostId}</p>
-            <p className="text-xs text-white/40 mb-4">{me.campus}</p>
-
-            <div className="flex gap-4 mb-5 text-sm">
-              <div>
-                <span className="font-bold">{me.followingCount}</span> <span className="text-white/40">Following</span>
+          <div className="w-72 bg-black border-r border-white/10 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-5 no-scrollbar">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="avatar-circle text-xl w-14 h-14">{me.avatarEmoji}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-boosted text-[10px]">Plus</span>}</p>
+                  <p className="text-xs text-white/40 truncate">{me.campus}</p>
+                  {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
+                </div>
               </div>
-              <div>
-                <span className="font-bold">{me.followersCount}</span> <span className="text-white/40">Followers</span>
+
+              <div className="flex gap-4 mb-3 text-sm">
+                <div><span className="font-bold">{me.followingCount}</span> <span className="text-white/40">Following</span></div>
+                <div><span className="font-bold">{me.followersCount}</span> <span className="text-white/40">Followers</span></div>
+                <div className="ml-auto flex items-center gap-1 text-xs text-white/30"><span>🔥 {me.streakCount}</span></div>
+              </div>
+
+              {/* Prime — useful filled card */}
+              {me.tier === "PRIME" && (
+                <div className="card p-3 mb-3 border-[#facc15]/20 bg-[#facc15]/[0.06]">
+                  <p className="text-[10px] font-bold tracking-widest text-[#facc15]/70 uppercase mb-2">Prime • useful</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-black/30 rounded-lg p-2 border border-white/5">
+                      <p className="text-[10px] text-white/30">Earned</p>
+                      <p className="text-sm font-black text-white">GHS {((me.totalEarnedPesewas||0)/100).toFixed(2)}</p>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-2 border border-white/5">
+                      <p className="text-[10px] text-white/30">Balance</p>
+                      <p className="text-sm font-black text-[#baff39]">GHS {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
+                      {me.hasPendingPayout && <p className="text-[10px] text-amber-400">⏳ pending</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button className="btn-primary flex-1 text-xs py-1.5" onClick={() => { setShowDrawer(false); router.push("/lair") }}>Lair → payout</button>
+                    <button className="btn-ghost flex-1 text-xs py-1.5" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Manage</button>
+                  </div>
+                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)} / {me.storageLimit} MB • {me.ghostCoins||0} coins</p>
+                </div>
+              )}
+              {me.tier === "PLUS" && (
+                <div className="card p-3 mb-3 border-sky-500/20 bg-sky-500/[0.06]">
+                  <p className="text-[10px] font-bold tracking-widest text-sky-300/70 uppercase mb-1">Plus</p>
+                  <p className="text-xs text-white/60 mb-2">You have edits & priority. Prime unlocks earnings & full avatars.</p>
+                  <button className="btn-primary w-full text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Go Prime — GHS 20</button>
+                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} MB</p>
+                </div>
+              )}
+              {me.tier === "FREE" && (
+                <div className="card p-3 mb-3 bg-white/[0.03] border-white/10">
+                  <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase mb-1">Upgrade</p>
+                  <p className="text-xs text-white/50 mb-2">Get Plus (GHS 10) or Prime (GHS 20) for more.</p>
+                  <div className="flex gap-2">
+                    <button className="btn-ghost flex-1 text-xs" onClick={() => { setShowDrawer(false); router.push("/shop") }}>Shop</button>
+                    <button className="btn-primary flex-1 text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Upgrade</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/lair") }}>👻 My Lair <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/shop") }}>🛍️ Shop <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/leaderboard") }}>🏆 Leaderboard <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>✏️ Edit ghost name</button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={openAvatarModal}>🎭 Edit avatar</button>
               </div>
             </div>
-
-            <button className="text-left py-2 text-sm" onClick={() => { setShowDrawer(false); router.push("/lair") }}>
-              👻 My Lair
-            </button>
-            <button className="text-left py-2 text-sm" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>
-              ✏️ Edit ghost name
-            </button>
-            <button className="text-left py-2 text-sm" onClick={openAvatarModal}>
-              🎭 Edit avatar
-            </button>
-
-            <div className="mt-auto pt-4">
-              <button className="btn-ghost w-full" onClick={handleLogout}>
-                Log out
-              </button>
+            <div className="p-4 border-t border-white/10">
+              <button className="btn-ghost w-full" onClick={handleLogout}>Log out</button>
             </div>
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
