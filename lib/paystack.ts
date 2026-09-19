@@ -32,8 +32,8 @@ export async function verifyPaystack(reference: string) {
 }
 
 export async function initializeSubscription(email: string, planCode: string, reference: string) {
-  if (!planCode || planCode.includes("xxxx") || planCode.includes("test_")) {
-    throw new Error("Subscription plan not configured. Admin: set PAYSTACK_PLUS/ PRIME_PLAN_CODE to real Paystack plan code (PLN_...) in Vercel env.")
+  if (!planCode || planCode.includes("xxxx") || planCode.length < 6 || planCode === "PLN_test_xxxxxxxxxx") {
+    throw new Error("Subscription plan not configured. Admin: set PAYSTACK_PLUS/ PRIME_PLAN_CODE to real Paystack plan code (PLN_...) in .env / Vercel env.")
   }
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
