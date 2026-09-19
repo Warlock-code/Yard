@@ -189,29 +189,50 @@ export async function GET(req: NextRequest) {
   })
   const followingIds = new Set(follows.map((follow) => follow.followingId))
   const readableWhere = await getReadablePostWhere(user)
+  const now = new Date()
+  const boostedActiveWhere: Prisma.PostWhereInput = { boostedUntil: { gt: now }, archived: false }
   let scopeWhere: Prisma.PostWhereInput
+  let boostedScopeWhere: Prisma.PostWhereInput | null = null
 
   if (mode === "campus") {
+    const programWhere = await getProgramPostWhere(user)
     scopeWhere = {
       OR: [
         { campus: user.campus, visibility: "school" },
-        await getProgramPostWhere(user),
+        programWhere,
       ],
     }
+    // C: boosted bypasses visibility/programKey but stays same-campus for privacy
+    boostedScopeWhere = { campus: user.campus, ...boostedActiveWhere }
   } else if (mode === "program") {
     scopeWhere = {
       AND: [{ campus: user.campus, visibility: "program" }, await getProgramPostWhere(user)],
     }
+    boostedScopeWhere = null // keep program niche
   } else if (mode === "following") {
     scopeWhere = { userId: { in: [...followingIds] } }
+    boostedScopeWhere = null // never inject strangers into following feed
   } else if (mode === "all") {
     scopeWhere = { visibility: "school" }
+    // C: boosted in all reaches global (any campus) for max reach
+    boostedScopeWhere = { ...boostedActiveWhere }
   } else {
     scopeWhere = { visibility: "school" }
+    boostedScopeWhere = { ...boostedActiveWhere }
   }
 
-  const where: Prisma.PostWhereInput = {
-    AND: [readableWhere, scopeWhere, ...(type !== "all" ? [{ type }] : [])],
+  const typeWhere = type !== "all" ? { type } : null
+  let where: Prisma.PostWhereInput
+  if (boostedScopeWhere) {
+    const normalBranch: Prisma.PostWhereInput = {
+      AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])],
+    }
+    const boostedBranch: Prisma.PostWhereInput = {
+      AND: [boostedScopeWhere, ...(typeWhere ? [typeWhere] : [])],
+    }
+    where = { OR: [normalBranch, boostedBranch] }
+  } else {
+    where = { AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])] }
   }
 
   const posts = await prisma.post.findMany({
@@ -220,24 +241,20 @@ export async function GET(req: NextRequest) {
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
-  const now = new Date()
   const rankedPosts = rankFeedCandidates(posts, {
     campus: user.campus,
     programKey: user.programKey,
     followingIds,
   }, now)
-  const activeBoosts = rankedPosts.filter((post) => post.boostedUntil && post.boostedUntil > now)
-  const otherPosts = rankedPosts.filter((post) => !post.boostedUntil || post.boostedUntil <= now)
-  const orderedPosts = [...activeBoosts, ...otherPosts]
 
-  const cursorIndex = cursor ? orderedPosts.findIndex((post) => post.id === cursor) : -1
+  const cursorIndex = cursor ? rankedPosts.findIndex((post) => post.id === cursor) : -1
   if (cursor && cursorIndex === -1) {
     return NextResponse.json({ error: "Invalid feed cursor." }, { status: 400 })
   }
 
   const startIndex = cursor ? cursorIndex + 1 : 0
-  const page = orderedPosts.slice(startIndex, startIndex + FEED_PAGE_SIZE)
-  const nextCursor = startIndex + FEED_PAGE_SIZE < orderedPosts.length
+  const page = rankedPosts.slice(startIndex, startIndex + FEED_PAGE_SIZE)
+  const nextCursor = startIndex + FEED_PAGE_SIZE < rankedPosts.length
     ? page[page.length - 1]?.id ?? null
     : null
 

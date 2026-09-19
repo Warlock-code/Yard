@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiPost } from "@/lib/useApi"
+
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,13 +12,30 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const [verifyUserId, setVerifyUserId] = useState<string | null>(null)
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setVerifyUserId(null)
 
     try {
-      await apiPost("/api/auth/login", { email, password })
+      // Use direct fetch to capture userId on verify-required response
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (res.status === 403 && data.userId) {
+          setVerifyUserId(data.userId)
+          throw new Error(data.error || "Verify your email first.")
+        }
+        throw new Error(data.error || "Something went wrong.")
+      }
       router.push("/feed")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
@@ -50,7 +67,16 @@ export default function LoginPage() {
           required
         />
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && (
+          <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+            <p>{error}</p>
+            {verifyUserId && (
+              <Link href={`/verify-email?userId=${verifyUserId}`} className="text-white underline font-semibold mt-1 inline-block">
+                Verify email →
+              </Link>
+            )}
+          </div>
+        )}
 
         <Link
           href="/forgot-password"

@@ -18,9 +18,15 @@ export async function POST(req: NextRequest) {
   }
   const { email, password, programLevel, program } = validation.data
   const normalizedEmail = email.trim().toLowerCase()
-  const referralCode = body.referralCode as string | undefined
+  const rawReferral = typeof body.referralCode === "string" ? body.referralCode.trim() : ""
+  const referralCode = rawReferral ? rawReferral.toUpperCase() : null
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
+
+  const campus = getCampusFromEmail(normalizedEmail)
+  if (!campus) {
+    return NextResponse.json({ error: "Use a valid school email." }, { status: 400 })
+  }
 
   const rl = rateLimit(`signup:${normalizedEmail}`, 3, 60 * 60 * 1000)
   if (!rl) {
@@ -34,11 +40,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many verification emails sent. Try again later." }, { status: 429 })
   }
 
-  const campus = getCampusFromEmail(normalizedEmail)
-  if (!campus) {
-    return NextResponse.json({ error: "Use a valid school email." }, { status: 400 })
-  }
-
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (existing) {
     return NextResponse.json({ error: "Account already exists." }, { status: 400 })
@@ -46,7 +47,16 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(password)
   const verifyCode = makeVerifyCode()
-  const ghostId = makeGhostId()
+  // Ensure ghostId uniqueness with retry loop (was missing, caused P2002 on collision)
+  let ghostId: string
+  let ghostAttempts = 0
+  do {
+    ghostId = makeGhostId()
+    ghostAttempts++
+    if (ghostAttempts > 10) {
+      return NextResponse.json({ error: "Failed to generate ghost ID. Please try again." }, { status: 500 })
+    }
+  } while (await prisma.user.findUnique({ where: { ghostId } }))
 
   let inviteCode: string
   let attempts = 0
@@ -58,24 +68,45 @@ export async function POST(req: NextRequest) {
     }
   } while (await prisma.user.findUnique({ where: { inviteCode } }))
 
-  const user = await prisma.user.create({
-    data: {
-      email: normalizedEmail,
-      passwordHash,
-      campus,
-      programLevel: programLevel?.trim() || null,
-      program: program?.trim() || null,
-      programKey: getProgramKey(campus, program),
-      ghostId,
-      verifyCode,
-      inviteCode,
-      referredBy: referralCode || null,
-    },
-  })
-
+  // Validate referral exists before storing; don't persist invalid codes
+  let validatedReferralCode: string | null = null
+  let referrer: { id: string } | null = null
   if (referralCode) {
-    const referrer = await prisma.user.findUnique({ where: { inviteCode: referralCode } })
-    if (referrer && referrer.id !== user.id) {
+    referrer = await prisma.user.findUnique({ where: { inviteCode: referralCode }, select: { id: true } })
+    if (referrer) validatedReferralCode = referralCode
+  }
+
+  let user
+  try {
+    user = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        campus,
+        programLevel: programLevel?.trim() || null,
+        program: program?.trim() || null,
+        programKey: getProgramKey(campus, program),
+        ghostId,
+        verifyCode,
+        inviteCode,
+        referredBy: validatedReferralCode,
+      },
+    })
+  } catch (createErr: unknown) {
+    // Handle race where email/ghostId/inviteCode collision happens between check and create
+    if (createErr instanceof Error && (createErr as any).code === "P2002") {
+      const target = (createErr as any).meta?.target as string[] | undefined
+      if (target?.includes("email")) {
+        return NextResponse.json({ error: "Account already exists." }, { status: 400 })
+      }
+      // Ghost/invite collision: ask to retry
+      return NextResponse.json({ error: "Something went wrong creating your ghost. Please try again." }, { status: 500 })
+    }
+    throw createErr
+  }
+
+  if (referrer && validatedReferralCode && referrer.id !== user.id) {
+    try {
       await prisma.$transaction([
         prisma.referral.create({
           data: {
@@ -88,9 +119,14 @@ export async function POST(req: NextRequest) {
           data: { referralCount: { increment: 1 } },
         }),
       ])
-      await auditLog("user.referral", referrer.id, user.id, { referralCode, inviteeId: user.id, ipAddress: ip })
+      await auditLog("user.referral", referrer.id, user.id, { referralCode: validatedReferralCode, inviteeId: user.id, ipAddress: ip })
+    } catch (e) {
+      console.error("[signup] referral transaction failed", e)
+      // Don't fail signup if referral fails; user is already created
     }
   }
+
+  const referralMeta = referralCode && !validatedReferralCode ? { referralInvalid: true } : {}
 
   try {
     await sendVerifyEmail(normalizedEmail, verifyCode)
@@ -98,15 +134,20 @@ export async function POST(req: NextRequest) {
     console.error("[signup] sendVerifyEmail failed for", normalizedEmail, emailErr)
     // Don't fail signup if email fails — user can resend code
     // Still audit and return success but include a warning
-    await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, emailFailed: true })
-    return NextResponse.json({ userId: user.id, ghostId: user.ghostId, emailFailed: true, message: emailErr instanceof Error ? emailErr.message : "Failed to send verification email. Please resend code." })
+    // Sanitize error message to avoid leaking internal details
+    await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, emailFailed: true, ...referralMeta })
+    return NextResponse.json({ userId: user.id, ghostId: user.ghostId, emailFailed: true, message: "Failed to send verification email. Please resend code." })
   }
 
-  await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip })
+  await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, ...referralMeta })
 
   return NextResponse.json({ userId: user.id, ghostId: user.ghostId })
   } catch (err) {
     console.error("[signup] unexpected error", err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong. Please try again." }, { status: 500 })
+    // Don't leak internal error details (Prisma, etc.) to client
+    if (err instanceof Error && err.message.includes("Account already exists")) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
   }
 }

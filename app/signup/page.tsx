@@ -1,11 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
+import { Suspense } from "react"
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const referralCode = searchParams.get("ref")?.trim() || searchParams.get("referralCode")?.trim() || ""
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [programLevel, setProgramLevel] = useState("")
@@ -35,6 +38,7 @@ export default function SignupPage() {
         password,
         programLevel: programLevel.trim(),
         program: program.trim(),
+        referralCode: referralCode || undefined,
       }) as { userId: string; emailFailed?: boolean }
       const suffix = data.emailFailed ? "&emailFailed=1" : ""
       router.push(`/verify-email?userId=${data.userId}${suffix}`)
@@ -49,6 +53,11 @@ export default function SignupPage() {
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
       <h1 className="text-4xl font-black mb-2">Join Yard</h1>
       <p className="text-white/60 mb-8">Verify with your school email. Post as your ghost.</p>
+      {referralCode && (
+        <p className="text-[#baff39] text-sm mb-4 bg-[#baff39]/10 border border-[#baff39]/20 rounded-lg px-3 py-2">
+          🎉 Invite code <span className="font-mono font-bold">{referralCode}</span> applied — your inviter will get credit.
+        </p>
+      )}
 
       <form onSubmit={handleSignup} className="space-y-4">
         <input
@@ -62,7 +71,7 @@ export default function SignupPage() {
         <input
           className="input"
           type="password"
-          placeholder="Password (8+ chars, upper, lower, number, symbol)"
+          placeholder="Password (8+ chars, upper, lower, symbol)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -111,5 +120,13 @@ export default function SignupPage() {
         <a href="/guidelines" className="underline">Community Guidelines</a>.
       </p>
     </main>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto"><p className="text-white/40">Loading...</p></main>}>
+      <SignupForm />
+    </Suspense>
   )
 }

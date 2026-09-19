@@ -120,6 +120,10 @@ export default function FeedPage() {
   const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/auth/me")
       .then((data) => {
+        if (!data.user) {
+          if (isCurrent()) router.push("/login")
+          return
+        }
         if (isCurrent()) setMe(data.user)
       })
       .catch(() => {
@@ -355,7 +359,12 @@ export default function FeedPage() {
   }
 
   async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+    } catch {}
+    // Also clear client-side welcome cookie that was set via document.cookie
     document.cookie = "yard_token=; Max-Age=0; path=/"
+    document.cookie = "yard_seen_welcome=; Max-Age=0; path=/"
     router.push("/login")
   }
 

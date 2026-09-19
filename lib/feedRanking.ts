@@ -6,6 +6,7 @@ export type FeedRankingCandidate = {
   yeahs: number
   commentsCount: number
   createdAt: Date
+  boostedUntil?: Date | null
 }
 
 export type FeedRankingViewer = {
@@ -33,7 +34,16 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
     const followRelevance = viewer.followingIds.has(candidate.userId) ? 2 : 0
     const programRelevance = viewer.programKey && candidate.campus === viewer.campus
       && candidate.programKey === viewer.programKey ? 1 : 0
-    const score = (1 + engagement + followRelevance + programRelevance) / (1 + ageHours / 12) ** 1.5
+    let score = (1 + engagement + followRelevance + programRelevance) / (1 + ageHours / 12) ** 1.5
+
+    // Boost multiplier: active only if boostedUntil > snapshotAt (deterministic)
+    const boostedUntil = candidate.boostedUntil
+    if (boostedUntil instanceof Date) {
+      const bt = boostedUntil.getTime()
+      if (Number.isFinite(bt) && bt > snapshotTime) {
+        score *= 1.8
+      }
+    }
 
     return { candidate, createdTime, score }
   })

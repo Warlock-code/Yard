@@ -35,6 +35,7 @@ function VerifyContent() {
     try {
       await apiPost("/api/auth/verify-email", { userId, code: clean })
       router.push("/feed")
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {
@@ -65,7 +66,13 @@ function VerifyContent() {
         })
       }, 1000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to resend. Try again.")
+      const msg = err instanceof Error ? err.message : "Failed to resend. Try again."
+      if (msg.toLowerCase().includes("already verified")) {
+        setInfo("Email already verified — you can log in.")
+        setError("")
+      } else {
+        setError(msg)
+      }
     } finally {
       setResending(false)
     }
