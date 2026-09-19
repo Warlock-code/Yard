@@ -6,12 +6,17 @@ import { apiGet, apiPost } from "@/lib/useApi"
 import { useUploadThing } from "@/lib/uploadthing"
 import { getProgramKey } from "@/lib/program"
 import OptimizedImage from "@/app/components/OptimizedImage"
+import Avatar from "@/app/components/Avatar"
+import RichText from "@/app/components/RichText"
 
 type StorageQuota = {
   campus: string
   program: string | null
   storageUsed: number
   storageRemaining: number
+  ghostId?: string
+  avatarEmoji?: string
+  tier?: string
 }
 
 const FALLBACK_SUGGESTED = ["#gossip", "#confession", "#meme", "#gist"] as const
@@ -152,8 +157,10 @@ export default function ComposePage() {
     if (posting || isUploading || removing || (visibility === "program" && !hasProgram) || (!text.trim() && !image)) return
     setPosting(true)
     try {
-      await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
-      router.push("/feed")
+      const res: any = await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
+      const newId = res?.post?.id
+      if (newId) router.push(`/post/${newId}`)
+      else router.push("/feed")
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
     } finally {
@@ -247,6 +254,48 @@ export default function ComposePage() {
             >
               ✕
             </button>
+          </div>
+        )}
+
+        {(text.trim() || image) && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold tracking-widest text-white/30 uppercase mb-2">Preview — how others will see it</p>
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
+              <div className="flex items-start gap-3">
+                <Avatar emoji={(quota as any)?.avatarEmoji || "👻"} size={36} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap text-sm">
+                    <span className="font-semibold">{(quota as any)?.ghostId || "YourGhost"}</span>
+                    {(quota as any)?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}
+                    {(quota as any)?.tier === "PLUS" && <span className="badge badge-boosted text-[10px]">Plus</span>}
+                    <span className="text-white/30">· now</span>
+                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-white/30">
+                      {visibility === "program" ? "🎓 Program" : "🏫 School"} • {(quota as any)?.campus || "Campus"}
+                    </span>
+                  </div>
+                  {text.trim() ? (
+                    <p className="text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
+                      <RichText text={text} />
+                    </p>
+                  ) : (
+                    <p className="text-white/30 mt-1 text-sm italic">No text — image only</p>
+                  )}
+                  {image && (
+                    <div className="mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                      <div className="relative w-full aspect-[16/9]">
+                        <OptimizedImage src={image} alt="preview" fill sizes="(max-width: 768px) 100vw, 50vw" unoptimized rounded />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-5 text-xs text-white/40 mt-2 pt-2 border-t border-white/5">
+                    <span>🔥 0</span>
+                    <span>💬 0</span>
+                    <span className="ml-auto text-[11px] text-white/25">Preview • not posted yet</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-white/25 mt-1.5">This is exactly how it will look in feed. Tap Post to share.</p>
           </div>
         )}
       </div>
