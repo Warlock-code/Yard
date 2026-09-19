@@ -128,6 +128,30 @@ export async function fulfillPaidTransaction(reference: string) {
       case "boost_credit":
         await db.user.update({ where: { id: userId }, data: { freeBoosts: { increment: 1 } } })
         break
+      case "weekly_boost_grant": {
+        const count = (meta?.count as number) ?? 1
+        await db.user.update({
+          where: { id: userId },
+          data: {
+            freeBoosts: { increment: count },
+            freeBoostsWeekly: { increment: count },
+            lastFreeBoostGrant: new Date(),
+          },
+        })
+        break
+      }
+      case "monthly_freeze_grant": {
+        const count = (meta?.count as number) ?? 1
+        await db.user.update({
+          where: { id: userId },
+          data: {
+            streakFreezeUntil: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            freeStreakFreezeMonthly: { increment: count },
+            lastFreeFreezeGrant: new Date(),
+          },
+        })
+        break
+      }
       case "plus":
       case "prime": {
         const tier = (transaction.kind.toUpperCase() as "PLUS" | "PRIME") as any

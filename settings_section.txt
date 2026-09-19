@@ -1,0 +1,39 @@
+              {/* ===== SETTINGS ===== */}
+              {section === "Settings" && (
+                <div className="max-w-xl space-y-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="card p-5 md:p-6"
+                  >
+                    <p className="font-bold text-lg">Settings</p>
+                    <p className="text-xs text-white/30 mt-1">API keys and encryption configuration.</p>
+                    <div className="space-y-3 mt-4">
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Paystack</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>Public Key: <span className="text-white/70">pk_test_••••••••••</span></p>
+                          <p>Secret Key: <span className="text-white/70">sk_test_••••••••••</span></p>
+                          <p>Webhook Secret: <span className="text-white/70">whsec_••••••••••</span></p>
+                        </div>
+                        <p className="text-[11px] text-amber-400/80 mt-2">Keys handle real money. Rotate quarterly.</p>
+                      </div>
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Encryption</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>PAYOUT_ENCRYPTION_KEY: <span className="text-white/70">••••••••••••••••</span></p>
+                          <p>Algorithm: <span className="text-white/70">AES-256-GCM</span></p>
+                        </div>
+                        <p className="text-[11px] text-amber-400/80 mt-2">Used to encrypt bank/MoMo details at rest.</p>
+                      </div>
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Environment</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>NEXT_PUBLIC_APP_URL: <span className="text-white/70">https://yard.app</span></p>
+                          <p>NODE_ENV: <span className="text-white/70">production</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}

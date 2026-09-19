@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
@@ -52,7 +53,8 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PRIME") {
+  const effectiveTier = getEffectiveTier(user)
+  if (effectiveTier !== "PRIME") {
     return NextResponse.json({ error: "Prime subscription required." }, { status: 403 })
   }
 

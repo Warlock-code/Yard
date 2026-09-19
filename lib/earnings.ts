@@ -1,9 +1,24 @@
 import { prisma } from "@/lib/prisma"
+import { getEffectiveTier } from "@/lib/tier"
 
 const PLATFORM_CUT = 0.3
 const DAILY_CAP_PESEWAS = 1500
 
-export async function awardEarning(userId: string, source: string, sourceId: string, grossAmount: number) {
+export async function awardEarning(
+  userId: string,
+  source: string,
+  sourceId: string,
+  grossAmount: number
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { tier: true, tierExpiresAt: true },
+  })
+  if (!user) return null
+
+  const effectiveTier = getEffectiveTier(user)
+  if (effectiveTier !== "PRIME") return null
+
   const existing = await prisma.earning.findFirst({ where: { userId, source, sourceId } })
   if (existing) return existing
 

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -36,7 +36,7 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Reports" | "Payouts" | "Users" | "Posts" | "Battles"
+type SectionKey = "Overview" | "Reports" | "Payouts" | "Users" | "Posts" | "Battles" | "Settings"
 
 const NAV_GROUPS: { label: string; items: { key: SectionKey; label: string; icon: string; desc: string }[] }[] = [
   { label: "Dashboard", items: [{ key: "Overview", label: "Overview", icon: "✦", desc: "Revenue & health" }] },
@@ -47,6 +47,7 @@ const NAV_GROUPS: { label: string; items: { key: SectionKey; label: string; icon
     { key: "Posts", label: "Posts", icon: "⬢", desc: "Search & delete" },
   ]},
   { label: "Engagement", items: [{ key: "Battles", label: "Battles", icon: "⚔", desc: "Create prompts" }] },
+  { label: "Settings", items: [{ key: "Settings", label: "Settings", icon: "⚙", desc: "Keys & config" }] },
 ]
 
 const MOBILE_TABS: { key: SectionKey; label: string; icon: string }[] = [
@@ -93,14 +94,14 @@ function NavButton({ active, icon, label, count, onClick, desc }: { active: bool
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] group ${
-        active ? "bg-[#baff39]/10 border-[#baff39]/30 text-[#baff39]" : "border-transparent text-white/60 hover:bg-white/[0.04] hover:text-white/90 hover:border-white/10"
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] group relative ${
+        active ? "border-l-2 border-[#baff39] bg-transparent text-[#baff39]" : "border-transparent text-white/60 hover:bg-white/[0.04] hover:text-white/90"
       }`}
     >
-      <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 transition-all ${active ? "bg-[#baff39]/20 shadow-[0_0_12px_rgba(186,255,57,0.2)]" : "bg-white/[0.06] group-hover:bg-white/[0.1]"}`} aria-hidden>{icon}</span>
+      <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 transition-all ${active ? "bg-[#baff39]/20" : "bg-white/[0.06] group-hover:bg-white/[0.1]"}`} aria-hidden>{icon}</span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold leading-none">{label}</span>
-        {desc && <span className={`block text-[11px] mt-1 ${active ? "text-[#baff39]/70" : "text-white/30"}`}>{desc}</span>}
+        <span className="block text-sm font-medium leading-none">{label}</span>
+        {desc && <span className={`block text-[11px] mt-0.5 ${active ? "text-[#baff39]/70" : "text-white/30"}`}>{desc}</span>}
       </span>
       {typeof count === "number" && count > 0 && (
         <motion.span
@@ -255,6 +256,7 @@ export default function AdminPage() {
           u: "Users",
           P: "Posts",
           b: "Battles",
+          s: "Settings",
         }
         if (shortcuts[e.key]) {
           e.preventDefault()
@@ -408,6 +410,7 @@ export default function AdminPage() {
     { label: "Users", action: () => handleSectionChange("Users"), shortcut: "g u", section: "Content" },
     { label: "Posts", action: () => handleSectionChange("Posts"), shortcut: "g P", section: "Content" },
     { label: "Battles", action: () => handleSectionChange("Battles"), shortcut: "g b", section: "Engagement" },
+    { label: "Settings", action: () => handleSectionChange("Settings"), shortcut: "g s", section: "Settings" },
     { label: "Refresh Data", action: handleRefresh, shortcut: "r", section: "Actions" },
     { label: "Toggle Dense Mode", action: () => setDenseMode(!denseMode), shortcut: "⌘D", section: "View" },
     { label: "Show Shortcuts", action: () => setShowShortcuts(true), shortcut: "?", section: "Help" },
@@ -446,7 +449,7 @@ export default function AdminPage() {
       <div className="fixed top-[-200px] left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#baff39]/[0.04] rounded-full blur-[120px] pointer-events-none" aria-hidden="true" />
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-[280px] shrink-0 sticky top-0 h-screen border-r border-white/[0.06] bg-[#080808]/80 backdrop-blur-xl flex-col z-20">
+      <aside className="hidden md:flex w-[260px] shrink-0 sticky top-0 h-screen border-r border-white/[0.06] bg-[#080808]/80 backdrop-blur-xl flex-col z-20">
         {/* Sidebar header */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -701,23 +704,30 @@ export default function AdminPage() {
         </header>
 
         {/* Desktop top bar */}
-        <div className="hidden md:flex items-center justify-between px-8 py-5 border-b border-white/[0.06] bg-[#080808]/30 backdrop-blur-sm">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight flex items-center gap-3">
-              <span className={`w-9 h-9 rounded-xl grid place-items-center text-lg border ${section === "Reports" ? "bg-red-500/10 border-red-500/20 text-red-400" : section === "Payouts" ? "bg-[#baff39]/10 border-[#baff39]/20 text-[#baff39]" : "bg-white/5 border-white/10 text-white/70"}`}>
-                {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === section)?.icon}
-              </span>
-              {section}
-            </h1>
-            <p className="text-sm text-white/35 mt-1">{NAV_GROUPS.flatMap(g => g.items).find(i => i.key === section)?.desc}</p>
+        <div className="hidden md:flex items-center justify-between h-16 px-8 border-b border-white/[0.06] bg-[#080808]/30 backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <span className={`w-9 h-9 rounded-xl grid place-items-center text-lg border flex-shrink-0 ${section === "Reports" ? "bg-red-500/10 border-red-500/20 text-red-400" : section === "Payouts" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-white/5 border-white/10 text-white/70"}`}>
+              {NAV_GROUPS.flatMap(g => g.items).find(i => i.key === section)?.icon}
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-black tracking-tight truncate">{section}</h1>
+              <p className="text-sm text-white/35 mt-0.5 truncate">{NAV_GROUPS.flatMap(g => g.items).find(i => i.key === section)?.desc}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {section === "Reports" && (
               <motion.span
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border ${reports.length > 0 ? "bg-red-500/10 text-red-400 border-red-500/20 animate-pulse" : "bg-white/5 text-white/30 border-white/10"}`}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20"
               >
+                {reports.length > 0 && (
+                  <motion.span
+                    className="w-1.5 h-1.5 rounded-full bg-red-400"
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                )}
                 {reports.length} open
               </motion.span>
             )}
@@ -725,16 +735,26 @@ export default function AdminPage() {
               <motion.span
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border ${payouts.length > 0 ? "bg-[#baff39]/10 text-[#baff39] border-[#baff39]/20" : "bg-white/5 text-white/30 border-white/10"}`}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
               >
                 {payouts.length} pending
               </motion.span>
             )}
-            <button onClick={() => loadAll()} className="btn-ghost text-sm flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transition-transform hover:rotate-180">
+            <button onClick={handleRefresh} disabled={isRefreshing} className="btn-ghost text-sm flex items-center gap-2 disabled:opacity-50">
+              <motion.svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="transition-transform duration-300 hover:rotate-180"
+                animate={isRefreshing ? { rotate: 360 } : {}}
+                transition={{ duration: 1, repeat: isRefreshing ? Infinity : 0, ease: "linear" }}
+              >
                 <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-              </svg>
-              Refresh
+              </motion.svg>
+              {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </div>
@@ -1016,7 +1036,46 @@ export default function AdminPage() {
                   <div className="card p-4 bg-white/[0.02]">
                     <p className="text-xs font-bold text-white/40 uppercase tracking-widest">API tips</p>
                     <p className="text-xs text-white/30 mt-2 leading-relaxed">POST <span className="text-white/60 font-mono">/api/admin/battles/create</span> accepts <span className="text-white/60">type: SINGLE|BRACKET, totalRounds, entryType: TEXT|IMAGE|VOICE, isPrimeOnly, schedule, scheduleDays, seasonId</span>.</p>
-                  </div>
+</div>
+                </div>
+              )}
+              {/* ===== SETTINGS ===== */}
+              {section === "Settings" && (
+                <div className="max-w-xl space-y-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="card p-5 md:p-6"
+                  >
+                    <p className="font-bold text-lg">Settings</p>
+                    <p className="text-xs text-white/30 mt-1">API keys and encryption configuration.</p>
+                    <div className="space-y-3 mt-4">
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Paystack</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>Public Key: <span className="text-white/70">pk_test_••••••••••</span></p>
+                          <p>Secret Key: <span className="text-white/70">sk_test_••••••••••</span></p>
+                          <p>Webhook Secret: <span className="text-white/70">whsec_••••••••••</span></p>
+                        </div>
+                        <p className="text-[11px] text-amber-400/80 mt-2">Keys handle real money. Rotate quarterly.</p>
+                      </div>
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Encryption</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>PAYOUT_ENCRYPTION_KEY: <span className="text-white/70">••••••••••••••••</span></p>
+                          <p>Algorithm: <span className="text-white/70">AES-256-GCM</span></p>
+                        </div>
+                        <p className="text-[11px] text-amber-400/80 mt-2">Used to encrypt bank/MoMo details at rest.</p>
+                      </div>
+                      <div className="card p-4 bg-white/[0.02] border-white/5">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Environment</p>
+                        <div className="space-y-2 text-xs font-mono text-white/50">
+                          <p>NEXT_PUBLIC_APP_URL: <span className="text-white/70">https://yard.app</span></p>
+                          <p>NODE_ENV: <span className="text-white/70">production</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               )}
             </motion.div>
@@ -1164,6 +1223,7 @@ export default function AdminPage() {
                     { key: "g u", desc: "Go to Users" },
                     { key: "g P", desc: "Go to Posts" },
                     { key: "g b", desc: "Go to Battles" },
+                    { key: "g s", desc: "Go to Settings" },
                   ]},
                   { title: "Actions", items: [
                     { key: "r", desc: "Refresh current section" },

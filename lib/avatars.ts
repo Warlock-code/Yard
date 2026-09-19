@@ -52,3 +52,42 @@ export const AVATAR_MAP: Record<string, AvatarItem> = Object.fromEntries(
 export const AVATAR_EMOJI_MAP: Record<string, string> = Object.fromEntries(
   AVATARS.map((avatar) => [avatar.id, avatar.emoji])
 )
+
+export const COMMON_AVATAR_IDS = AVATARS.filter((a) => a.rarity === "common").map((a) => a.id)
+export const PLUS_AVATAR_IDS = COMMON_AVATAR_IDS
+export const PRIME_AVATAR_IDS = COMMON_AVATAR_IDS
+
+export function getAvatarsForTier(tier: "FREE" | "PLUS" | "PRIME"): AvatarItem[] {
+  if (tier === "FREE") return []
+  return AVATARS.filter((a) => a.rarity === "common")
+}
+
+export function getAvatarPriceForTier(tier: "FREE" | "PLUS" | "PRIME", avatar: AvatarItem): number {
+  if (tier === "PRIME" && avatar.rarity === "common") return 0
+  return avatar.pricePesewas
+}
+
+export function isAvatarUnlockedForTier(tier: "FREE" | "PLUS" | "PRIME", avatarId: string): boolean {
+  if (tier === "FREE") return false
+  const avatar = AVATAR_MAP[avatarId]
+  if (!avatar) return false
+  return avatar.rarity === "common"
+}
+
+export function getRarityColor(rarity: AvatarRarity): string {
+  switch (rarity) {
+    case "common": return "text-white/40"
+    case "rare": return "text-sky-300"
+    case "epic": return "text-fuchsia-300"
+    case "legendary": return "text-[#facc15]"
+  }
+}
+
+export function getRarityGlow(rarity: AvatarRarity): string {
+  switch (rarity) {
+    case "common": return "bg-white/5"
+    case "rare": return "bg-sky-500/10"
+    case "epic": return "bg-fuchsia-500/10"
+    case "legendary": return "bg-[#facc15]/10"
+  }
+}

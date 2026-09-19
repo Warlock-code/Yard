@@ -319,6 +319,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
                 {post.user.ghostId}
               </Link>
               {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+              {post.user.tier === "PLUS" && <span className="badge badge-plus">Plus</span>}
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
           </div>

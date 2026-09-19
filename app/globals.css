@@ -112,9 +112,70 @@ h1, h2, h3 {
   color: var(--gold);
 }
 
+.badge-plus {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+}
+
 .badge-boosted {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.prime-banner {
+  background: linear-gradient(135deg, var(--gold-soft) 0%, rgba(250, 204, 21, 0.08) 100%);
+  border: 1px solid var(--gold);
+  position: relative;
+  overflow: hidden;
+}
+
+.prime-banner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), #d4a017, var(--gold));
+  background-size: 200% 100%;
+  animation: gold-shimmer 3s linear infinite;
+}
+
+.plus-glow {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.04) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.plus-glow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9, #38bdf8);
+  background-size: 200% 100%;
+  animation: plus-shimmer 3s linear infinite;
+}
+
+@keyframes gold-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes plus-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.tier-ring-prime {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 24px rgba(250, 204, 21, 0.3);
+}
+
+.tier-ring-plus {
+  box-shadow: 0 0 0 2px #38bdf8, 0 0 24px rgba(56, 189, 248, 0.2);
 }
 
 .btn-primary {

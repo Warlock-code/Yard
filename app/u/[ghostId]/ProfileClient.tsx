@@ -141,13 +141,20 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
       </div>
 
       <div className="flex flex-col items-center mt-2 mb-4 relative">
-        <div className="relative w-24 h-24 mb-3" style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
+        {profile.tier === "PRIME" && (
+          <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-[#facc15] to-[#d4a017] opacity-30 blur-xl animate-pulse" style={{ animationDuration: "3s" }} />
+        )}
+        {profile.tier === "PLUS" && (
+          <div className="absolute -inset-2 rounded-full bg-sky-500/20 blur-xl" />
+        )}
+        <div className={`relative w-24 h-24 mb-3 ${profile.tier === "PRIME" ? "ring-2 ring-[#facc15]/50" : profile.tier === "PLUS" ? "ring-2 ring-sky-500/50" : ""}`} style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
           <Avatar emoji={profile.avatarEmoji} size={96} />
         </div>
         <h1 className="text-xl font-bold">{profile.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{profile.campus}</span>
-          {profile.tier !== "FREE" && <span className="badge badge-prime">{profile.tier}</span>}
+          {profile.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+          {profile.tier === "PLUS" && <span className="badge badge-plus">Plus</span>}
         </div>
 
         {profile.isOwn ? (
