@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { apiGet, apiPost } from "@/lib/useApi"
@@ -14,6 +14,8 @@ type StorageQuota = {
   storageRemaining: number
 }
 
+const FALLBACK_SUGGESTED = ["#gossip", "#confession", "#meme", "#gist"] as const
+
 export default function ComposePage() {
   const router = useRouter()
   const [text, setText] = useState("")
@@ -24,6 +26,21 @@ export default function ComposePage() {
   const [quota, setQuota] = useState<StorageQuota | null>(null)
   const [quotaError, setQuotaError] = useState("")
   const hasProgram = !!getProgramKey(quota?.campus, quota?.program)
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [trendingTags, setTrendingTags] = useState<string[]>([])
+
+  const liveHashtags = useMemo(() => {
+    if (!text) return []
+    const matches = text.match(/#(\w+)/g)
+    if (!matches) return []
+    return [...new Set(matches.map((m) => m.toLowerCase()))]
+  }, [text])
+
+  const suggestedTags = useMemo(() => {
+    if (trendingTags.length > 0) return trendingTags
+    return [...FALLBACK_SUGGESTED]
+  }, [trendingTags])
 
   const refreshQuota = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/auth/me")
@@ -45,6 +62,46 @@ export default function ComposePage() {
     refreshQuota(() => active)
     return () => { active = false }
   }, [refreshQuota])
+
+  useEffect(() => {
+    let active = true
+    apiGet("/api/trending?type=hashtags&limit=8")
+      .then((data: { hashtags?: { tag: string }[] }) => {
+        if (!active) return
+        const tags = (data.hashtags ?? []).map((h) => `#${h.tag.toLowerCase()}`)
+        if (tags.length > 0) setTrendingTags(tags.slice(0, 8))
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  const insertHashtag = useCallback((tag: string) => {
+    const normalized = tag.startsWith("#") ? tag : `#${tag}`
+    const lower = normalized.toLowerCase()
+    if (liveHashtags.includes(lower)) {
+      textareaRef.current?.focus()
+      return
+    }
+    const el = textareaRef.current
+    if (el && typeof el.selectionStart === "number" && typeof el.selectionEnd === "number") {
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      const before = text.slice(0, start)
+      const after = text.slice(end)
+      const prefixSpace = before.length > 0 && !/\s$/.test(before) ? " " : ""
+      const newText = `${before}${prefixSpace}${normalized} ${after}`
+      setText(newText)
+      requestAnimationFrame(() => {
+        el.focus()
+        const pos = before.length + prefixSpace.length + normalized.length + 1
+        el.setSelectionRange(pos, pos)
+      })
+    } else {
+      const needsSpace = text.length > 0 && !/\s$/.test(text)
+      setText((prev) => `${prev}${needsSpace ? " " : ""}${normalized} `)
+      requestAnimationFrame(() => textareaRef.current?.focus())
+    }
+  }, [liveHashtags, text])
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
     onClientUploadComplete: async (res) => {
@@ -121,6 +178,7 @@ export default function ComposePage() {
 
       <div className="p-4 flex-1">
         <textarea
+          ref={textareaRef}
           autoFocus
           className="w-full bg-transparent outline-none text-lg placeholder-white/30 resize-none"
           placeholder="What's the gist?"
@@ -129,8 +187,50 @@ export default function ComposePage() {
           onChange={(e) => setText(e.target.value)}
         />
 
+        <p className="mt-2 text-xs text-white/35">
+          Use #hashtag to tag your post — e.g. #gist #confession #X
+        </p>
+
+        {liveHashtags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Detected hashtags">
+            {liveHashtags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-full bg-[#baff39]/10 border border-[#baff39]/20 px-2.5 py-1 text-xs text-[#baff39]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Suggested hashtags">
+          <span className="text-xs text-white/25 mr-0.5">Try:</span>
+          {suggestedTags.map((tag) => {
+            const lower = tag.toLowerCase()
+            const isActive = liveHashtags.includes(lower)
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => insertHashtag(tag)}
+                disabled={isActive}
+                title={isActive ? `${tag} already added` : `Insert ${tag}`}
+                aria-label={`Insert ${tag}`}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  isActive
+                    ? "border-[#baff39]/20 bg-[#baff39]/10 text-[#baff39] opacity-60 cursor-default"
+                    : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/80 hover:bg-white/5"
+                }`}
+              >
+                {tag}
+              </button>
+            )
+          })}
+        </div>
+
         {image && (
-          <div className="relative mt-3 w-full h-64 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+          <div className="relative mt-4 w-full h-64 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <Image
               src={image}
               alt="preview"

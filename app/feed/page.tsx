@@ -45,17 +45,17 @@ type Me = {
 }
 
 const TABS = [
-  { key: "campus", label: "For You" },
-  { key: "following", label: "Following" },
-  { key: "all", label: "All" },
-  { key: "program", label: "Class" },
+  { key: "campus", label: "For You", description: "Posts from your school/program" },
+  { key: "following", label: "Following", description: "Posts from ghosts you follow" },
+  { key: "all", label: "All", description: "Posts from every school" },
+  { key: "program", label: "Class", description: "Posts from your program only" },
 ]
 
 const EMPTY_MESSAGES: Record<string, string> = {
-  campus: "Quiet on campus right now. Be the first ghost to say something today.",
-  following: "You're not following anyone yet — follow a few ghosts from the feed to see their posts here.",
-  all: "Nothing from other campuses yet. Check back soon.",
-  program: "No posts from your program yet — start the conversation.",
+  campus: "No posts from your school/program yet",
+  following: "No posts from your school/program yet",
+  all: "No posts from any school yet",
+  program: "No posts from your program yet — be first in Class",
 }
 
 export default function FeedPage() {
@@ -318,6 +318,8 @@ export default function FeedPage() {
           <button
             key={tab.key}
             onClick={() => selectMode(tab.key)}
+            title={tab.description}
+            aria-label={`${tab.label}: ${tab.description}`}
             className={`text-sm py-3 text-center ${mode === tab.key ? "tab-active" : "tab-inactive"}`}
           >
             {tab.label}

@@ -192,18 +192,22 @@ export async function GET(req: NextRequest) {
   let scopeWhere: Prisma.PostWhereInput
 
   if (mode === "campus") {
-    scopeWhere = { campus: user.campus, visibility: "school" }
-  } else if (mode === "program") {
     scopeWhere = {
-      AND: [
-        { campus: user.campus, visibility: "program" },
+      OR: [
+        { campus: user.campus, visibility: "school" },
         await getProgramPostWhere(user),
       ],
     }
+  } else if (mode === "program") {
+    scopeWhere = {
+      AND: [{ campus: user.campus, visibility: "program" }, await getProgramPostWhere(user)],
+    }
   } else if (mode === "following") {
     scopeWhere = { userId: { in: [...followingIds] } }
+  } else if (mode === "all") {
+    scopeWhere = { visibility: "school" }
   } else {
-    scopeWhere = { campus: { not: user.campus }, visibility: "school" }
+    scopeWhere = { visibility: "school" }
   }
 
   const where: Prisma.PostWhereInput = {
