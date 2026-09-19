@@ -30,6 +30,12 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  const payment = await initializePaystack(user.email, item.pricePesewas, reference)
-  return NextResponse.json(payment)
+  try {
+    const payment = await initializePaystack(user.email, item.pricePesewas, reference)
+    return NextResponse.json(payment)
+  } catch (err) {
+    await prisma.transaction.updateMany({ where: { reference, status: "pending" }, data: { status: "failed" } }).catch(() => {})
+    console.error("[shop/cosmetic] init failed", err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed" }, { status: 400 })
+  }
 }

@@ -28,10 +28,15 @@ export default function ShopPage() {
     setLoading(key)
     try {
       const data = await apiPost(endpoint, body)
-      if (data.data?.authorization_url) {
-        await openPaystackCheckout(data.data.authorization_url)
+      const url = data.data?.authorization_url as string | undefined
+      if (url) {
+        await openPaystackCheckout(url)
+      } else if (data.status === true && !url) {
+        // Paystack returned success without URL — treat as error (likely plan not configured)
+        throw new Error(data.message || "Checkout failed — no payment URL.")
       } else {
-        alert("Purchased!")
+        // For any future free-credit path, still confirm
+        alert(data.message || "Purchased!")
       }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")

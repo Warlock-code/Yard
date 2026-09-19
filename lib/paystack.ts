@@ -14,7 +14,14 @@ export async function initializePaystack(email: string, amountKobo: number, refe
     },
     body: JSON.stringify({ email, amount: amountKobo, reference, callback_url: CALLBACK_URL }),
   })
-  return res.json()
+  const data = await res.json()
+  if (!res.ok || data.status === false) {
+    throw new Error(data.message || data.error || `Paystack init failed (${res.status})`)
+  }
+  if (!data.data?.authorization_url) {
+    throw new Error(data.message || "Paystack did not return checkout URL")
+  }
+  return data
 }
 
 export async function verifyPaystack(reference: string) {
@@ -25,6 +32,9 @@ export async function verifyPaystack(reference: string) {
 }
 
 export async function initializeSubscription(email: string, planCode: string, reference: string) {
+  if (!planCode || planCode.includes("xxxx") || planCode.includes("test_")) {
+    throw new Error("Subscription plan not configured. Admin: set PAYSTACK_PLUS/ PRIME_PLAN_CODE to real Paystack plan code (PLN_...) in Vercel env.")
+  }
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
     headers: {
@@ -33,7 +43,14 @@ export async function initializeSubscription(email: string, planCode: string, re
     },
     body: JSON.stringify({ email, plan: planCode, reference, callback_url: CALLBACK_URL }),
   })
-  return res.json()
+  const data = await res.json()
+  if (!res.ok || data.status === false) {
+    throw new Error(data.message || data.error || `Paystack subscription init failed (${res.status})`)
+  }
+  if (!data.data?.authorization_url) {
+    throw new Error(data.message || "Paystack did not return checkout URL for subscription")
+  }
+  return data
 }
 
 const MOMO_BANK_CODES = new Set(["MTN", "VOD", "ATL", "AFB", "TIGO", "MTN_GH", "VOD_GH"])

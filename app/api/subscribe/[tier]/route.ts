@@ -40,7 +40,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     },
   })
 
-  const payment = await initializeSubscription(user.email, planCode, reference)
-
-  return NextResponse.json(payment)
+  try {
+    const payment = await initializeSubscription(user.email, planCode, reference)
+    return NextResponse.json(payment)
+  } catch (payErr) {
+    // Clean up pending transaction so user can retry immediately
+    await prisma.transaction.updateMany({
+      where: { reference, status: "pending" },
+      data: { status: "failed", metadata: { tier, initError: payErr instanceof Error ? payErr.message : String(payErr) } },
+    }).catch(() => {})
+    console.error("[subscribe] Paystack init failed", { tier, reference, error: payErr })
+    return NextResponse.json(
+      { error: payErr instanceof Error ? payErr.message : "Subscription checkout failed. Try again." },
+      { status: 400 }
+    )
+  }
 }

@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
     data: { userId: user.id, kind: "boost_credit", reference, amount: BOOST_CREDIT_PRICE_PESEWAS },
   })
 
-  const payment = await initializePaystack(user.email, BOOST_CREDIT_PRICE_PESEWAS, reference)
-  return NextResponse.json(payment)
+  try {
+    const payment = await initializePaystack(user.email, BOOST_CREDIT_PRICE_PESEWAS, reference)
+    return NextResponse.json(payment)
+  } catch (err) {
+    await prisma.transaction.updateMany({ where: { reference, status: "pending" }, data: { status: "failed" } }).catch(() => {})
+    console.error("[shop/boost-credit] init failed", err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed" }, { status: 400 })
+  }
 }
