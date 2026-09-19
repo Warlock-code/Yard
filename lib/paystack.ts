@@ -31,9 +31,14 @@ export async function verifyPaystack(reference: string) {
   return res.json()
 }
 
-export async function initializeSubscription(email: string, planCode: string, reference: string) {
+export async function initializeSubscription(email: string, planCode: string, reference: string, amountPesewas?: number) {
   if (!planCode || planCode.includes("xxxx") || planCode.length < 6 || planCode === "PLN_test_xxxxxxxxxx") {
     throw new Error("Subscription plan not configured. Admin: set PAYSTACK_PLUS/ PRIME_PLAN_CODE to real Paystack plan code (PLN_...) in .env / Vercel env.")
+  }
+  // Paystack amount is in kobo/pesewas. Send amount explicitly to avoid 'Invalid amount' when plan amount mismatched.
+  const body: Record<string, unknown> = { email, plan: planCode, reference, callback_url: CALLBACK_URL }
+  if (typeof amountPesewas === "number" && Number.isSafeInteger(amountPesewas) && amountPesewas > 0) {
+    body.amount = amountPesewas
   }
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
@@ -41,11 +46,17 @@ export async function initializeSubscription(email: string, planCode: string, re
       Authorization: `Bearer ${getPaystackSecret()}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, plan: planCode, reference, callback_url: CALLBACK_URL }),
+    body: JSON.stringify(body),
   })
   const data = await res.json()
   if (!res.ok || data.status === false) {
-    throw new Error(data.message || data.error || `Paystack subscription init failed (${res.status})`)
+    console.error("[paystack] initializeSubscription failed", { planCode, amountPesewas, status: res.status, data })
+    // Surface Paystack's message but clarify common cause
+    const msg = data.message || data.error || `Paystack subscription init failed (${res.status})`
+    if (msg.toLowerCase().includes("amount")) {
+      throw new Error(`${msg} — check that Paystack plan ${planCode} exists, is active, amount matches ${amountPesewas} pesewas (GHS ${((amountPesewas||0)/100).toFixed(2)}), interval=monthly, and uses same test/live key as PAYSTACK_SECRET_KEY.`)
+    }
+    throw new Error(msg)
   }
   if (!data.data?.authorization_url) {
     throw new Error(data.message || "Paystack did not return checkout URL for subscription")

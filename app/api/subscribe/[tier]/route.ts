@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
   })
 
   try {
-    const payment = await initializeSubscription(user.email, planCode, reference)
+    const payment = await initializeSubscription(user.email, planCode, reference, amount)
     return NextResponse.json(payment)
   } catch (payErr) {
     // Clean up pending transaction so user can retry immediately
