@@ -38,9 +38,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User not found." }, { status: 404 })
   }
 
-  if (user.verifyCode !== code) {
+  // Already verified — idempotent success (user retried after success, DB has verifyCode null)
+  if (user.emailVerified && !user.verifyCode) {
+    const token = signToken(user.id)
+    const res = NextResponse.json({ success: true, ghostId: user.ghostId, alreadyVerified: true })
+    res.cookies.set("yard_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
+    })
+    return res
+  }
+
+  // Trim code — email clients sometimes add spaces
+  const cleanCode = code.trim()
+  if (user.verifyCode !== cleanCode) {
     await auditLog("user.verify_email", userId, userId, { success: false, reason: "Invalid code", ipAddress: ip })
-    return NextResponse.json({ error: "Invalid code." }, { status: 400 })
+    return NextResponse.json({ error: "Invalid code. Check your email or request a new code." }, { status: 400 })
   }
 
   await prisma.user.update({
