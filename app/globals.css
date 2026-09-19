@@ -152,6 +152,20 @@ h1, h2, h3 {
   background: var(--accent-glow);
 }
 
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @layer utilities {
+    .safe-area-inset-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 /* ---- Yard search + polish tokens (additive only) ---- */
 
 @keyframes yard-fade-slide-in {
