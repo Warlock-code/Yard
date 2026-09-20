@@ -349,7 +349,7 @@ export default function AdminPage() {
       await adminFetch("/api/admin/battles/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: promptText, campus, durationHours: 24 * 7 }),
+        body: JSON.stringify({ text: promptText, campus, durationHours: 24 }),
       })
       alert("Battle created.")
       setPromptText("")

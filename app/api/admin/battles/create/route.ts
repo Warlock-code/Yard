@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
   const startsAt = scheduleTime ? new Date(scheduleTime) : now
-  const endsAt = new Date(startsAt.getTime() + (durationHours || 24 * 7) * 60 * 60 * 1000)
+  const endsAt = new Date(startsAt.getTime() + (durationHours || 24) * 60 * 60 * 1000)
 
   let season: { id: string } | null = null
   if (seasonId) {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       isPrimeOnly,
       earlyAccessForPrime,
       entryType,
-      durationHours: durationHours || 24 * 7,
+      durationHours: durationHours || 24,
       schedule,
       scheduleTime: scheduleTime || startsAt.toISOString(),
       scheduleDays,
