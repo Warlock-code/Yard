@@ -109,6 +109,10 @@ export default function FeedPage() {
   const [availableAvatars, setAvailableAvatars] = useState<string[]>([])
 
   const [feedVersion, setFeedVersion] = useState(0)
+  // Per-refresh shuffle seed: new seed on every refresh/tab-switch so
+  // tied posts rotate; same seed is reused for infinite-scroll pages so
+  // cursor pagination stays consistent within one refresh session.
+  const [refreshSeed, setRefreshSeed] = useState(() => newRefreshSeed())
   const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
   const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
   const pendingFollowRequests = useRef(new Set<string>())
@@ -143,9 +147,14 @@ export default function FeedPage() {
       })
   }, [router])
 
+  function newRefreshSeed() {
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+  }
+
   function loadFeed() {
     setLoading(true)
     setLoadingMore(false)
+    setRefreshSeed(newRefreshSeed())
     setFeedVersion((version) => version + 1)
   }
 
@@ -153,6 +162,7 @@ export default function FeedPage() {
     if (nextMode === mode) return
     setLoading(true)
     setLoadingMore(false)
+    setRefreshSeed(newRefreshSeed())
     setMode(nextMode)
   }
 
@@ -176,7 +186,7 @@ export default function FeedPage() {
 
   useEffect(() => {
     let active = true
-    apiGet(`/api/posts?mode=${mode}`)
+    apiGet(`/api/posts?mode=${mode}&seed=${refreshSeed}`)
       .then((data) => {
         if (!active) return
         setPosts(data.posts)
@@ -194,7 +204,7 @@ export default function FeedPage() {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [mode, feedVersion, router])
+  }, [mode, feedVersion, refreshSeed, router])
 
   useEffect(() => {
     if (loading || !nextCursor) return
@@ -206,7 +216,7 @@ export default function FeedPage() {
       pending = true
       setLoadingMore(true)
       try {
-        const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}`)
+        const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}&seed=${refreshSeed}`)
         if (!active) return
         setPosts((prev) => [...prev, ...data.posts])
         setNextCursor(data.nextCursor)
@@ -228,7 +238,7 @@ export default function FeedPage() {
       active = false
       window.removeEventListener("scroll", handleScroll)
     }
-  }, [nextCursor, loading, mode, feedVersion])
+  }, [nextCursor, loading, mode, feedVersion, refreshSeed])
 
   useEffect(() => {
     if (!connected) return

@@ -79,3 +79,35 @@ test("rejects invalid timestamps", () => {
   assert.throws(() => rankFeedCandidates([post({ id: "x" })], viewer, new Date("nope")), RangeError)
   assert.throws(() => rankFeedCandidates([post({ id: "x", createdAt: new Date("nope") })], viewer, snapshot), RangeError)
 })
+
+test("tie seed is stable within a session and only permutes ties", () => {
+  const tied = [
+    post({ id: "a", createdAt: minutesAgo(snapshot, 30) }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 30) }),
+  ]
+  const first = rankFeedCandidates(tied, viewer, snapshot, "seed-1").map((p) => p.id)
+  const again = rankFeedCandidates(tied, viewer, snapshot, "seed-1").map((p) => p.id)
+  assert.deepEqual(first, again)
+  assert.deepEqual([...first].sort(), ["a", "b"])
+})
+
+test("tie seed rotates exact ties across refreshes", () => {
+  const tied = [
+    post({ id: "a", createdAt: minutesAgo(snapshot, 30) }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 30) }),
+  ]
+  const orders = new Set(
+    Array.from({ length: 50 }, (_, i) =>
+      rankFeedCandidates(tied, viewer, snapshot, `refresh-${i}`).map((p) => p.id).join(",")
+    )
+  )
+  assert.ok(orders.size > 1, "expected ties to rotate across seeds")
+})
+
+test("tie seed never overrides real score gaps", () => {
+  const ranked = rankFeedCandidates([
+    post({ id: "cold", createdAt: minutesAgo(snapshot, 1440), yeahs: 2 }),
+    post({ id: "hot", createdAt: minutesAgo(snapshot, 30), yeahs: 50, commentsCount: 10 }),
+  ], viewer, snapshot, "any-seed")
+  assert.deepEqual(ranked.map((p) => p.id), ["hot", "cold"])
+})

@@ -19,6 +19,7 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
   candidates: readonly T[],
   viewer: FeedRankingViewer,
   snapshotAt: Date,
+  tieSeed?: string,
 ): T[] {
   const snapshotTime = snapshotAt.getTime()
   if (!Number.isFinite(snapshotTime)) throw new RangeError("Invalid feed snapshot timestamp")
@@ -45,7 +46,16 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
       }
     }
 
-    return { candidate, createdTime, score }
+    // Per-refresh tie rotation: tiny deterministic jitter keyed by
+    // seed + post id. Epsilon sits far below meaningful score gaps, so
+    // only (near-)tied posts rotate and real ranking is untouched.
+    // No seed = legacy deterministic order.
+    let tieJitter = 0
+    if (tieSeed) {
+      tieJitter = (hash01(`${tieSeed}:${candidate.id}`) - 0.5) * 1e-6 * (1 + score)
+    }
+
+    return { candidate, createdTime, score: score + tieJitter }
   })
 
   return ranked
@@ -53,4 +63,14 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
     .sort((a, b) => b.score - a.score || b.createdTime - a.createdTime
       || (a.candidate.id < b.candidate.id ? -1 : a.candidate.id > b.candidate.id ? 1 : 0))
     .map(({ candidate }) => candidate)
+}
+
+/** Deterministic FNV-1a hash mapped to [0, 1) for seeded tie rotation. */
+function hash01(key: string): number {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0) / 0x100000000
 }

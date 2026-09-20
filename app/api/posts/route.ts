@@ -12,6 +12,8 @@ const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
 const FEED_PAGE_SIZE = 20
 
+export const dynamic = "force-dynamic"
+
 async function checkImage(imageUrl: string): Promise<boolean> {
   if (!process.env.OPENROUTER_API_KEY) return true // moderation disabled — allow
   try {
@@ -182,6 +184,9 @@ export async function GET(req: NextRequest) {
   const mode = searchParams.get("mode") || "campus"
   const type = searchParams.get("type") || "all"
   const cursor = searchParams.get("cursor")
+  // Per-refresh shuffle seed from the client. Same seed = same tie order
+  // (keeps cursor pagination consistent); new seed = ties rotate.
+  const tieSeed = searchParams.get("seed") || undefined
 
   const follows = await prisma.follow.findMany({
     where: { followerId: user.id },
@@ -245,7 +250,7 @@ export async function GET(req: NextRequest) {
     campus: user.campus,
     programKey: user.programKey,
     followingIds,
-  }, now)
+  }, now, tieSeed)
 
   const cursorIndex = cursor ? rankedPosts.findIndex((post) => post.id === cursor) : -1
   if (cursor && cursorIndex === -1) {
@@ -265,5 +270,5 @@ export async function GET(req: NextRequest) {
       isFollowing: followingIds.has(post.userId),
     })),
     nextCursor,
-  })
+  }, { headers: { "Cache-Control": "private, no-store" } })
 }
