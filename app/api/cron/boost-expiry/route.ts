@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic"
  * and lose the "Boosted" tag everywhere.
  * - boosted=true + boostedUntil <= now (or null) -> boosted=false, boostedUntil=null
  * - boosted=true + boostedUntil > now+24h (bad seeds) -> capped to now+24h
- * Idempotent; safe to run hourly.
+ * Idempotent; runs daily (Hobby cron limit). Intraday expiry needs no
+ * cron: feed/search/trending/profile all recompute the tag from
+ * `boostedUntil`, so expired boosts drop off the moment they lapse.
  */
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
