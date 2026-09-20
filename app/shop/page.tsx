@@ -6,6 +6,7 @@ import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { TIER_CONFIG } from "@/lib/tier"
+import { useTierTheme } from "@/app/components/ThemeProvider"
 
 const CATEGORIES = [
   { key: "tier", label: "Upgrade" },
@@ -13,13 +14,80 @@ const CATEGORIES = [
   { key: "streak", label: "Streak" },
   { key: "avatars", label: "Avatars" },
   { key: "identity", label: "Identity" },
+  { key: "themes", label: "Themes" },
 ]
+
+function ThemesPicker({
+  tier,
+  themeChoice,
+  onSelect,
+}: {
+  tier: "PLUS" | "PRIME"
+  themeChoice: "default" | "blue" | "gold" | null
+  onSelect: (value: "default" | "blue") => void
+}) {
+  const isBlueActive = themeChoice === "blue"
+  const isGoldActive = tier === "PRIME" && (themeChoice === null || themeChoice === "gold")
+  // PLUS stays on Default Green unless Blue is explicitly picked.
+  // PRIME shows Default as active only when explicitly picked (gold = neither card).
+  const isDefaultActive = tier === "PLUS" ? !isBlueActive : themeChoice === "default"
+
+  return (
+    <div className="mt-2">
+      <p className="text-white/40 text-xs mb-2 px-1">
+        Default Green is on for everyone — Plus Blue is opt-in.
+      </p>
+      {isGoldActive && (
+        <div className="card p-3 mb-3 border-[#facc15]/20 bg-[#facc15]/5">
+          <p className="text-xs text-[#facc15]">👑 Prime Gold is active by default — choose below to switch.</p>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`card p-4 text-center ${isDefaultActive ? "border-[#baff39]/40 bg-[#baff39]/5" : ""}`}>
+          <div
+            className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
+            style={{ background: "linear-gradient(135deg, #baff39 50%, #050505 50%)" }}
+          />
+          <p className="font-semibold text-sm">Default Green</p>
+          <p className={`text-xs mb-3 ${isDefaultActive ? "text-primary" : "text-white/40"}`}>
+            {isDefaultActive ? "✓ Active" : "Classic Yard look"}
+          </p>
+          <button
+            className={`w-full text-sm ${isDefaultActive ? "btn-ghost" : "btn-primary"}`}
+            disabled={isDefaultActive}
+            onClick={() => onSelect("default")}
+          >
+            {isDefaultActive ? "✓ Active" : "Use"}
+          </button>
+        </div>
+        <div className={`card p-4 text-center ${isBlueActive ? "border-sky-500/40 bg-sky-500/5" : ""}`}>
+          <div
+            className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
+            style={{ background: "linear-gradient(135deg, #38bdf8 50%, #050505 50%)" }}
+          />
+          <p className="font-semibold text-sm">Plus Blue</p>
+          <p className={`text-xs mb-3 ${isBlueActive ? "text-sky-300" : "text-white/40"}`}>
+            {isBlueActive ? "✓ Active" : "Plus perk"}
+          </p>
+          <button
+            className={`w-full text-sm ${isBlueActive ? "btn-ghost" : "btn-primary"}`}
+            disabled={isBlueActive}
+            onClick={() => onSelect("blue")}
+          >
+            {isBlueActive ? "✓ Active" : "Use"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ShopPage() {
   const router = useRouter()
   const [category, setCategory] = useState("tier")
   const [loading, setLoading] = useState<string | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number } | null>(null)
+  const { themeChoice, setThemeChoice } = useTierTheme()
 
   useEffect(() => {
     apiGet("/api/auth/me").then((d) => setMe(d.user)).catch(() => {})
@@ -221,6 +289,43 @@ export default function ShopPage() {
             Go to Lair
           </button>
         </div>
+      )}
+
+      {category === "themes" && !me && (
+        <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
+      )}
+      {category === "themes" && me?.tier === "FREE" && (
+        <div className="card p-5 mt-2 text-center">
+          <p className="text-3xl mb-2">🎨</p>
+          <p className="font-semibold text-sm mb-1">Themes unlock on Plus</p>
+          <p className="text-white/40 text-xs mb-3">Plus and Prime members can switch between Default Green and Plus Blue. Everyone starts on Default Green.</p>
+          <button className="btn-primary w-full text-sm" onClick={() => router.push("/upgrade")}>
+            View Upgrades
+          </button>
+        </div>
+      )}
+      {category === "themes" && (me?.tier === "PLUS" || me?.tier === "PRIME") && (
+        <ThemesPicker
+          tier={me.tier}
+          themeChoice={themeChoice}
+          onSelect={(value) => {
+            try {
+              window.localStorage.setItem("yard-theme", value)
+            } catch {
+              // ignore persistence failures
+            }
+            try {
+              setThemeChoice(value)
+            } catch {
+              // context setter unavailable — custom event below still notifies ThemeProvider
+            }
+            try {
+              window.dispatchEvent(new CustomEvent("yard-theme-change", { detail: value }))
+            } catch {
+              // ignore dispatch failures
+            }
+          }}
+        />
       )}
     </main>
   )

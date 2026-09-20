@@ -48,6 +48,7 @@ export default function LeaderboardPage() {
                     {r.ghostId}
                   </Link>
                   {r.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                  {r.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                 </div>
               </div>
               <span className="text-sm text-white/50 font-semibold">{r.score} pts</span>
@@ -66,9 +67,12 @@ export default function LeaderboardPage() {
               <span className="text-xl">{me.avatarEmoji}</span>
             </Link>
             <div className="flex-1">
-              <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-primary">
-                {me.ghostId}
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-primary">
+                  {me.ghostId}
+                </Link>
+                {me.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+              </div>
             </div>
             <span className="text-sm text-white/50 font-semibold">{me.score} pts</span>
           </div>

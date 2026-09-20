@@ -33,6 +33,7 @@ interface CommentData {
     user: {
       ghostId: string
       avatarEmoji: string
+      tier?: string
     }
     parentId: string | null
     yeahs: number

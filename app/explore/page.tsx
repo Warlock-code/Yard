@@ -79,6 +79,7 @@ function PostCard({ post }: { post: Post }) {
               {post.user.ghostId}
             </Link>
             {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+            {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
             {post.boosted && <span className="badge badge-boosted">Boosted</span>}
             <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
           </div>
@@ -408,6 +409,7 @@ export default function ExplorePage() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold truncate">{user.ghostId}</span>
                             {user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                            {user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                           </div>
                           <p className="text-white/40 text-sm mt-0.5">
                             {user._count.followers} follower{user._count.followers !== 1 ? "s" : ""} ·{" "}

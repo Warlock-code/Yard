@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       text,
       parentId: parentId || null,
     },
-    include: { user: { select: { ghostId: true, avatarEmoji: true } } },
+    include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
   })
 
   await prisma.post.update({
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       user: {
         ghostId: comment.user.ghostId,
         avatarEmoji: comment.user.avatarEmoji,
+        tier: comment.user.tier,
       },
       parentId: comment.parentId,
       yeahs: 0,
@@ -120,7 +121,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const all = await prisma.comment.findMany({
     where: { postId: id },
     include: {
-      user: { select: { ghostId: true, avatarEmoji: true } },
+      user: { select: { ghostId: true, avatarEmoji: true, tier: true } },
       votes: { where: { userId: user.id }, select: { id: true } },
     },
   })

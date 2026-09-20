@@ -195,7 +195,8 @@ export default function LairPage() {
         <h1 className="text-xl font-bold">{me.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{me.campus}</span>
-          {me.tier !== "FREE" && <span className="badge badge-prime">{me.tier}</span>}
+          {me.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+          {me.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
         </div>
 
         <div className="flex gap-5 mt-3 text-sm">

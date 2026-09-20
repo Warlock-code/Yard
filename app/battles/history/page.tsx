@@ -145,6 +145,7 @@ export default function BattleHistoryPage() {
                           <span className="text-lg">{battle.winnerEntry.user.avatarEmoji}</span>
                           <span className="font-semibold">{battle.winnerEntry.user.ghostId}</span>
                           {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                          {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                         </div>
                         <p className="text-white/80 text-sm mt-2">
                           {battle.winnerEntry.text || battle.winnerEntry.imageUrl ? "📷 Image entry" : battle.winnerEntry.voiceUrl ? "🎤 Voice entry" : ""}
@@ -165,7 +166,10 @@ export default function BattleHistoryPage() {
                           <span className="text-white/40 text-sm font-bold w-6 text-right">#{i + 1}</span>
                           <span className="text-lg">{entry.user.avatarEmoji}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm truncate">{entry.user.ghostId}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm truncate min-w-0">{entry.user.ghostId}</p>
+                              {entry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px] flex-shrink-0">✓ Plus</span>}
+                            </div>
                             <p className="text-white/60 text-xs truncate">
                               {entry.text || entry.imageUrl ? "📷 Image" : entry.voiceUrl ? "🎤 Voice" : ""}
                             </p>
@@ -196,6 +200,7 @@ export default function BattleHistoryPage() {
                                 <div className="flex items-center gap-2 text-right">
                                   <span className="text-lg">{round.winnerEntry.user.avatarEmoji}</span>
                                   <span className="text-white/60 text-sm">{round.winnerEntry.user.ghostId}</span>
+                                  {round.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
                                   <span className="font-bold text-primary">🔥 {round.winnerEntry.votes}</span>
                                 </div>
                               )}

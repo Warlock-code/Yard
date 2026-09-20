@@ -164,6 +164,7 @@ export default function BattlesClient() {
                       {entry.user.ghostId}
                     </Link>
                     {entry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
+                    {entry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                   </div>
                   <p className="text-white/90 mb-3">{entry.text}</p>
                   <button

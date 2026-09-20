@@ -572,6 +572,7 @@ export default function FeedPage() {
                         {post.user.ghostId}
                       </Link>
                       {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ Prime</span>}
+                      {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                       {post.boosted && <span className="badge badge-boosted">Boosted</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
@@ -716,6 +717,7 @@ export default function FeedPage() {
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold text-xs">{c.user?.ghostId || c.ghostId}</span>
+                                        {c.user?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
                                         <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
                                       </div>
                                       <p className="text-sm text-white/90 line-clamp-2">{c.text}</p>
@@ -775,7 +777,7 @@ export default function FeedPage() {
                   <Avatar emoji={me.avatarEmoji} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-boosted text-[10px]">Plus</span>}</p>
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}</p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
                   {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
                 </div>

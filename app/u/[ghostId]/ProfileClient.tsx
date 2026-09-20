@@ -154,7 +154,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{profile.campus}</span>
           {profile.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-          {profile.tier === "PLUS" && <span className="badge badge-plus">Plus</span>}
+          {profile.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
         </div>
 
         {profile.isOwn ? (

@@ -243,7 +243,9 @@ export async function GET(req: NextRequest) {
   const posts = await prisma.post.findMany({
     where,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } } },
+    // tier + tierExpiresAt feed the ranking-only tier boost in
+    // rankFeedCandidates (expired tiers count as FREE). No UI effect.
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } } },
   })
 
   const rankedPosts = rankFeedCandidates(posts, {

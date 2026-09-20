@@ -1,3 +1,6 @@
+import type { AccountTier } from "@prisma/client"
+import { getTierPriority } from "./tier"
+
 export type FeedRankingCandidate = {
   id: string
   userId: string
@@ -7,6 +10,13 @@ export type FeedRankingCandidate = {
   commentsCount: number
   createdAt: Date
   boostedUntil?: Date | null
+  // Ranking-only tier boost: author's tier + expiry. Accepts either flat
+  // fields or the nested Prisma `user` relation (feed route passes posts
+  // with `include: { user: { select: { tier, tierExpiresAt } } }`).
+  // Missing/expired => FREE (weight 1). No UI/badge effect.
+  authorTier?: AccountTier | string | null
+  authorTierExpiresAt?: Date | string | null
+  user?: { tier?: AccountTier | string | null; tierExpiresAt?: Date | string | null } | null
 }
 
 export type FeedRankingViewer = {
@@ -57,14 +67,34 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
       tieJitter = (hash01(`${tieSeed}:${candidate.id}`) - 0.5) * 0.04 * (1 + score)
     }
 
-    return { candidate, createdTime, score: score + tieJitter }
+    // Tier boost (ranking only): effective tier at snapshot time, mirroring
+    // getEffectiveTier() but against snapshotTime (not Date.now()) so ranking
+    // stays deterministic within a refreshSeed session. PRIME = 3, PLUS = 2,
+    // FREE/expired = 1. Applied as a PRIMARY sort key below (not a score
+    // multiplier): tier decides the bucket, the engagement/boost score decides
+    // order inside the bucket. Jitter therefore only rotates within a tier and
+    // can never push a FREE post above a PLUS/PRIME one.
+    const tierWeight = getCandidateTierWeight(candidate, snapshotTime)
+
+    return { candidate, createdTime, score: score + tieJitter, tierWeight }
   })
 
   return ranked
     .filter(({ createdTime }) => createdTime <= snapshotTime)
-    .sort((a, b) => b.score - a.score || b.createdTime - a.createdTime
+    .sort((a, b) => b.tierWeight - a.tierWeight || b.score - a.score || b.createdTime - a.createdTime
       || (a.candidate.id < b.candidate.id ? -1 : a.candidate.id > b.candidate.id ? 1 : 0))
     .map(({ candidate }) => candidate)
+}
+
+/** Effective-tier weight at snapshot time (mirrors getEffectiveTier + getTierPriority). */
+function getCandidateTierWeight(candidate: FeedRankingCandidate, snapshotTime: number): number {
+  const rawTier = candidate.authorTier ?? candidate.user?.tier ?? "FREE"
+  if (rawTier !== "PLUS" && rawTier !== "PRIME") return 1
+  const expiresAt = candidate.authorTierExpiresAt ?? candidate.user?.tierExpiresAt ?? null
+  if (!expiresAt) return 1
+  const expiryTime = expiresAt instanceof Date ? expiresAt.getTime() : new Date(expiresAt).getTime()
+  if (!Number.isFinite(expiryTime) || expiryTime <= snapshotTime) return 1
+  return getTierPriority(rawTier as AccountTier)
 }
 
 /** Deterministic FNV-1a hash mapped to [0, 1) for seeded tie rotation. */

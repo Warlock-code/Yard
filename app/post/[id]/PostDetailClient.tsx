@@ -16,7 +16,7 @@ type Comment = {
   ghostId: string
   yeahs: number
   heated?: boolean
-  user: { ghostId: string; avatarEmoji: string }
+  user: { ghostId: string; avatarEmoji: string; tier?: string }
   createdAt: string
   parentId: string | null
   replies: Comment[]
@@ -52,6 +52,7 @@ function CommentThread({
             <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
               {comment.user.ghostId}
             </Link>
+            {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
@@ -319,7 +320,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
                 {post.user.ghostId}
               </Link>
               {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-              {post.user.tier === "PLUS" && <span className="badge badge-plus">Plus</span>}
+              {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
           </div>

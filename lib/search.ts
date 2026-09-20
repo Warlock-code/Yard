@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+import { Prisma, type AccountTier } from "@prisma/client"
 import { isBoostActive } from "@/lib/boost"
+import { getTierPriority } from "@/lib/tier"
 
 export const HASHTAG_REGEX = /#(\w+)/g
 
@@ -222,6 +223,36 @@ function buildPostOrderBy(
   return { createdAt: "desc" }
 }
 
+/**
+ * Ranking-only tier weight (mirrors getEffectiveTier + getTierPriority, but
+ * against the query's `now` so expiry is deterministic per request).
+ * PRIME = 3, PLUS = 2, FREE/expired = 1. No badge/theme/UI effect.
+ */
+function getSearchTierWeight(
+  post: { user?: { tier?: AccountTier | string | null; tierExpiresAt?: Date | string | null } | null },
+  now: Date,
+): number {
+  const rawTier = post.user?.tier ?? "FREE"
+  if (rawTier !== "PLUS" && rawTier !== "PRIME") return 1
+  const expiresAt = post.user?.tierExpiresAt ?? null
+  if (!expiresAt) return 1
+  const expiryTime = expiresAt instanceof Date ? expiresAt.getTime() : new Date(expiresAt).getTime()
+  if (!Number.isFinite(expiryTime) || expiryTime <= now.getTime()) return 1
+  return getTierPriority(rawTier as AccountTier)
+}
+
+/** Stable tier-first re-rank: tier bucket first, existing Prisma order kept inside each tier. */
+function sortPostsByTierFirst<T extends { user?: { tier?: unknown; tierExpiresAt?: unknown } | null }>(
+  posts: T[],
+  now: Date,
+): T[] {
+  return [...posts].sort(
+    (a, b) =>
+      getSearchTierWeight(b as { user?: { tier?: AccountTier | string | null; tierExpiresAt?: Date | string | null } | null }, now) -
+      getSearchTierWeight(a as { user?: { tier?: AccountTier | string | null; tierExpiresAt?: Date | string | null } | null }, now),
+  )
+}
+
 export async function searchPosts({
   query,
   filters = {},
@@ -241,7 +272,7 @@ export async function searchPosts({
       where,
       orderBy,
       include: {
-        user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } },
+        user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } },
         hashtags: { include: { hashtag: { select: { tag: true } } } },
       },
       skip: (safePage - 1) * safeLimit,
@@ -258,8 +289,13 @@ export async function searchPosts({
     boosted: isBoostActive(post, now),
   }))
 
+  // Tier boost (ranking only): stable per-page re-rank, PRIME first,
+  // PLUS second, FREE last; existing yeahs/comments/createdAt order kept
+  // inside each tier. Array.sort is stable, so equal tiers keep Prisma order.
+  const tierRankedPosts = sortPostsByTierFirst(normalizedPosts, now)
+
   return {
-    posts: normalizedPosts,
+    posts: tierRankedPosts,
     total,
     page: safePage,
     totalPages: total === 0 ? 0 : Math.ceil(total / safeLimit),
@@ -531,7 +567,7 @@ export async function getTrendingPosts(campus: string, window: TrendingWindow = 
       createdAt: { gte: since },
     },
     include: {
-      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true } },
+      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } },
       hashtags: { include: { hashtag: { select: { tag: true } } } },
     },
     orderBy: [{ yeahs: "desc" }, { commentsCount: "desc" }, { createdAt: "desc" }],
@@ -539,11 +575,14 @@ export async function getTrendingPosts(campus: string, window: TrendingWindow = 
   })
 
   // Wear-off: recompute tag so expired boosts don't show as Boosted in Explore.
+  // Tier boost (ranking only): PRIME first, PLUS second, FREE last, with
+  // yeahs/comments/recency order kept inside each tier (stable sort).
   const now = new Date()
-  return posts.map((post) => ({
+  const normalized = posts.map((post) => ({
     ...post,
     boosted: isBoostActive(post, now),
   }))
+  return sortPostsByTierFirst(normalized, now)
 }
 
 export async function getSuggestedGhosts(userId: string, campus: string, limit = 5) {
