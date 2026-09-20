@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
+import { isBoostActive } from "@/lib/boost"
 
 export const HASHTAG_REGEX = /#(\w+)/g
 
@@ -249,8 +250,16 @@ export async function searchPosts({
     prisma.post.count({ where }),
   ])
 
+  // Wear-off: never trust the stored `boosted` flag — recompute from
+  // `boostedUntil` so expired boosts lose the tag + re-rank naturally.
+  const now = new Date()
+  const normalizedPosts = posts.map((post) => ({
+    ...post,
+    boosted: isBoostActive(post, now),
+  }))
+
   return {
-    posts,
+    posts: normalizedPosts,
     total,
     page: safePage,
     totalPages: total === 0 ? 0 : Math.ceil(total / safeLimit),
@@ -529,7 +538,12 @@ export async function getTrendingPosts(campus: string, window: TrendingWindow = 
     take: safeLimit,
   })
 
-  return posts
+  // Wear-off: recompute tag so expired boosts don't show as Boosted in Explore.
+  const now = new Date()
+  return posts.map((post) => ({
+    ...post,
+    boosted: isBoostActive(post, now),
+  }))
 }
 
 export async function getSuggestedGhosts(userId: string, campus: string, limit = 5) {

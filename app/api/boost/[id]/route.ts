@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getBoostExpiry } from "@/lib/boost"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       prisma.user.update({ where: { id: user.id }, data: { freeBoosts: { decrement: 1 } } }),
       prisma.post.update({
         where: { id },
-        data: { boosted: true, boostedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+        data: { boosted: true, boostedUntil: getBoostExpiry() },
       }),
     ])
     return NextResponse.json({ success: true })

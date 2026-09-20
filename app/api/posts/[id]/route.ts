@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { isBoostActive } from "@/lib/boost"
 import { UTApi } from "uploadthing/server"
 import { getReadablePostWhere } from "@/lib/programAccess"
 
@@ -23,12 +24,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       yeahs: true,
       commentsCount: true,
       createdAt: true,
+      boosted: true,
+      boostedUntil: true,
       user: { select: { ghostId: true, avatarEmoji: true, tier: true } },
     },
   })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
 
-  return NextResponse.json({ post })
+  return NextResponse.json({
+    post: { ...post, boosted: isBoostActive(post) },
+  })
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

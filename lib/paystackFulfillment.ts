@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { getBoostExpiry } from "@/lib/boost"
 
 type PaystackCharge = {
   status?: unknown
@@ -91,7 +92,7 @@ export async function fulfillPaidTransaction(reference: string) {
         if (!post) throw new Error("Boost post is unavailable.")
         await db.post.update({
           where: { id: post.id },
-          data: { boosted: true, boostedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+          data: { boosted: true, boostedUntil: getBoostExpiry() },
         })
         break
       }

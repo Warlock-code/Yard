@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getReadablePostWhere } from "@/lib/programAccess"
+import { isBoostActive } from "@/lib/boost"
 
 export const dynamic = "force-dynamic"
 
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     const postsById = new Map(posts.map((post) => [post.id, post]))
     const likedPosts = votes.flatMap((vote) => {
       const post = postsById.get(vote.postId)
-      return post ? [post] : []
+      return post ? [{ ...post, boosted: isBoostActive(post) }] : []
     })
     return NextResponse.json({ posts: likedPosts })
   }
@@ -38,5 +39,9 @@ export async function GET(req: NextRequest) {
     take: 30,
     include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
   })
-  return NextResponse.json({ posts })
+  // Wear-off: never trust stored `boosted` flag — recompute so expired
+  // boosts lose the tag + re-rank as normal posts.
+  return NextResponse.json({
+    posts: posts.map((post) => ({ ...post, boosted: isBoostActive(post) })),
+  })
 }

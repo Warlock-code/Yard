@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { isBoostActive } from "@/lib/boost"
 
 export const dynamic = "force-dynamic"
 
@@ -108,7 +109,7 @@ export async function GET(req: NextRequest) {
       earnings: earningsAmount,
       earningsPerView: Math.round(earningsPerView * 100) / 100,
       createdAt: post.createdAt,
-      boosted: post.boosted && post.boostedUntil && post.boostedUntil > new Date(),
+      boosted: isBoostActive(post),
     }
   })
 
