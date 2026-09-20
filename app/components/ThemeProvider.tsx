@@ -3,59 +3,67 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { apiGet } from "@/lib/useApi"
 import { getEffectiveTier } from "@/lib/tier"
+import { THEME_CLASS_NAMES, THEME_MAP, isThemeId, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 
 type Tier = "FREE" | "PLUS" | "PRIME"
 
-export type YardThemeChoice = "default" | "blue" | "gold"
+/** @deprecated kept for backwards-compat imports — use ThemeId from lib/themes instead. */
+export type YardThemeChoice = ThemeId
 
 export const YARD_THEME_STORAGE_KEY = "yard-theme"
 export const YARD_THEME_EVENT = "yard-theme-change"
 
-function readStoredTheme(): YardThemeChoice | null {
+function readStoredTheme(): ThemeId | null {
   if (typeof window === "undefined") return null
   try {
     const v = window.localStorage.getItem(YARD_THEME_STORAGE_KEY)
-    if (v === "default" || v === "blue" || v === "gold") return v
-    return null
+    return isThemeId(v) ? v : null
   } catch {
     return null
   }
 }
 
-function resolveTierClass(tier: Tier, stored: YardThemeChoice | null): "tier-free" | "tier-plus" | "tier-prime" {
-  if (tier === "FREE") return "tier-free"
-  if (tier === "PLUS") return stored === "blue" ? "tier-plus" : "tier-free"
-  // PRIME includes all PLUS perks: may opt into blue/green, otherwise keep gold.
-  if (stored === "blue") return "tier-plus"
-  if (stored === "default") return "tier-free"
-  return "tier-prime"
+/** Nothing auto-switches anymore — every tier (incl. Prime) stays on Default
+ *  Green until they explicitly pick an unlocked theme from Shop > Themes. */
+function resolveThemeClassName(
+  tier: Tier,
+  ownedCosmetics: readonly string[],
+  stored: ThemeId | null
+): string {
+  if (stored && isThemeUnlocked(stored, tier, ownedCosmetics)) {
+    return THEME_MAP[stored].className
+  }
+  return THEME_MAP.default.className
 }
 
-function applyTierClass(cls: "tier-free" | "tier-plus" | "tier-prime") {
+function applyThemeClassName(className: string) {
   const root = document.documentElement
-  root.classList.remove("tier-free", "tier-plus", "tier-prime")
-  root.classList.add(cls)
+  root.classList.remove(...THEME_CLASS_NAMES)
+  root.classList.add(className)
 }
 
 interface ThemeContextType {
   tier: Tier
   isLoading: boolean
+  ownedCosmetics: string[]
   /** User's stored theme pick. `null` = unset (default). */
-  themeChoice: YardThemeChoice | null
-  setThemeChoice: (choice: YardThemeChoice) => void
+  themeChoice: ThemeId | null
+  setThemeChoice: (choice: ThemeId) => void
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   tier: "FREE",
   isLoading: true,
+  ownedCosmetics: [],
   themeChoice: null,
   setThemeChoice: () => {},
 })
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [tier, setTier] = useState<Tier>("FREE")
+  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [themeChoice, setThemeChoiceState] = useState<YardThemeChoice | null>(null)
+  const [themeChoice, setThemeChoiceState] = useState<ThemeId | null>(null)
 
   useEffect(() => {
     let active = true
@@ -69,9 +77,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             tierExpiresAt: data.user.tierExpiresAt ? new Date(data.user.tierExpiresAt) : null,
           })
           setTier(effectiveTier)
+          setOwnedCosmetics(Array.isArray(data.user.ownedCosmetics) ? data.user.ownedCosmetics : [])
         }
       } catch {
-        if (active) setTier("FREE")
+        if (active) {
+          setTier("FREE")
+          setOwnedCosmetics([])
+        }
       } finally {
         if (active) setIsLoading(false)
       }
@@ -91,14 +103,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const onStorage = (e: StorageEvent) => {
       if (e.key !== YARD_THEME_STORAGE_KEY) return
-      const v = e.newValue
-      if (v === "default" || v === "blue" || v === "gold") setThemeChoiceState(v)
-      else if (v === null) setThemeChoiceState(null)
+      setThemeChoiceState(isThemeId(e.newValue) ? e.newValue : null)
     }
 
     const onCustomTheme = (e: Event) => {
-      const detail = (e as CustomEvent<YardThemeChoice>).detail
-      if (detail === "default" || detail === "blue" || detail === "gold") {
+      const detail = (e as CustomEvent<ThemeId>).detail
+      if (isThemeId(detail)) {
         setThemeChoiceState(detail)
         try {
           window.localStorage.setItem(YARD_THEME_STORAGE_KEY, detail)
@@ -116,23 +126,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const setThemeChoice = useCallback((choice: YardThemeChoice) => {
+  const setThemeChoice = useCallback((choice: ThemeId) => {
+    if (!isThemeUnlocked(choice, tier, ownedCosmetics)) return
     setThemeChoiceState(choice)
     try {
       window.localStorage.setItem(YARD_THEME_STORAGE_KEY, choice)
     } catch {
       // ignore persistence failures
     }
-    applyTierClass(resolveTierClass(tier, choice))
-  }, [tier])
+    applyThemeClassName(THEME_MAP[choice].className)
+  }, [tier, ownedCosmetics])
 
   useEffect(() => {
     if (isLoading) return
-    applyTierClass(resolveTierClass(tier, themeChoice))
-  }, [tier, isLoading, themeChoice])
+    applyThemeClassName(resolveThemeClassName(tier, ownedCosmetics, themeChoice))
+  }, [tier, ownedCosmetics, isLoading, themeChoice])
 
   return (
-    <ThemeContext.Provider value={{ tier, isLoading, themeChoice, setThemeChoice }}>
+    <ThemeContext.Provider value={{ tier, isLoading, ownedCosmetics, themeChoice, setThemeChoice }}>
       {children}
     </ThemeContext.Provider>
   )

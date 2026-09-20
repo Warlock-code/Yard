@@ -23,27 +23,97 @@
   --accent-prime-strong: #eab308;
   --accent-prime-soft: rgba(250, 204, 21, 0.14);
   --accent-prime-glow: rgba(250, 204, 21, 0.3);
+
+  --accent-purple: #a855f7;
+  --accent-purple-strong: #9333ea;
+  --accent-purple-soft: rgba(168, 85, 247, 0.14);
+  --accent-purple-glow: rgba(168, 85, 247, 0.3);
+
+  --accent-crimson: #f43f5e;
+  --accent-crimson-strong: #e11d48;
+  --accent-crimson-soft: rgba(244, 63, 94, 0.14);
+  --accent-crimson-glow: rgba(244, 63, 94, 0.3);
+
+  --accent-teal: #14b8a6;
+  --accent-teal-strong: #0d9488;
+  --accent-teal-soft: rgba(20, 184, 166, 0.14);
+  --accent-teal-glow: rgba(20, 184, 166, 0.3);
+
+  --accent-rainbow: #ff0080;
+  --accent-rainbow-strong: #7928ca;
+  --accent-rainbow-soft: rgba(255, 0, 128, 0.14);
+  --accent-rainbow-glow: rgba(121, 40, 202, 0.3);
 }
 
-.tier-free {
+.theme-default {
   --accent: var(--accent-free);
   --accent-strong: var(--accent-free-strong);
   --accent-soft: var(--accent-free-soft);
   --accent-glow: var(--accent-free-glow);
 }
 
-.tier-plus {
+.theme-blue {
   --accent: var(--accent-plus);
   --accent-strong: var(--accent-plus-strong);
   --accent-soft: var(--accent-plus-soft);
   --accent-glow: var(--accent-plus-glow);
 }
 
-.tier-prime {
+.theme-gold {
   --accent: var(--accent-prime);
   --accent-strong: var(--accent-prime-strong);
   --accent-soft: var(--accent-prime-soft);
   --accent-glow: var(--accent-prime-glow);
+}
+
+.theme-purple {
+  --accent: var(--accent-purple);
+  --accent-strong: var(--accent-purple-strong);
+  --accent-soft: var(--accent-purple-soft);
+  --accent-glow: var(--accent-purple-glow);
+}
+
+.theme-crimson {
+  --accent: var(--accent-crimson);
+  --accent-strong: var(--accent-crimson-strong);
+  --accent-soft: var(--accent-crimson-soft);
+  --accent-glow: var(--accent-crimson-glow);
+}
+
+.theme-teal {
+  --accent: var(--accent-teal);
+  --accent-strong: var(--accent-teal-strong);
+  --accent-soft: var(--accent-teal-soft);
+  --accent-glow: var(--accent-teal-glow);
+}
+
+.theme-rainbow {
+  --accent: var(--accent-rainbow);
+  --accent-strong: var(--accent-rainbow-strong);
+  --accent-soft: var(--accent-rainbow-soft);
+  --accent-glow: var(--accent-rainbow-glow);
+}
+
+.theme-rainbow .btn-primary {
+  background: linear-gradient(90deg, #ff0055, #ff9900, #ffee00, #33ff00, #00ffee, #0066ff, #cc00ff, #ff0055);
+  background-size: 200% 100%;
+  animation: rainbow-shift 5s linear infinite;
+  color: #050505;
+}
+
+.theme-rainbow .tab-active {
+  border-bottom: none;
+  background: linear-gradient(90deg, #ff0055, #ff9900, #ffee00, #33ff00, #00ffee, #0066ff, #cc00ff);
+  background-size: 200% 100%;
+  animation: rainbow-shift 5s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes rainbow-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
 
 * {
@@ -58,9 +128,9 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
-.tier-free html { scrollbar-color: var(--accent-free-soft) transparent; }
-.tier-plus html { scrollbar-color: var(--accent-plus-soft) transparent; }
-.tier-prime html { scrollbar-color: var(--accent-prime-soft) transparent; }
+.theme-default html { scrollbar-color: var(--accent-free-soft) transparent; }
+.theme-blue html { scrollbar-color: var(--accent-plus-soft) transparent; }
+.theme-gold html { scrollbar-color: var(--accent-prime-soft) transparent; }
 
 html,
 body {
@@ -82,25 +152,25 @@ body {
   border-radius: 999px;
 }
 
-.tier-free ::-webkit-scrollbar-thumb { background: var(--accent-free-soft); }
-.tier-plus ::-webkit-scrollbar-thumb { background: var(--accent-plus-soft); }
-.tier-prime ::-webkit-scrollbar-thumb { background: var(--accent-prime-soft); }
+.theme-default ::-webkit-scrollbar-thumb { background: var(--accent-free-soft); }
+.theme-blue ::-webkit-scrollbar-thumb { background: var(--accent-plus-soft); }
+.theme-gold ::-webkit-scrollbar-thumb { background: var(--accent-prime-soft); }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-glow);
 }
 
-.tier-free ::-webkit-scrollbar-thumb:hover { background: var(--accent-free-glow); }
-.tier-plus ::-webkit-scrollbar-thumb:hover { background: var(--accent-plus-glow); }
-.tier-prime ::-webkit-scrollbar-thumb:hover { background: var(--accent-prime-glow); }
+.theme-default ::-webkit-scrollbar-thumb:hover { background: var(--accent-free-glow); }
+.theme-blue ::-webkit-scrollbar-thumb:hover { background: var(--accent-plus-glow); }
+.theme-gold ::-webkit-scrollbar-thumb:hover { background: var(--accent-prime-glow); }
 
 ::-webkit-scrollbar-thumb:active {
   background: var(--accent-strong);
 }
 
-.tier-free ::-webkit-scrollbar-thumb:active { background: var(--accent-free-strong); }
-.tier-plus ::-webkit-scrollbar-thumb:active { background: var(--accent-plus-strong); }
-.tier-prime ::-webkit-scrollbar-thumb:active { background: var(--accent-prime-strong); }
+.theme-default ::-webkit-scrollbar-thumb:active { background: var(--accent-free-strong); }
+.theme-blue ::-webkit-scrollbar-thumb:active { background: var(--accent-plus-strong); }
+.theme-gold ::-webkit-scrollbar-thumb:active { background: var(--accent-prime-strong); }
 
 body {
   background:
@@ -116,9 +186,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-.tier-free body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-free-soft), transparent), var(--background); }
-.tier-plus body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-plus-soft), transparent), var(--background); }
-.tier-prime body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-prime-soft), transparent), var(--background); }
+.theme-default body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-free-soft), transparent), var(--background); }
+.theme-blue body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-plus-soft), transparent), var(--background); }
+.theme-gold body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-prime-soft), transparent), var(--background); }
 
 h1, h2, h3 {
   letter-spacing: -0.03em;
@@ -148,9 +218,9 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-.tier-free .avatar-circle { background: var(--accent-free-soft); }
-.tier-plus .avatar-circle { background: var(--accent-plus-soft); }
-.tier-prime .avatar-circle { background: var(--accent-prime-soft); }
+.theme-default .avatar-circle { background: var(--accent-free-soft); }
+.theme-blue .avatar-circle { background: var(--accent-plus-soft); }
+.theme-gold .avatar-circle { background: var(--accent-prime-soft); }
 
 .badge {
   font-size: 0.65rem;
@@ -242,18 +312,18 @@ h1, h2, h3 {
   box-shadow: 0 0 0 rgba(186, 255, 57, 0);
 }
 
-.tier-free .btn-primary { background: var(--accent-free); box-shadow: 0 0 0 var(--accent-free-glow); }
-.tier-plus .btn-primary { background: var(--accent-plus); box-shadow: 0 0 0 var(--accent-plus-glow); }
-.tier-prime .btn-primary { background: var(--accent-prime); box-shadow: 0 0 0 var(--accent-prime-glow); }
+.theme-default .btn-primary { background: var(--accent-free); box-shadow: 0 0 0 var(--accent-free-glow); }
+.theme-blue .btn-primary { background: var(--accent-plus); box-shadow: 0 0 0 var(--accent-plus-glow); }
+.theme-gold .btn-primary { background: var(--accent-prime); box-shadow: 0 0 0 var(--accent-prime-glow); }
 
 .btn-primary:hover {
   background: var(--accent-strong);
   box-shadow: 0 0 24px var(--accent-glow);
 }
 
-.tier-free .btn-primary:hover { background: var(--accent-free-strong); box-shadow: 0 0 24px var(--accent-free-glow); }
-.tier-plus .btn-primary:hover { background: var(--accent-plus-strong); box-shadow: 0 0 24px var(--accent-plus-glow); }
-.tier-prime .btn-primary:hover { background: var(--accent-prime-strong); box-shadow: 0 0 24px var(--accent-prime-glow); }
+.theme-default .btn-primary:hover { background: var(--accent-free-strong); box-shadow: 0 0 24px var(--accent-free-glow); }
+.theme-blue .btn-primary:hover { background: var(--accent-plus-strong); box-shadow: 0 0 24px var(--accent-plus-glow); }
+.theme-gold .btn-primary:hover { background: var(--accent-prime-strong); box-shadow: 0 0 24px var(--accent-prime-glow); }
 
 .btn-primary:active {
   transform: scale(0.98);
@@ -276,9 +346,9 @@ h1, h2, h3 {
   transition: background 0.15s, border-color 0.15s;
 }
 
-.tier-free .btn-ghost:hover { border-color: rgba(186, 255, 57, 0.3); }
-.tier-plus .btn-ghost:hover { border-color: rgba(56, 189, 248, 0.3); }
-.tier-prime .btn-ghost:hover { border-color: rgba(250, 204, 21, 0.3); }
+.theme-default .btn-ghost:hover { border-color: rgba(186, 255, 57, 0.3); }
+.theme-blue .btn-ghost:hover { border-color: rgba(56, 189, 248, 0.3); }
+.theme-gold .btn-ghost:hover { border-color: rgba(250, 204, 21, 0.3); }
 
 .input {
   background: rgba(255, 255, 255, 0.035);
@@ -295,9 +365,9 @@ h1, h2, h3 {
   border-color: var(--accent);
 }
 
-.tier-free .input:focus { border-color: var(--accent-free); }
-.tier-plus .input:focus { border-color: var(--accent-plus); }
-.tier-prime .input:focus { border-color: var(--accent-prime); }
+.theme-default .input:focus { border-color: var(--accent-free); }
+.theme-blue .input:focus { border-color: var(--accent-plus); }
+.theme-gold .input:focus { border-color: var(--accent-prime); }
 
 .input::placeholder {
   color: var(--muted);
@@ -309,9 +379,9 @@ h1, h2, h3 {
   font-weight: 700;
 }
 
-.tier-free .tab-active { border-bottom-color: var(--accent-free); }
-.tier-plus .tab-active { border-bottom-color: var(--accent-plus); }
-.tier-prime .tab-active { border-bottom-color: var(--accent-prime); }
+.theme-default .tab-active { border-bottom-color: var(--accent-free); }
+.theme-blue .tab-active { border-bottom-color: var(--accent-plus); }
+.theme-gold .tab-active { border-bottom-color: var(--accent-prime); }
 
 .tab-inactive {
   color: var(--muted);
@@ -322,9 +392,9 @@ h1, h2, h3 {
   background: var(--accent-glow);
 }
 
-.tier-free ::selection { background: var(--accent-free-glow); }
-.tier-plus ::selection { background: var(--accent-plus-glow); }
-.tier-prime ::selection { background: var(--accent-prime-glow); }
+.theme-default ::selection { background: var(--accent-free-glow); }
+.theme-blue ::selection { background: var(--accent-plus-glow); }
+.theme-gold ::selection { background: var(--accent-prime-glow); }
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   @layer utilities {
@@ -453,9 +523,9 @@ h1, h2, h3 {
   border-radius: 0.5rem;
 }
 
-.tier-free :focus-visible { outline-color: var(--accent-free); }
-.tier-plus :focus-visible { outline-color: var(--accent-plus); }
-.tier-prime :focus-visible { outline-color: var(--accent-prime); }
+.theme-default :focus-visible { outline-color: var(--accent-free); }
+.theme-blue :focus-visible { outline-color: var(--accent-plus); }
+.theme-gold :focus-visible { outline-color: var(--accent-prime); }
 
 input:focus-visible,
 button:focus-visible,
@@ -464,15 +534,15 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
-.tier-free input:focus-visible,
-.tier-free button:focus-visible,
-.tier-free a:focus-visible { outline-color: rgba(186, 255, 57, 0.7); }
-.tier-plus input:focus-visible,
-.tier-plus button:focus-visible,
-.tier-plus a:focus-visible { outline-color: rgba(56, 189, 248, 0.7); }
-.tier-prime input:focus-visible,
-.tier-prime button:focus-visible,
-.tier-prime a:focus-visible { outline-color: rgba(250, 204, 21, 0.7); }
+.theme-default input:focus-visible,
+.theme-default button:focus-visible,
+.theme-default a:focus-visible { outline-color: rgba(186, 255, 57, 0.7); }
+.theme-blue input:focus-visible,
+.theme-blue button:focus-visible,
+.theme-blue a:focus-visible { outline-color: rgba(56, 189, 248, 0.7); }
+.theme-gold input:focus-visible,
+.theme-gold button:focus-visible,
+.theme-gold a:focus-visible { outline-color: rgba(250, 204, 21, 0.7); }
 
 @media (prefers-reduced-motion: reduce) {
   html,

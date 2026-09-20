@@ -7,6 +7,7 @@ import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { TIER_CONFIG } from "@/lib/tier"
 import { useTierTheme } from "@/app/components/ThemeProvider"
+import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 
 const CATEGORIES = [
   { key: "tier", label: "Upgrade" },
@@ -19,64 +20,79 @@ const CATEGORIES = [
 
 function ThemesPicker({
   tier,
+  ownedCosmetics,
   themeChoice,
+  buyingId,
   onSelect,
+  onBuy,
 }: {
-  tier: "PLUS" | "PRIME"
-  themeChoice: "default" | "blue" | "gold" | null
-  onSelect: (value: "default" | "blue") => void
+  tier: "FREE" | "PLUS" | "PRIME"
+  ownedCosmetics: string[]
+  themeChoice: ThemeId | null
+  buyingId: string | null
+  onSelect: (value: ThemeId) => void
+  onBuy: (value: ThemeId) => void
 }) {
-  const isBlueActive = themeChoice === "blue"
-  const isGoldActive = tier === "PRIME" && (themeChoice === null || themeChoice === "gold")
-  // PLUS stays on Default Green unless Blue is explicitly picked.
-  // PRIME shows Default as active only when explicitly picked (gold = neither card).
-  const isDefaultActive = tier === "PLUS" ? !isBlueActive : themeChoice === "default"
+  const activeId: ThemeId = themeChoice && isThemeUnlocked(themeChoice, tier, ownedCosmetics) ? themeChoice : "default"
 
   return (
     <div className="mt-2">
-      <p className="text-white/40 text-xs mb-2 px-1">
-        Default Green is on for everyone — Plus Blue is opt-in.
+      <p className="text-white/40 text-xs mb-3 px-1">
+        Default Green is on for everyone. Plus unlocks Blue, Prime unlocks Blue &amp; Gold — all opt-in.
+        Everyone can also buy extra colorways below.
       </p>
-      {isGoldActive && (
-        <div className="card p-3 mb-3 border-[#facc15]/20 bg-[#facc15]/5">
-          <p className="text-xs text-[#facc15]">👑 Prime Gold is active by default — choose below to switch.</p>
-        </div>
-      )}
       <div className="grid grid-cols-2 gap-3">
-        <div className={`card p-4 text-center ${isDefaultActive ? "border-[#baff39]/40 bg-[#baff39]/5" : ""}`}>
-          <div
-            className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
-            style={{ background: "linear-gradient(135deg, #baff39 50%, #050505 50%)" }}
-          />
-          <p className="font-semibold text-sm">Default Green</p>
-          <p className={`text-xs mb-3 ${isDefaultActive ? "text-primary" : "text-white/40"}`}>
-            {isDefaultActive ? "✓ Active" : "Classic Yard look"}
-          </p>
-          <button
-            className={`w-full text-sm ${isDefaultActive ? "btn-ghost" : "btn-primary"}`}
-            disabled={isDefaultActive}
-            onClick={() => onSelect("default")}
-          >
-            {isDefaultActive ? "✓ Active" : "Use"}
-          </button>
-        </div>
-        <div className={`card p-4 text-center ${isBlueActive ? "border-sky-500/40 bg-sky-500/5" : ""}`}>
-          <div
-            className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
-            style={{ background: "linear-gradient(135deg, #38bdf8 50%, #050505 50%)" }}
-          />
-          <p className="font-semibold text-sm">Plus Blue</p>
-          <p className={`text-xs mb-3 ${isBlueActive ? "text-sky-300" : "text-white/40"}`}>
-            {isBlueActive ? "✓ Active" : "Plus perk"}
-          </p>
-          <button
-            className={`w-full text-sm ${isBlueActive ? "btn-ghost" : "btn-primary"}`}
-            disabled={isBlueActive}
-            onClick={() => onSelect("blue")}
-          >
-            {isBlueActive ? "✓ Active" : "Use"}
-          </button>
-        </div>
+        {THEMES.map((theme) => {
+          const isActive = activeId === theme.id
+          const unlocked = isThemeUnlocked(theme.id, tier, ownedCosmetics)
+          const isPaid = theme.pricePesewas > 0
+          const isBuying = buyingId === theme.id
+
+          return (
+            <div
+              key={theme.id}
+              className={`card p-4 text-center ${isActive ? `${theme.activeBorderClass} ${theme.activeBgClass}` : ""}`}
+            >
+              <div
+                className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
+                style={{ background: `linear-gradient(135deg, ${theme.swatchFrom} 50%, ${theme.swatchTo} 50%)` }}
+              />
+              <p className="font-semibold text-sm">{theme.name}</p>
+              <p className={`text-xs mb-3 ${isActive ? theme.activeTextClass : "text-white/40"}`}>
+                {isActive
+                  ? "✓ Active"
+                  : unlocked
+                    ? theme.description
+                    : isPaid
+                      ? theme.description
+                      : theme.requiresTier === "PRIME"
+                        ? "Prime perk"
+                        : "Plus perk"}
+              </p>
+              {isActive ? (
+                <button className="w-full text-sm btn-ghost" disabled>
+                  ✓ Active
+                </button>
+              ) : unlocked ? (
+                <button className="w-full text-sm btn-primary" onClick={() => onSelect(theme.id)}>
+                  Use
+                </button>
+              ) : isPaid ? (
+                <button
+                  className="w-full text-sm btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={buyingId !== null}
+                  onClick={() => onBuy(theme.id)}
+                >
+                  {isBuying ? "..." : `Buy — GHS ${(theme.pricePesewas / 100).toFixed(2)}`}
+                </button>
+              ) : (
+                <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
+                  🔒 {theme.requiresTier === "PRIME" ? "Prime" : "Plus"} only
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -294,20 +310,12 @@ export default function ShopPage() {
       {category === "themes" && !me && (
         <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
       )}
-      {category === "themes" && me?.tier === "FREE" && (
-        <div className="card p-5 mt-2 text-center">
-          <p className="text-3xl mb-2">🎨</p>
-          <p className="font-semibold text-sm mb-1">Themes unlock on Plus</p>
-          <p className="text-white/40 text-xs mb-3">Plus and Prime members can switch between Default Green and Plus Blue. Everyone starts on Default Green.</p>
-          <button className="btn-primary w-full text-sm" onClick={() => router.push("/upgrade")}>
-            View Upgrades
-          </button>
-        </div>
-      )}
-      {category === "themes" && (me?.tier === "PLUS" || me?.tier === "PRIME") && (
+      {category === "themes" && me && (
         <ThemesPicker
           tier={me.tier}
+          ownedCosmetics={me.ownedCosmetics || []}
           themeChoice={themeChoice}
+          buyingId={loading}
           onSelect={(value) => {
             try {
               window.localStorage.setItem("yard-theme", value)
@@ -325,6 +333,7 @@ export default function ShopPage() {
               // ignore dispatch failures
             }
           }}
+          onBuy={(themeId) => buy("/api/shop/theme", themeId, { themeId })}
         />
       )}
     </main>
