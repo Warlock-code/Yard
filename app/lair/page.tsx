@@ -234,6 +234,14 @@ export default function LairPage() {
         <span className="text-white/40">→</span>
       </button>
 
+      <button
+        className="card w-full p-4 mb-3 flex items-center justify-between"
+        onClick={() => router.push("/owned")}
+      >
+        <span className="font-semibold text-sm">🎭 Owned — Avatars & Themes</span>
+        <span className="text-white/40">→</span>
+      </button>
+
       <div className="card p-4 mb-3">
         <div className="flex items-center justify-between mb-2">
           <p className="font-semibold">Image storage</p>
