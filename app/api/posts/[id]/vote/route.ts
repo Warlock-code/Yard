@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { isBoostActive } from "@/lib/boost"
 import { awardEarning } from "@/lib/earnings"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
@@ -65,5 +66,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   emitVoteUpdate(post.campus, post.id, post.yeahs)
 
-  return NextResponse.json({ post })
+  return NextResponse.json({ post: { ...post, boosted: isBoostActive(post) } })
 }

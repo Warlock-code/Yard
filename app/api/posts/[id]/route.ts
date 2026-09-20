@@ -83,5 +83,5 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updated = await prisma.post.update({ where: { id }, data: { text: text.trim() } })
-  return NextResponse.json({ post: updated })
+  return NextResponse.json({ post: { ...updated, boosted: isBoostActive(updated) } })
 }
