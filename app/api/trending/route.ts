@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 import {
   getTrendingHashtags,
   getTrendingPosts,
@@ -57,8 +58,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user || user.tier !== "PRIME") {
-    return NextResponse.json({ error: "Admin only." }, { status: 403 })
+  if (!user || getEffectiveTier(user) !== "PRIME") {
+    return NextResponse.json({ error: "Prime feature — recomputing trending scores requires an active Prime subscription." }, { status: 403 })
   }
 
   let targetCampus = user.campus

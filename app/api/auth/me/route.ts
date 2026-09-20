@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { verifyToken } from "@/lib/auth"
-import { getEffectiveTier, getTierDaysLeft } from "@/lib/tier"
+import { getEffectiveTier, getTierDaysLeft, getEffectiveStorageLimitMB } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
   const totalPaidOut = paidOutSum._sum.amount || 0
   const effectiveTier = getEffectiveTier(user)
   const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
+  const effectiveStorageLimit = getEffectiveStorageLimitMB(user)
 
   return NextResponse.json({
     user: {
@@ -60,8 +61,8 @@ export async function GET(req: NextRequest) {
       availableBalancePesewas: totalEarned - totalPaidOut,
       hasPendingPayout: !!pendingPayout,
       storageUsed: Math.max(0, user.storageUsed),
-      storageLimit: user.storageLimit,
-      storageRemaining: Math.max(0, user.storageLimit - user.storageUsed),
+      storageLimit: effectiveStorageLimit,
+      storageRemaining: Math.max(0, effectiveStorageLimit - user.storageUsed),
     },
   })
 }

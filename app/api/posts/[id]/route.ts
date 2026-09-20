@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isBoostActive } from "@/lib/boost"
+import { getEffectiveTier } from "@/lib/tier"
 import { UTApi } from "uploadthing/server"
 import { getReadablePostWhere } from "@/lib/programAccess"
 
@@ -66,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  if (user.tier === "FREE") {
+  if (getEffectiveTier(user) === "FREE") {
     return NextResponse.json({ error: "Editing posts requires Plus or Prime." }, { status: 403 })
   }
 

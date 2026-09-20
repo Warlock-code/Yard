@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 import { emitBattleUpdate } from "@/server/socket"
 import type { Prisma } from "@prisma/client"
 
@@ -9,6 +10,8 @@ type BattleEntryCreateInput = Prisma.BattleEntryCreateInput
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+
+  const effectiveTier = getEffectiveTier(user)
 
   const { promptId, text, imageUrl, voiceUrl } = await req.json()
 
@@ -23,11 +26,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This battle is not open for entries." }, { status: 400 })
   }
 
-  if (prompt.isPrimeOnly && user.tier !== "PRIME") {
+  if (prompt.isPrimeOnly && effectiveTier !== "PRIME") {
     return NextResponse.json({ error: "This battle is for Prime members only." }, { status: 403 })
   }
 
-  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && user.tier !== "PRIME") {
+  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && effectiveTier !== "PRIME") {
     return NextResponse.json({ error: "Early access for Prime members only." }, { status: 403 })
   }
 
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
     prompt: { connect: { id: promptId } },
     user: { connect: { id: user.id } },
     campus: user.campus,
-    isPrime: user.tier === "PRIME",
+    isPrime: effectiveTier === "PRIME",
     entryType,
     roundNumber: prompt.roundNumber,
   }

@@ -1,6 +1,7 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveStorageLimitMB } from "@/lib/tier"
 
 const f = createUploadthing()
 
@@ -10,7 +11,7 @@ const authMiddleware = async ({ req }: { req: Request }) => {
   if (!token) throw new Error("Unauthorized")
   const user = await getCurrentUser(token)
   if (!user) throw new Error("Unauthorized")
-  return { userId: user.id, storageLimit: user.storageLimit, storageUsed: user.storageUsed }
+  return { userId: user.id, storageLimit: getEffectiveStorageLimitMB(user), storageUsed: user.storageUsed }
 }
 
 export const ourFileRouter = {

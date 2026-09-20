@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  const effectiveTier = getEffectiveTier(user)
 
   const { searchParams } = new URL(req.url)
   const promptId = searchParams.get("promptId")
@@ -121,11 +123,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ prompt: null, entries: [] })
   }
 
-  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && user.tier !== "PRIME") {
+  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && effectiveTier !== "PRIME") {
     return NextResponse.json({ prompt, entries: [], earlyAccess: true })
   }
 
-  if (prompt.isPrimeOnly && user.tier !== "PRIME") {
+  if (prompt.isPrimeOnly && effectiveTier !== "PRIME") {
     return NextResponse.json({ prompt, entries: [], primeOnly: true })
   }
 

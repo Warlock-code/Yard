@@ -69,6 +69,21 @@ export function getMonthlyFreezeGrant(tier: AccountTier): number {
   }
 }
 
+/** Extra storage (MB) granted as a tier perk, on top of the base + purchased add-ons.
+ *  Not persisted to `user.storageLimit` — computed dynamically so it tracks the
+ *  user's *current* effective tier and disappears automatically on downgrade/expiry. */
+export function getTierStorageBonusMB(tier: AccountTier): number {
+  switch (tier) {
+    case "PRIME": return 50
+    default: return 0
+  }
+}
+
+/** `user.storageLimit` (base + purchased add-ons) plus the current tier's storage perk. */
+export function getEffectiveStorageLimitMB(user: { tier: AccountTier; tierExpiresAt: Date | null; storageLimit: number }): number {
+  return user.storageLimit + getTierStorageBonusMB(getEffectiveTier(user))
+}
+
 export function shouldGrantWeeklyBoost(user: { tier: AccountTier; tierExpiresAt: Date | null; lastFreeBoostGrant: Date | null }): boolean {
   const effectiveTier = getEffectiveTier(user)
   if (effectiveTier === "FREE") return false

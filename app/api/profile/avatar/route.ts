@@ -2,21 +2,25 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { AVATAR_EMOJI_MAP } from "@/lib/avatars"
+import { getEffectiveTier, getTierAvatars } from "@/lib/tier"
+import type { AccountTier } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
 
-const TIER_AVATARS: Record<string, string[]> = {
-  FREE: ["👻"],
-  PLUS: ["👻", "🐍", "👽"],
-  PRIME: ["👻", "🐍", "👽", "🧙", "🦇", "🕷️", "😂"],
-}
+const DEFAULT_AVATAR_EMOJI = "👻"
 
-const COSMETIC_EMOJI_MAP = AVATAR_EMOJI_MAP
-
-function unlockedSet(user: { tier: string; ownedCosmetics: string[] }) {
-  const set = new Set(TIER_AVATARS[user.tier] || TIER_AVATARS.FREE)
+/** Free-with-tier avatars must match `lib/avatars.ts`'s `common` rarity set
+ *  (via `getTierAvatars`), so what a user can equip is consistent with what
+ *  the Shop/Owned pages advertise as unlocked-for-your-tier. */
+function unlockedSet(user: { tier: AccountTier; tierExpiresAt: Date | null; ownedCosmetics: string[] }) {
+  const set = new Set<string>([DEFAULT_AVATAR_EMOJI])
+  const effectiveTier = getEffectiveTier(user)
+  for (const avatarId of getTierAvatars(effectiveTier)) {
+    const emoji = AVATAR_EMOJI_MAP[avatarId]
+    if (emoji) set.add(emoji)
+  }
   user.ownedCosmetics.forEach((id: string) => {
-    const emoji = COSMETIC_EMOJI_MAP[id]
+    const emoji = AVATAR_EMOJI_MAP[id]
     if (emoji) set.add(emoji)
   })
   return set

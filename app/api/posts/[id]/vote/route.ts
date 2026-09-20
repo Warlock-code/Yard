@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isBoostActive } from "@/lib/boost"
 import { awardEarning } from "@/lib/earnings"
+import { getEffectiveTier } from "@/lib/tier"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitVoteUpdate } from "@/server/socket"
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const post = await prisma.post.update({ where: { id }, data: { yeahs: { increment: 1 } } })
   const owner = await prisma.user.findUnique({ where: { id: post.userId } })
 
-  if (owner && owner.tier === "PRIME") {
+  if (owner && getEffectiveTier(owner) === "PRIME") {
     await awardEarning(owner.id, "post_vote", post.id, PESEWAS_PER_VOTE)
     if (MILESTONES.includes(post.yeahs)) {
       await awardEarning(owner.id, "milestone_bonus", post.id, MILESTONE_BONUS_PESEWAS[post.yeahs])

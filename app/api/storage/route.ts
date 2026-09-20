@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveStorageLimitMB } from "@/lib/tier"
 import { UTApi } from "uploadthing/server"
 
 const BYTES_PER_MB = 1024 * 1024
@@ -55,7 +56,7 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({
     success: true,
     storageUsed: Math.max(0, updatedUser.storageUsed),
-    storageLimit: updatedUser.storageLimit,
-    storageRemaining: Math.max(0, updatedUser.storageLimit - updatedUser.storageUsed),
+    storageLimit: getEffectiveStorageLimitMB(updatedUser),
+    storageRemaining: Math.max(0, getEffectiveStorageLimitMB(updatedUser) - updatedUser.storageUsed),
   })
 }
