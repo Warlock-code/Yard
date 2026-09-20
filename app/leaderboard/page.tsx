@@ -60,13 +60,13 @@ export default function LeaderboardPage() {
         <>
           <div className="h-px bg-white/10 my-4" />
           <p className="text-white/30 text-xs uppercase mb-2">Your position</p>
-          <div className="card p-3 flex items-center gap-3 border-[#baff39]/30">
-            <span className="font-black w-7 text-center text-[#baff39]">{myRank}</span>
-            <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+          <div className="card p-3 flex items-center gap-3 border-primary/30">
+            <span className="font-black w-7 text-center text-primary">{myRank}</span>
+            <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="focus-visible:outline-primary">
               <span className="text-xl">{me.avatarEmoji}</span>
             </Link>
             <div className="flex-1">
-              <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+              <Link href={`/u/${encodeURIComponent(me.ghostId)}`} aria-label={`View ${me.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-primary">
                 {me.ghostId}
               </Link>
             </div>

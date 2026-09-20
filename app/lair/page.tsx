@@ -236,7 +236,7 @@ export default function LairPage() {
       <div className="card p-4 mb-3">
         <div className="flex items-center justify-between mb-2">
           <p className="font-semibold">Image storage</p>
-          <Link href="/shop" className="text-sm text-[#baff39]">Get more storage</Link>
+          <Link href="/shop" className="text-sm text-primary">Get more storage</Link>
         </div>
         <p className="text-sm text-white/50">
           {me.storageUsed.toFixed(2)} MB used / {me.storageLimit.toFixed(2)} MB
@@ -247,7 +247,7 @@ export default function LairPage() {
         {storageError && (
           <p className="text-xs text-white/50 mb-3" role="alert">
             {storageError}{" "}
-            <button className="text-[#baff39]" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>Refresh</button>
+            <button className="text-primary" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>Refresh</button>
           </p>
         )}
         {storageLoading ? (

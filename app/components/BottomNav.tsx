@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
 import { useHoverPrefetch } from "@/lib/prefetch"
+import { useTierTheme } from "@/app/components/ThemeProvider"
 
 const TABS = [
   { href: "/feed", icon: "🏠", label: "Feed" },
@@ -19,8 +20,8 @@ export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
+  const { tier } = useTierTheme()
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade"]
-  // Visible on /search + /explore like X; hidden on post detail, admin, user profiles, auth, compose, payment.
   const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
 
   useHoverPrefetch()
@@ -95,7 +96,7 @@ export default function BottomNav() {
               aria-current={active ? "page" : undefined}
               className={`relative flex h-9 items-center justify-center gap-1 rounded-full text-base transition-all ${
                 active
-                  ? "bg-[#baff39]/15 text-[#baff39] px-3"
+                  ? "bg-primary/15 text-primary px-3"
                   : "w-9 text-white/40 hover:text-white/70"
               }`}
             >

@@ -3,6 +3,7 @@ import "./globals.css"
 import BottomNav from "@/app/components/BottomNav"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
 import { RoutePrefetcher } from "@/app/components/RoutePrefetcher"
+import { ThemeProvider } from "@/app/components/ThemeProvider"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://yardapp.me"),
@@ -59,8 +60,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <PushNotificationsSetup />
         <RoutePrefetcher />
-        {children}
-        <BottomNav />
+        <ThemeProvider>
+          {children}
+          <BottomNav />
+        </ThemeProvider>
       </body>
     </html>
   )

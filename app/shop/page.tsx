@@ -71,7 +71,7 @@ export default function ShopPage() {
             key={c.key}
             onClick={() => setCategory(c.key)}
             className={`whitespace-nowrap text-xs px-4 py-2 rounded-full border ${
-              category === c.key ? "border-[#baff39] text-[#baff39] bg-[#baff39]/10" : "border-white/10 text-white/40"
+              category === c.key ? "border-primary text-primary bg-primary/10" : "border-white/10 text-white/40"
             }`}
           >
             {c.label}
@@ -197,7 +197,7 @@ export default function ShopPage() {
                 <p className="text-3xl mb-2">{c.emoji}</p>
                 <p className="font-semibold text-sm">{c.name}</p>
                 <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
-                <p className={`text-xs mb-3 ${isFree ? "text-[#baff39]" : "text-white/40"}`}>
+                <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
                   {owned ? "✓ Owned" : isFree ? "Free (Prime)" : `GHS ${(price / 100).toFixed(2)}`}
                 </p>
                 <button

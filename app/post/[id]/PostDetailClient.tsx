@@ -355,7 +355,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
                 role="tab"
                 aria-selected={commentSort === s}
                 onClick={() => selectCommentSort(s)}
-                className={`px-2.5 py-1 rounded-full capitalize ${commentSort === s ? "bg-[#baff39] text-black font-semibold" : "text-white/50 hover:text-white"}`}
+                className={`px-2.5 py-1 rounded-full capitalize ${commentSort === s ? "bg-primary text-black font-semibold" : "text-white/50 hover:text-white"}`}
               >
                 {s === "top" ? "Top" : "Latest"}
               </button>

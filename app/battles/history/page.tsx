@@ -81,7 +81,7 @@ export default function BattleHistoryPage() {
             onClick={() => setFilter(f as typeof filter)}
             className={`flex-1 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
               filter === f
-                ? "bg-[#baff39] text-black"
+                ? "bg-primary text-black"
                 : "bg-white/5 text-white/60 hover:text-white"
             }`}
           >
@@ -159,7 +159,7 @@ export default function BattleHistoryPage() {
                         <div
                           key={entry.id}
                           className={`card p-3 flex items-center gap-3 ${
-                            entry.wonRound ? "border-[#baff39]/50 bg-[#baff39]/10" : ""
+                            entry.wonRound ? "border-primary/50 bg-primary/10" : ""
                           }`}
                         >
                           <span className="text-white/40 text-sm font-bold w-6 text-right">#{i + 1}</span>
@@ -171,7 +171,7 @@ export default function BattleHistoryPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-[#baff39]">🔥 {entry.votes}</p>
+                            <p className="font-bold text-primary">🔥 {entry.votes}</p>
                             {entry.wonRound && <span className="badge badge-prime text-xs">Advanced</span>}
                           </div>
                         </div>
@@ -196,7 +196,7 @@ export default function BattleHistoryPage() {
                                 <div className="flex items-center gap-2 text-right">
                                   <span className="text-lg">{round.winnerEntry.user.avatarEmoji}</span>
                                   <span className="text-white/60 text-sm">{round.winnerEntry.user.ghostId}</span>
-                                  <span className="font-bold text-[#baff39]">🔥 {round.winnerEntry.votes}</span>
+                                  <span className="font-bold text-primary">🔥 {round.winnerEntry.votes}</span>
                                 </div>
                               )}
                             </Link>

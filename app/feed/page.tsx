@@ -487,7 +487,7 @@ export default function FeedPage() {
           <Avatar emoji={me?.avatarEmoji || "👻"} size={32} />
         </button>
         <span className="font-black text-lg tracking-tight">
-          YARD<span className="text-[#baff39]">.</span>
+          YARD<span className="text-primary">.</span>
         </span>
         <div className="absolute right-4 w-10" aria-hidden="true" />
       </div>
@@ -507,7 +507,7 @@ export default function FeedPage() {
       </div>
       {pullToRefresh && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur border border-white/10 rounded-full px-4 py-2 text-sm text-[#baff39] font-medium animate-pulse">
+          <div className="bg-black/80 backdrop-blur border border-white/10 rounded-full px-4 py-2 text-sm text-primary font-medium animate-pulse">
             Release to refresh
           </div>
         </div>
@@ -651,7 +651,7 @@ export default function FeedPage() {
                         💬 {post.commentsCount}
                       </button>
                       {isOwn && (
-                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-[#baff39] touch-manipulation">
+                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-primary touch-manipulation">
                           🚀
                         </button>
                       )}
@@ -663,7 +663,7 @@ export default function FeedPage() {
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
                           title={isFollowing ? "Following" : "Follow"}
-                          className={`${isFollowing ? "text-[#baff39]" : "text-white/90"} hover:text-[#baff39] disabled:opacity-50 disabled:cursor-wait touch-manipulation`}
+                          className={`${isFollowing ? "text-primary" : "text-white/90"} hover:text-primary disabled:opacity-50 disabled:cursor-wait touch-manipulation`}
                         >
                           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d={isFollowing ? "M5 12l4 4L19 6" : "M12 5v14M5 12h14"} />
@@ -671,7 +671,7 @@ export default function FeedPage() {
                         </button>
                       )}
                       {isOwn && me && me.tier !== "FREE" && (
-                        <button onClick={(e) => { e.stopPropagation(); handleEdit(post.id, post.text) }} className="hover:text-[#baff39] touch-manipulation">
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(post.id, post.text) }} className="hover:text-primary touch-manipulation">
                           ✎
                         </button>
                       )}
@@ -700,7 +700,7 @@ export default function FeedPage() {
                           <div className="mt-3 pt-3 border-t border-white/10 -mx-4 px-4 bg-white/[0.02] rounded-b-xl">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs text-white/40">{post.commentsCount} comment{post.commentsCount !== 1 ? "s" : ""}</span>
-                              <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-semibold text-[#baff39] hover:text-[#d4ff70]">
+                              <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-semibold text-primary hover:text-primary">
                                 Open thread →
                               </Link>
                             </div>
@@ -761,7 +761,7 @@ export default function FeedPage() {
 
       <button
         onClick={() => router.push("/compose")}
-        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-[#baff39] text-black text-2xl flex items-center justify-center shadow-[0_8px_24px_rgba(186,255,57,0.35)] z-20"
+        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-primary text-black text-2xl flex items-center justify-center shadow-[0_8px_24px_var(--accent-glow)] z-20"
       >
         ✏️
       </button>
@@ -789,8 +789,8 @@ export default function FeedPage() {
 
               {/* Prime — mini stats + earnings chart, no upgrade */}
               {me.tier === "PRIME" && (
-                <div className="card p-3 mb-3 border-[#facc15]/20 bg-[#facc15]/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-[#facc15]/70 uppercase mb-2">Prime • earnings</p>
+                <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">Prime • earnings</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-black/30 rounded-lg p-2 border border-white/5">
                       <p className="text-[10px] text-white/30">Earned</p>
@@ -798,7 +798,7 @@ export default function FeedPage() {
                     </div>
                     <div className="bg-black/30 rounded-lg p-2 border border-white/5">
                       <p className="text-[10px] text-white/30">Balance</p>
-                      <p className="text-sm font-black text-[#baff39]">GHS {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
+                      <p className="text-sm font-black text-primary">GHS {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
                       {me.hasPendingPayout && <p className="text-[10px] text-amber-400">⏳ pending</p>}
                     </div>
                   </div>
@@ -807,7 +807,7 @@ export default function FeedPage() {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={primeEarnings}>
                           <XAxis dataKey="date" hide />
-                          <Bar dataKey="total" fill="#facc15" radius={[4,4,0,0]} />
+                          <Bar dataKey="total" fill="var(--accent)" radius={[4,4,0,0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -818,8 +818,8 @@ export default function FeedPage() {
                 </div>
               )}
               {me.tier === "PLUS" && (
-                <div className="card p-3 mb-3 border-sky-500/20 bg-sky-500/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-sky-300/70 uppercase mb-1">Plus</p>
+                <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">Plus</p>
                   <p className="text-xs text-white/60 mb-2">You have edits & priority. Prime unlocks earnings & full avatars.</p>
                   <button className="btn-primary w-full text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Go Prime — GHS 20</button>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} MB</p>
@@ -861,7 +861,7 @@ export default function FeedPage() {
                 <button
                   key={emoji}
                   onClick={() => handlePickAvatar(emoji)}
-                  className="relative w-14 h-14 mx-auto hover:bg-[#baff39]/20"
+                  className="relative w-14 h-14 mx-auto hover:bg-primary/20"
                 >
                   <Avatar emoji={emoji} size={56} />
                 </button>

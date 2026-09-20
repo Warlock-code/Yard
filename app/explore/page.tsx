@@ -106,7 +106,7 @@ function PostCard({ post }: { post: Post }) {
                 <Link
                   key={h.hashtag.tag}
                   href={`/search?q=%23${encodeURIComponent(h.hashtag.tag)}&tab=posts`}
-                  className="text-xs text-[#baff39]/80 hover:text-[#baff39] underline-offset-2 hover:underline"
+                  className="text-xs text-primary/80 hover:text-primary underline-offset-2 hover:underline"
                 >
                   #{h.hashtag.tag}
                 </Link>
@@ -219,7 +219,7 @@ export default function ExplorePage() {
               onClick={() => handleWindowChange(w.key)}
               className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                 window === w.key
-                  ? "bg-[#baff39]/15 text-[#baff39]"
+                  ? "bg-primary/15 text-primary"
                   : "text-white/50 hover:text-white/80 hover:bg-white/5"
               }`}
             >
@@ -261,9 +261,9 @@ export default function ExplorePage() {
             role="tab"
             aria-selected={window === w.key}
             onClick={() => handleWindowChange(w.key)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] ${
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
               window === w.key
-                ? "bg-[#baff39]/15 text-[#baff39]"
+                ? "bg-primary/15 text-primary"
                 : "text-white/50 hover:text-white/80 hover:bg-white/5"
             }`}
           >
@@ -288,9 +288,9 @@ export default function ExplorePage() {
               aria-controls={`explore-panel-${s.key}`}
               id={`explore-tab-${s.key}`}
               onClick={() => setActiveSection(s.key)}
-              className={`flex-1 whitespace-nowrap flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] ${
+              className={`flex-1 whitespace-nowrap flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                 selected
-                  ? "bg-[#baff39]/15 text-[#baff39]"
+                  ? "bg-primary/15 text-primary"
                   : "text-white/50 hover:text-white/80 hover:bg-white/5"
               }`}
             >
@@ -299,7 +299,7 @@ export default function ExplorePage() {
               {count !== null && count > 0 && (
                 <span
                   className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                    selected ? "bg-[#baff39]/20 text-[#baff39]" : "bg-white/10 text-white/50"
+                    selected ? "bg-primary/20 text-primary" : "bg-white/10 text-white/50"
                   }`}
                 >
                   {count}
@@ -360,10 +360,10 @@ export default function ExplorePage() {
                     <Link
                       key={ht.id}
                       href={`/search?q=%23${encodeURIComponent(ht.tag)}&tab=posts`}
-                      className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-[#baff39]/30 hover:bg-white/10 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
+                      className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-primary/30 hover:bg-white/10 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xl font-bold text-white/90 group-hover:text-[#baff39] transition-colors truncate">
+                        <span className="text-xl font-bold text-white/90 group-hover:text-primary transition-colors truncate">
                           #{ht.tag}
                         </span>
                         <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
@@ -372,7 +372,7 @@ export default function ExplorePage() {
                       </div>
                       <div className="flex items-center justify-between text-xs text-white/50">
                         <span>{ht.postsCount} posts</span>
-                        <span className="text-[#baff39]/80 font-medium">{ht.trendingScore.toFixed(1)}</span>
+                        <span className="text-primary/80 font-medium">{ht.trendingScore.toFixed(1)}</span>
                       </div>
                     </Link>
                   ))}
@@ -419,10 +419,10 @@ export default function ExplorePage() {
                           onClick={() => toggleFollow(user.id)}
                           disabled={busy}
                           aria-pressed={isFollowing}
-                          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] disabled:opacity-50 ${
+                          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 ${
                             isFollowing
-                              ? "bg-[#baff39]/15 text-[#baff39] border-[#baff39]/30"
-                              : "text-white/70 border-white/20 hover:text-[#baff39] hover:border-[#baff39]/50"
+                              ? "bg-primary/15 text-primary border-primary/30"
+                              : "text-white/70 border-white/20 hover:text-primary hover:border-primary/50"
                           }`}
                         >
                           {isFollowing ? "Following" : "Follow"}
@@ -452,7 +452,7 @@ export default function ExplorePage() {
                       key={post.id}
                       href={`/post/${post.id}`}
                       aria-label={`Open media post by ${post.user.ghostId}`}
-                      className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-[#baff39]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
+                      className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       {post.imageUrl && (
                         <OptimizedImage

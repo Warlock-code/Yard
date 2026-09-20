@@ -131,7 +131,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
 
   if (loading) return <p className="text-center text-white/40 mt-10">Summoning ghost...</p>
   if (error && !profile) return <div className="text-center mt-10 px-4"><p role="alert" className="text-white/60">{error}</p><button onClick={() => window.location.reload()} className="btn-ghost mt-3">Try again</button></div>
-  if (notFound || !profile) return <div className="text-center text-white/40 mt-10"><p>Ghost not found.</p><Link href="/feed" className="text-[#baff39]">Back to feed</Link></div>
+  if (notFound || !profile) return <div className="text-center text-white/40 mt-10"><p>Ghost not found.</p><Link href="/feed" className="text-primary">Back to feed</Link></div>
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 relative overflow-hidden">
@@ -178,8 +178,8 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
             aria-pressed={profile.isFollowing}
             className={`mt-3 px-5 py-2 rounded-full text-sm font-semibold border disabled:opacity-50 ${
               profile.isFollowing
-                ? "border-[#baff39] text-[#baff39] bg-[#baff39]/10"
-                : "border-white/20 text-white hover:border-[#baff39] hover:text-[#baff39]"
+                ? "border-primary text-primary bg-primary/10"
+                : "border-white/20 text-white hover:border-primary hover:text-primary"
             }`}
           >
             {profile.isFollowing ? "✓ Following" : "Follow"}

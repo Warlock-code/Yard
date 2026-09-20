@@ -49,8 +49,8 @@ export default function ActivityPage() {
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => selectTab("posts")} className={`text-xs px-4 py-2 rounded-full border ${tab === "posts" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>My Posts</button>
-        <button onClick={() => selectTab("liked")} className={`text-xs px-4 py-2 rounded-full border ${tab === "liked" ? "border-[#baff39] text-[#baff39]" : "border-white/10 text-white/40"}`}>Liked</button>
+        <button onClick={() => selectTab("posts")} className={`text-xs px-4 py-2 rounded-full border ${tab === "posts" ? "border-primary text-primary" : "border-white/10 text-white/40"}`}>My Posts</button>
+        <button onClick={() => selectTab("liked")} className={`text-xs px-4 py-2 rounded-full border ${tab === "liked" ? "border-primary text-primary" : "border-white/10 text-white/40"}`}>Liked</button>
       </div>
 
       {loading ? (
