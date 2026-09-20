@@ -46,13 +46,15 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
       }
     }
 
-    // Per-refresh tie rotation: tiny deterministic jitter keyed by
-    // seed + post id. Epsilon sits far below meaningful score gaps, so
-    // only (near-)tied posts rotate and real ranking is untouched.
+    // Per-refresh shuffle: deterministic jitter keyed by seed + post id,
+    // ±2% of score. Near-tied posts rotate every refresh — boosted ones
+    // included (jitter applies after the boost multiplier, so the boosted
+    // cluster shuffles internally while staying above genuinely colder
+    // posts). Posts with real score gaps hold their order.
     // No seed = legacy deterministic order.
     let tieJitter = 0
     if (tieSeed) {
-      tieJitter = (hash01(`${tieSeed}:${candidate.id}`) - 0.5) * 1e-6 * (1 + score)
+      tieJitter = (hash01(`${tieSeed}:${candidate.id}`) - 0.5) * 0.04 * (1 + score)
     }
 
     return { candidate, createdTime, score: score + tieJitter }

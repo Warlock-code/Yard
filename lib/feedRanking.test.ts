@@ -104,6 +104,32 @@ test("tie seed rotates exact ties across refreshes", () => {
   assert.ok(orders.size > 1, "expected ties to rotate across seeds")
 })
 
+test("tie seed rotates near-ties (same engagement, 1 min age gap)", () => {
+  const nearTied = [
+    post({ id: "a", createdAt: minutesAgo(snapshot, 30), yeahs: 5 }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 31), yeahs: 5 }),
+  ]
+  const orders = new Set(
+    Array.from({ length: 50 }, (_, i) =>
+      rankFeedCandidates(nearTied, viewer, snapshot, `refresh-${i}`).map((p) => p.id).join(",")
+    )
+  )
+  assert.ok(orders.size > 1, "expected near-ties to rotate across seeds")
+})
+
+test("tie seed rotates boosted posts among themselves", () => {
+  const boostedPair = [
+    post({ id: "a", createdAt: minutesAgo(snapshot, 30), yeahs: 5, boostedUntil: new Date(snapshot.getTime() + 3_600_000) }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 31), yeahs: 5, boostedUntil: new Date(snapshot.getTime() + 3_600_000) }),
+  ]
+  const orders = new Set(
+    Array.from({ length: 50 }, (_, i) =>
+      rankFeedCandidates(boostedPair, viewer, snapshot, `refresh-${i}`).map((p) => p.id).join(",")
+    )
+  )
+  assert.ok(orders.size > 1, "expected boosted near-ties to rotate across seeds")
+})
+
 test("tie seed never overrides real score gaps", () => {
   const ranked = rankFeedCandidates([
     post({ id: "cold", createdAt: minutesAgo(snapshot, 1440), yeahs: 2 }),
