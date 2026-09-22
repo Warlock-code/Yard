@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   if (user.tier !== "PRIME") {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "analytics", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: "Prime subscription required." }, { status: 403 })
   }
 

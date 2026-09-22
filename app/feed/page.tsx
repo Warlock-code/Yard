@@ -12,6 +12,7 @@ import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import { logPaywallHit } from "@/lib/logPaywall"
 
 function PostSkeleton() {
   return (
@@ -823,7 +824,7 @@ export default function FeedPage() {
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">Plus</p>
                   <p className="text-xs text-white/60 mb-2">You have edits & priority. Prime unlocks earnings & full avatars.</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Go Prime — GHS 20</button>
+                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>Go Prime — GHS 20</button>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} MB</p>
                 </div>
               )}
@@ -831,7 +832,7 @@ export default function FeedPage() {
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">Go Prime</p>
                   <p className="text-xs text-white/60 mb-2">Earnings, full avatars, payouts</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { setShowDrawer(false); router.push("/upgrade") }}>Upgrade — GHS 20</button>
+                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>Upgrade — GHS 20</button>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">or get Plus — GHS 10/mo</p>
                 </div>
               )}

@@ -27,10 +27,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (prompt.isPrimeOnly && effectiveTier !== "PRIME") {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "battle", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: "This battle is for Prime members only." }, { status: 403 })
   }
 
   if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && effectiveTier !== "PRIME") {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "battle", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: "Early access for Prime members only." }, { status: 403 })
   }
 

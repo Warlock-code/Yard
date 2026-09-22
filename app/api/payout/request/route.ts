@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
   if (!isTierActive(user as any)) {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "payout", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: user.tier !== "PRIME" ? "Only Prime accounts can request payouts." : "Your Prime expired — renew at yardapp.me/upgrade to request payouts.", }, { status: 403 })
   }
 

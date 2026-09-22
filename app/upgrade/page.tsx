@@ -5,11 +5,16 @@ import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { TIER_CONFIG } from "@/lib/tier"
+import { logPaywallHit } from "@/lib/logPaywall"
 
 export default function UpgradePage() {
   const router = useRouter()
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME" } | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    logPaywallHit("upgrade_view", "/upgrade").catch(() => {})
+  }, [])
 
   useEffect(() => {
     let active = true

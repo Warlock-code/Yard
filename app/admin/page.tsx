@@ -37,10 +37,11 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Settings"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Settings"
 
 const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: string }[] = [
   { key: "Overview", label: "Overview", icon: "▦", desc: "Revenue & health", group: "General" },
+  { key: "Insights", label: "Insights", icon: "◊", desc: "Growth & money", group: "General" },
   { key: "Users", label: "Users", icon: "○", desc: "Search & manage", group: "Manage" },
   { key: "Posts", label: "Posts", icon: "▤", desc: "Search & delete", group: "Manage" },
   { key: "Reports", label: "Reports", icon: "⚑", desc: "Flagged posts", group: "Moderation" },
@@ -148,6 +149,10 @@ export default function AdminPage() {
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [users, setUsers] = useState<AdminUser[]>([])
   const [posts, setPosts] = useState<AdminPost[]>([])
+  const [metrics, setMetrics] = useState<null | { range: number; dau: {day:string;count:number}[]; postsPerDay: {day:string;count:number}[]; paywallHits: {day:string;count:number}[]; funnel: {hits:number;checkoutStarted:number;paid:number}; conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; arppuPesewas:number; revenuePesewas:number; paidOutPesewas:number; payoutRatio:number }>(null)
+  const [range, setRange] = useState<7|30>(30)
+  const [metricsError, setMetricsError] = useState<string | null>(null)
+  const [metricsLoading, setMetricsLoading] = useState(false)
   const [userSearch, setUserSearch] = useState("")
   const [tierFilter, setTierFilter] = useState("ALL")
   const [postSearch, setPostSearch] = useState("")
@@ -208,6 +213,25 @@ export default function AdminPage() {
       adminFetch(`/api/admin/payouts${q}`).then((d) => setPayouts(d.payouts || [])).catch(() => {})
     }
   }, [section, payoutTab])
+
+  useEffect(() => {
+    if (section !== "Insights") return
+    let active = true
+    adminFetch("/api/admin/metrics?range="+range)
+      .then((d) => {
+        if (!active) return
+        setMetrics(d as unknown as { range: number; dau: {day:string;count:number}[]; postsPerDay: {day:string;count:number}[]; paywallHits: {day:string;count:number}[]; funnel: {hits:number;checkoutStarted:number;paid:number}; conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; arppuPesewas:number; revenuePesewas:number; paidOutPesewas:number; payoutRatio:number })
+        setMetricsError(null)
+      })
+      .catch((e: unknown) => {
+        if (!active) return
+        setMetrics(null)
+        const msg = errMsg(e, "Failed to load metrics.")
+        setMetricsError(msg.includes("404") ? "Metrics API not deployed yet" : msg)
+      })
+      .finally(() => { if (active) setMetricsLoading(false) })
+    return () => { active = false }
+  }, [section, range])
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -330,7 +354,7 @@ export default function AdminPage() {
   }
 
   const activeMeta = NAV.find((n) => n.key === section)!
-  const go = (s: SectionKey) => { setSection(s); setDrawer(false) }
+  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } setSection(s); setDrawer(false) }
 
   const sidebarNav = (
     <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
@@ -576,6 +600,146 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* ============ INSIGHTS ============ */}
+              {section === "Insights" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <p className="text-sm text-white/40"><span className="text-white font-black">Growth &amp; money</span> · last {range} days</p>
+                    <div className="flex gap-1.5 bg-black/40 border border-white/10 rounded-xl p-1 w-fit">
+                      {([7, 30] as const).map((r) => (
+                        <button key={r} onClick={() => { setMetricsLoading(true); setRange(r) }} className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${range === r ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{r}D</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {metricsLoading ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {[...Array(7)].map((_, i) => <div key={i} className="h-[128px] rounded-2xl skeleton-shimmer" />)}
+                    </div>
+                  ) : metricsError ? (
+                    <EmptyState icon="◊" title={metricsError === "Metrics API not deployed yet" ? "Metrics API not deployed yet" : "Could not load insights"} sub={metricsError === "Metrics API not deployed yet" ? "Deploy /api/admin/metrics to see growth and money." : metricsError} />
+                  ) : !metrics ? (
+                    <EmptyState icon="◊" title="No insights yet" sub="Waiting for metrics data." />
+                  ) : (
+                    <div className="space-y-4">
+                      {(() => {
+                        const dau = metrics.dau || []
+                        const perDay = metrics.postsPerDay || []
+                        const dauToday = dau.length > 0 ? dau[dau.length - 1].count : 0
+                        const dauSum = dau.reduce((a, d) => a + (d.count || 0), 0)
+                        const postsAvg = perDay.length > 0 ? perDay.reduce((a, d) => a + (d.count || 0), 0) / perDay.length : 0
+                        const hits = metrics.funnel?.hits || 0
+                        const paywallPct = dauSum > 0 ? (hits / dauSum) * 100 : 0
+                        const plusP = metrics.conversion ? (metrics.conversion.plusRate > 1 ? metrics.conversion.plusRate : metrics.conversion.plusRate * 100) : 0
+                        const primeP = metrics.conversion ? (metrics.conversion.primeRate > 1 ? metrics.conversion.primeRate : metrics.conversion.primeRate * 100) : 0
+                        const ratio = metrics.payoutRatio || 0
+                        const over = ratio > 1
+                        return (
+                          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                            <StatCard label="DAU today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
+                            <StatCard label="Posts/day avg" value={postsAvg.toFixed(1)} sub="posts per day" icon="📝" accent="#facc15" />
+                            <StatCard label="Paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / DAU`} icon="◊" accent="#38bdf8" />
+                            <StatCard label="Plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} Plus`} icon="★" accent="#38bdf8" />
+                            <StatCard label="Prime conv %" value={`${primeP.toFixed(1)}%`} sub={`${(metrics.conversion?.primeCount || 0).toLocaleString()} Prime`} icon="👑" accent="#facc15" />
+                            <StatCard label="ARPPU" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev`} icon="💰" accent="#baff39" />
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between min-h-[128px] hover:border-white/20 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/40">Payout ratio</p>
+                                <span className="w-7 h-7 rounded-lg grid place-items-center text-sm border" style={{ background: `${over ? "#f87171" : "#34d399"}14`, borderColor: `${over ? "#f87171" : "#34d399"}30` }}>₵</span>
+                              </div>
+                              <div className="mt-3">
+                                <p className={`text-[26px] leading-none font-black tracking-tight ${over ? "text-red-400" : "text-white"}`}>{ratio.toFixed(2)}x</p>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <p className="text-xs text-white/35">{ghs(metrics.paidOutPesewas || 0)} paid</p>
+                                </div>
+                              </div>
+                              <div className="h-1 rounded-full bg-white/[0.06] mt-3 overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, ratio * 100)}%`, background: over ? "#f87171" : "#34d399", opacity: 0.7 }} />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      <div className="grid lg:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader title="DAU" sub={`Daily active · last ${metrics.range || range}d`} />
+                          <div className="p-5">
+                            <div className="h-[190px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={(metrics.dau || []).map((d) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                  <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#baff39" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </Card>
+                        <Card>
+                          <CardHeader title="Posts / day" sub={`Volume · last ${metrics.range || range}d`} />
+                          <div className="p-5">
+                            <div className="h-[190px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={(metrics.postsPerDay || []).map((d) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                  <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#facc15" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+
+                      <div className="grid lg:grid-cols-3 gap-4">
+                        <Card className="lg:col-span-2">
+                          <CardHeader title="Paywall funnel" sub={`Hits → checkout → paid · last ${metrics.range || range}d`} />
+                          <div className="p-5 space-y-4">
+                            {(() => {
+                              const hits = metrics.funnel?.hits || 0
+                              const started = metrics.funnel?.checkoutStarted || 0
+                              const paid = metrics.funnel?.paid || 0
+                              const s1 = hits > 0 ? (started / hits) * 100 : 0
+                              const s2 = started > 0 ? (paid / started) * 100 : 0
+                              const overall = hits > 0 ? (paid / hits) * 100 : 0
+                              const rows = [
+                                { n: "Paywall hits", c: hits, pct: 100, color: "#baff39", note: "entry" },
+                                { n: "Checkout started", c: started, pct: s1, color: "#38bdf8", note: `${s1.toFixed(1)}% of hits` },
+                                { n: "Paid", c: paid, pct: overall, color: "#facc15", note: `${s2.toFixed(1)}% of checkout · ${overall.toFixed(1)}% overall` },
+                              ]
+                              return rows.map((r) => (
+                                <div key={r.n}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-bold">{r.n}</p>
+                                    <p className="text-sm font-black" style={{ color: r.color }}>{r.c.toLocaleString()} <span className="text-[11px] font-semibold text-white/35 ml-1">{r.note}</span></p>
+                                  </div>
+                                  <div className="h-2 rounded-full bg-white/[0.07] mt-2 overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: r.color }} />
+                                  </div>
+                                </div>
+                              ))
+                            })()}
+                          </div>
+                        </Card>
+                        <Card>
+                          <CardHeader title="Paywall logging" sub="Why zeros happen" />
+                          <div className="p-5">
+                            <p className="text-xs text-white/40 leading-relaxed">Funnel and paywall-hit % need the paywall-hit instrumentation. If hits stay at 0, the client is not logging paywall views and checkout events to <span className="text-white/70 font-mono">/api/admin/metrics</span> yet — wire that up to unlock growth and money reads.</p>
+                            <div className="mt-4 rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.06] p-3">
+                              <p className="text-[11px] font-bold text-[#baff39]">ARPPU = revenue / paid users</p>
+                              <p className="text-[11px] text-white/40 mt-1">Payout ratio over 1x means paying out more than revenue.</p>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ============ USERS ============ */}
               {section === "Users" && (
                 <div className="space-y-4">
@@ -769,28 +933,7 @@ export default function AdminPage() {
               )}
 
               {/* ============ SETTINGS ============ */}
-              {section === "Settings" && (
-                <div className="grid md:grid-cols-3 gap-4">
-                  {[
-                    { t: "Paystack", rows: [["Public Key", "pk_test_••••••"], ["Secret Key", "sk_test_••••••"], ["Webhook", "whsec_••••••"]], note: "Keys move real money. Rotate quarterly." },
-                    { t: "Encryption", rows: [["PAYOUT_ENCRYPTION_KEY", "••••••••••••"], ["Algorithm", "AES-256-GCM"]], note: "Encrypts bank / MoMo details at rest." },
-                    { t: "Environment", rows: [["APP_URL", "https://yardapp.me"], ["NODE_ENV", "production"]], note: "AuditLog on for all money actions." },
-                  ].map((c) => (
-                    <Card key={c.t}>
-                      <CardHeader title={c.t} />
-                      <div className="p-4 space-y-2">
-                        {c.rows.map(([k, v]) => (
-                          <div key={k} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
-                            <span className="text-xs font-mono text-white/70">{v}</span>
-                          </div>
-                        ))}
-                        <p className="text-[11px] text-amber-300/70 pt-1">{c.note}</p>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
+              {section === "Settings" && <SettingsPanel />}
 
             </motion.div>
           </AnimatePresence>
@@ -802,6 +945,132 @@ export default function AdminPage() {
             <p className="text-[11px] text-white/25 font-mono">AuditLog · {stats?.userCount || 0} users · {stats?.postCount || 0} posts</p>
           </div>
         </footer>
+      </div>
+    </div>
+  )
+}
+
+/* ===== SETTINGS (live server .env, masked) ===== */
+
+type KeyState = { set: boolean; chars: number; prefix: string | null; mode: "test" | "live" | null }
+type FlagState = { set: boolean; chars: number }
+
+type EnvStatus = {
+  source: string
+  paystack: {
+    publicKey: KeyState; secretKey: KeyState; webhookSecret: FlagState
+    plusPlan: string | null; primePlan: string | null
+    plusPricePesewas: number; primePricePesewas: number
+  }
+  security: { payoutEncryption: FlagState; jwt: FlagState; adminJwt: FlagState; cron: FlagState }
+  services: { resend: FlagState; uploadthing: FlagState; openrouter: FlagState; firebase: FlagState; vapid: FlagState; database: FlagState }
+  env: { nodeEnv: string; appUrl: string }
+}
+
+function SetPill({ ok, label }: { ok: boolean; label?: string }) {
+  return (
+    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide ${ok ? "bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25" : "bg-red-500/15 text-red-400 border border-red-500/25"}`}>
+      {label || (ok ? "set" : "missing")}
+    </span>
+  )
+}
+
+function SettingsPanel() {
+  const [env, setEnv] = useState<EnvStatus | null>(null)
+  const [err, setErr] = useState("")
+
+  useEffect(() => {
+    adminFetch("/api/admin/env-status")
+      .then((d) => setEnv(d as unknown as EnvStatus))
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : "Failed to load settings"))
+  }, [])
+
+  if (err) return <EmptyState icon="⚙" title="Settings unavailable" sub={err} />
+  if (!env) {
+    return (
+      <div className="grid md:grid-cols-3 gap-4">
+        {[0, 1, 2].map((i) => <div key={i} className="h-[240px] rounded-2xl skeleton-shimmer" />)}
+      </div>
+    )
+  }
+
+  const keyVal = (k: KeyState) =>
+    k.set ? `${k.prefix || "••••"}… (${k.chars} chars)` : "not set"
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-white/35">Source: <span className="text-white/70 font-mono font-bold">{env.source}</span> · secrets masked — full values never leave the server.</p>
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader title="Paystack" sub="Real money keys" right={
+            env.paystack.secretKey.mode
+              ? <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${env.paystack.secretKey.mode === "test" ? "bg-amber-500/15 text-amber-300 border border-amber-500/25" : "bg-red-500/15 text-red-400 border border-red-500/25"}`}>{env.paystack.secretKey.mode}</span>
+              : <SetPill ok={false} />
+          } />
+          <div className="p-4 space-y-2">
+            {[["Public key", keyVal(env.paystack.publicKey), env.paystack.publicKey.set],
+              ["Secret key", keyVal(env.paystack.secretKey), env.paystack.secretKey.set],
+              ["Webhook secret", env.paystack.webhookSecret.set ? `set (${env.paystack.webhookSecret.chars} chars)` : "not set", env.paystack.webhookSecret.set],
+              ["Plus plan", env.paystack.plusPlan || "not set", !!env.paystack.plusPlan],
+              ["Prime plan", env.paystack.primePlan || "not set", !!env.paystack.primePlan],
+              ["Plus price", ghs(env.paystack.plusPricePesewas), true],
+              ["Prime price", ghs(env.paystack.primePricePesewas), true],
+            ].map(([k, v, ok]) => (
+              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
+                <span className="flex items-center gap-2"><span className="text-xs font-mono text-white/70">{v}</span><SetPill ok={!!ok} /></span>
+              </div>
+            ))}
+            <p className="text-[11px] text-amber-300/70 pt-1">Keys move real money. Rotate quarterly.</p>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Security" sub="Auth & encryption" />
+          <div className="p-4 space-y-2">
+            {[["PAYOUT_ENCRYPTION_KEY", env.security.payoutEncryption.set],
+              ["JWT_SECRET", env.security.jwt.set],
+              ["ADMIN_JWT_SECRET", env.security.adminJwt.set],
+              ["CRON_SECRET", env.security.cron.set],
+            ].map(([k, ok]) => (
+              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
+                <SetPill ok={!!ok} />
+              </div>
+            ))}
+            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">Algorithm</span>
+              <span className="text-xs font-mono text-white/70">AES-256-GCM</span>
+            </div>
+            <p className="text-[11px] text-amber-300/70 pt-1">Encrypts bank / MoMo details at rest.</p>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Services & env" sub="Integrations" />
+          <div className="p-4 space-y-2">
+            {[["Resend (email)", env.services.resend.set],
+              ["UploadThing", env.services.uploadthing.set],
+              ["OpenRouter (AI)", env.services.openrouter.set],
+              ["Firebase (push)", env.services.firebase.set],
+              ["VAPID (web push)", env.services.vapid.set],
+              ["Database", env.services.database.set],
+            ].map(([k, ok]) => (
+              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
+                <SetPill ok={!!ok} />
+              </div>
+            ))}
+            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">NODE_ENV</span>
+              <span className="text-xs font-mono text-white/70">{env.env.nodeEnv}</span>
+            </div>
+            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">APP_URL</span>
+              <span className="text-xs font-mono text-white/70 truncate max-w-[160px]">{env.env.appUrl}</span>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   )

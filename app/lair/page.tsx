@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import { logPaywallHit } from "@/lib/logPaywall"
 
 type Me = {
   ghostId: string
@@ -295,7 +296,7 @@ export default function LairPage() {
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">Deeper in the shadows</p>
           <p className="text-sm text-white/50 mb-3">Plus gets perks. Prime gets perks + real earnings.</p>
-          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
+          <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             See plans
           </button>
         </div>
@@ -305,7 +306,7 @@ export default function LairPage() {
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">Go all the way</p>
           <p className="text-sm text-white/50 mb-3">Unlock real earnings from your posts and battles.</p>
-          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
+          <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             See Prime
           </button>
         </div>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
 import {
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user || getEffectiveTier(user) !== "PRIME") {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "trending", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: "Prime feature — recomputing trending scores requires an active Prime subscription." }, { status: 403 })
   }
 

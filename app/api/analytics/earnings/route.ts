@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
 
   const effectiveTier = getEffectiveTier(user)
   if (effectiveTier !== "PRIME") {
+    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "analytics", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
     return NextResponse.json({ error: "Prime subscription required." }, { status: 403 })
   }
 
