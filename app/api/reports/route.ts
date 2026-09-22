@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { moderateWithAI } from "@/lib/moderateWithAI"
 import { rateLimit } from "@/lib/rateLimit"
-import { getReadablePostWhere } from "@/lib/programAccess"
+import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -20,8 +20,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many reports. Try again later." }, { status: 429 })
   }
 
-  const post = await prisma.post.findFirst({ where: { id: postId, AND: [await getReadablePostWhere(user)] } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  // First try readable (visible) posts, then fall back to an already-hidden
+  // (archived) post so multiple users can still report the same post while
+  // it is pending admin review. The fallback re-checks campus/program
+  // scope ignoring `archived` so out-of-scope posts still 404.
+  let post = await prisma.post.findFirst({ where: { id: postId, AND: [await getReadablePostWhere(user)] } })
+  if (!post) {
+    const hidden = await prisma.post.findUnique({ where: { id: postId } })
+    if (!hidden) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+    const inScope = await prisma.post.findFirst({
+      where: {
+        id: postId,
+        OR: [
+          { visibility: "school" },
+          { AND: [{ visibility: "program" }, await getProgramPostWhere(user)] },
+        ],
+      },
+    })
+    if (!inScope) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+    post = hidden
+  }
   if (post.userId === user.id) {
     return NextResponse.json({ error: "You cannot report your own post." }, { status: 400 })
   }
@@ -38,9 +56,13 @@ export async function POST(req: NextRequest) {
     throw error
   }
 
+  // Hide immediately pending admin review. Admin "dismissed" restores
+  // (archived -> false) and "actioned" deletes the post.
+  await prisma.post.updateMany({ where: { id: postId, archived: false }, data: { archived: true } })
+
   const verdict = await moderateWithAI(post?.text || "", reason)
 
   await prisma.report.update({ where: { id: report.id }, data: { aiVerdict: verdict } })
 
-  return NextResponse.json({ report }, { status: 201 })
+  return NextResponse.json({ report, hidden: true }, { status: 201 })
 }

@@ -21,5 +21,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Payment not verified." }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true })
+  const fulfilled = await prisma.transaction.findUnique({ where: { reference }, select: { kind: true, metadata: true } })
+  return NextResponse.json({ success: true, kind: fulfilled?.kind ?? null, metadata: fulfilled?.metadata ?? null })
 }

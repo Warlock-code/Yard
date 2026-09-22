@@ -386,6 +386,9 @@ export default function FeedPage() {
     if (!reason?.trim()) return
     try {
       await apiPost("/api/reports", { postId, reason })
+      // Server archives the post immediately pending admin review —
+      // drop it locally so it vanishes instantly, then refresh.
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
       alert("Reported — this post is now hidden pending review.")
       loadFeed()
     } catch (err: unknown) {
@@ -490,7 +493,9 @@ export default function FeedPage() {
         <span className="font-black text-lg tracking-tight">
           YARD<span className="text-primary">.</span>
         </span>
-        <div className="absolute right-4 w-10" aria-hidden="true" />
+        <Link href="/explore" aria-label="Search" className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-lg text-white/60 hover:text-white">
+          <span aria-hidden="true">🔍</span>
+        </Link>
       </div>
 
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-2 grid grid-cols-4 z-10">

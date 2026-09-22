@@ -4,21 +4,23 @@ import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
 import { isNativeApp } from "@/lib/platform"
+import { getPurchaseCopy } from "@/lib/purchaseCopy"
 
 function CallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") || searchParams.get("trxref")
   const fromApp = searchParams.get("from_app") === "1"
-  const [result, setResult] = useState<{ reference: string; status: "success" | "failed" } | null>(null)
+  const [result, setResult] = useState<{ reference: string; status: "success" | "failed"; kind?: string } | null>(null)
   const status = !reference ? "failed" : result?.reference === reference ? result.status : "checking"
+  const copy = getPurchaseCopy(result?.kind ?? "")
 
   useEffect(() => {
     if (!reference) return
     let active = true
     apiPost("/api/paystack/verify", { reference })
-      .then(() => {
-        if (active) setResult({ reference, status: "success" })
+      .then((data) => {
+        if (active) setResult({ reference, status: "success", kind: typeof data?.kind === "string" ? data.kind : undefined })
         // If opened in Chrome Custom Tab from app, close it so user returns to app (App Link will keep them)
         if (isNativeApp() || fromApp) {
           import("@capacitor/browser").then(({ Browser }) => Browser.close().catch(() => {})).catch(() => {})
@@ -40,18 +42,26 @@ function CallbackContent() {
         <>
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#baff39] border-t-transparent mb-3" />
           <p className="text-white/60">Confirming your payment...</p>
-          <p className="text-white/30 text-xs mt-2">Auto-renew enabled — Prime/Plus will renew monthly with no action.</p>
+          <p className="text-white/30 text-xs mt-2">One moment while we verify with Paystack.</p>
         </>
       )}
       {status === "success" && (
         <>
-          <p className="text-2xl mb-2">✅</p>
-          <p className="font-semibold mb-1">Payment confirmed</p>
-          <p className="text-white/50 text-sm mb-4">Auto-renew is on — we&apos;ll deduct GHS 10/20 monthly automatically. Cancel anytime from upgrade page.</p>
+          <p className="text-2xl mb-2">{copy.emoji}</p>
+          <p className="font-semibold mb-1">{copy.title}</p>
+          <p className="text-white/50 text-sm mb-4">{copy.body}</p>
+          {copy.autoRenewNote && (
+            <p className="text-white/30 text-xs mb-4">{copy.autoRenewNote}</p>
+          )}
           <div className="flex flex-col gap-2 w-full max-w-xs">
-            <button className="btn-primary px-6" onClick={() => router.push("/lair")}>
-              Back to Lair
+            <button className="btn-primary px-6" onClick={() => router.push(copy.ctaHref)}>
+              {copy.ctaLabel}
             </button>
+            {copy.secondaryHref && (
+              <button className="btn-ghost px-6" onClick={() => router.push(copy.secondaryHref!)}>
+                {copy.secondaryHref === "/feed" ? "Back to Feed" : "Continue"}
+              </button>
+            )}
             {fromApp && (
               <a className="btn-ghost text-center text-sm" href={intentLink}>
                 Open in Yard app →

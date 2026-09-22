@@ -9,7 +9,7 @@ import { useTierTheme } from "@/app/components/ThemeProvider"
 
 const TABS = [
   { href: "/feed", icon: "🏠", label: "Feed" },
-  { href: "/explore", icon: "🔍", label: "Explore", alsoActiveOn: ["/search"] },
+  { href: "/lair", icon: "👻", label: "Lair", alsoActiveOn: ["/lair/activity"] },
   { href: "/battles", icon: "⚔️", label: "Battles" },
   { href: "/leaderboard", icon: "🏆", label: "Boards" },
   { href: "/shop", icon: "🛍️", label: "Market" },
