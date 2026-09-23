@@ -21,7 +21,7 @@ export default function BottomNav() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
   const { tier } = useTierTheme()
-  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin"]
+  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin", "/download"]
   const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
 
   useHoverPrefetch()
