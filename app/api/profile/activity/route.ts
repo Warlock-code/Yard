@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { isBoostActive } from "@/lib/boost"
+import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 export const dynamic = "force-dynamic"
 
@@ -23,13 +24,14 @@ export async function GET(req: NextRequest) {
     })
     const posts = await prisma.post.findMany({
       where: { id: { in: votes.map((vote) => vote.postId) }, AND: [readablePosts] },
-      include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
     })
     const postsById = new Map(posts.map((post) => [post.id, post]))
     const likedPosts = votes.flatMap((vote) => {
       const post = postsById.get(vote.postId)
       return post ? [{ ...post, boosted: isBoostActive(post) }] : []
     })
+    await attachChampionTrophiesDeep(likedPosts)
     return NextResponse.json({ posts: likedPosts })
   }
 
@@ -37,8 +39,11 @@ export async function GET(req: NextRequest) {
     where: { userId: user.id, AND: [readablePosts] },
     orderBy: { createdAt: "desc" },
     take: 30,
-    include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
   })
+  // Wear-off: never trust stored `boosted` flag — recompute so expired
+  // boosts lose the tag + re-rank as normal posts.
+  await attachChampionTrophiesDeep(posts)
   // Wear-off: never trust stored `boosted` flag — recompute so expired
   // boosts lose the tag + re-rank as normal posts.
   return NextResponse.json({

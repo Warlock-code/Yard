@@ -5,13 +5,14 @@ import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type Entry = {
   id: string
   text: string
   votes: number
   isPrime: boolean
-  user: { ghostId: string; avatarEmoji: string; tier: string }
+  user: { ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 type Prompt = {
@@ -165,6 +166,7 @@ export default function BattlesClient() {
                     </Link>
                     {entry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                     {entry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                    <ChampionTrophies trophies={entry.user.championTrophies} />
                   </div>
                   <p className="text-white/90 mb-3">{entry.text}</p>
                   <button
@@ -187,7 +189,7 @@ export default function BattlesClient() {
 
 function BattleShareButton({ promptId, promptText, onClick }: { promptId: string; promptText: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="btn-ghost text-sm px-4" aria-label="Share battle">
+    <button onClick={onClick} className="btn-ghost !py-1.5 !px-3 !text-xs shrink-0" aria-label="Share battle">
       🔗 Share
     </button>
   )

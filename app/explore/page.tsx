@@ -7,6 +7,7 @@ import { timeAgo } from "@/lib/timeAgo"
 import RichText from "@/app/components/RichText"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 function SearchBarWrapper({ campus }: { campus: string }) {
   return <SearchBar placeholder="Search posts, ghosts, hashtags..." campus={campus} />
@@ -21,7 +22,7 @@ type Post = {
   commentsCount: number
   boosted: boolean
   createdAt: string
-  user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
+  user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
   hashtags: { hashtag: { tag: string } }[]
 }
 
@@ -37,6 +38,7 @@ type User = {
   ghostId: string
   avatarEmoji: string
   tier: string
+  championTrophies?: number
   _count: { followers: number; posts: number }
 }
 
@@ -80,6 +82,7 @@ function PostCard({ post }: { post: Post }) {
             </Link>
             {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
             {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+            <ChampionTrophies trophies={post.user.championTrophies} className="text-[10px] leading-none" />
             {post.boosted && <span className="badge badge-boosted">Boosted</span>}
             <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
           </div>
@@ -410,6 +413,7 @@ export default function ExplorePage() {
                             <span className="font-semibold truncate">{user.ghostId}</span>
                             {user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                             {user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                            <ChampionTrophies trophies={user.championTrophies} className="text-[10px] leading-none" />
                           </div>
                           <p className="text-white/40 text-sm mt-0.5">
                             {user._count.followers} follower{user._count.followers !== 1 ? "s" : ""} ·{" "}

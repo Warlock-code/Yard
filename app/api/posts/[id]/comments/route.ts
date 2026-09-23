@@ -6,6 +6,7 @@ import { notifyMentions } from "@/lib/mentions"
 import { rateLimit } from "@/lib/rateLimit"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitCommentAdded } from "@/server/socket"
+import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       text,
       parentId: parentId || null,
     },
-    include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
   })
 
   await prisma.post.update({
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await notifyMentions({ text, senderUser: user, href: `/post/${post?.id ?? id}`, excludeUserId: user.id }).catch(() => {})
 
+  await attachChampionTrophiesDeep(comment)
   emitCommentAdded(post.campus, comment.postId, {
     postId: comment.postId,
     comment: {
@@ -99,6 +101,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ghostId: comment.user.ghostId,
         avatarEmoji: comment.user.avatarEmoji,
         tier: comment.user.tier,
+        championTrophies: (comment.user as { championTrophies?: number }).championTrophies ?? 0,
       },
       parentId: comment.parentId,
       yeahs: 0,
@@ -121,7 +124,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const all = await prisma.comment.findMany({
     where: { postId: id },
     include: {
-      user: { select: { ghostId: true, avatarEmoji: true, tier: true } },
+      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } },
       votes: { where: { userId: user.id }, select: { id: true } },
     },
   })
@@ -157,6 +160,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     )
   }
   for (const r of roots) sortReplies(r.replies)
+
+  await attachChampionTrophiesDeep(roots)
 
   const strip = (n: Node): unknown => ({
     id: n.id,

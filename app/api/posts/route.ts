@@ -8,6 +8,7 @@ import { rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 import { emitNewPost } from "@/server/socket"
 import { processPostHashtags } from "@/lib/search"
+import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (postWithUser) {
+    const authorTrophies = await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())
     emitNewPost(postWithUser.campus, {
       id: postWithUser.id,
       text: postWithUser.text,
@@ -169,6 +171,7 @@ export async function POST(req: NextRequest) {
         ghostId: postWithUser.user.ghostId,
         avatarEmoji: postWithUser.user.avatarEmoji,
         tier: postWithUser.user.tier,
+        championTrophies: authorTrophies.get(user.id) ?? 0,
       },
       campus: postWithUser.campus,
     })
@@ -246,7 +249,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     // tier + tierExpiresAt feed the ranking-only tier boost in
     // rankFeedCandidates (expired tiers count as FREE). No UI effect.
-    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } } },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
   })
 
   const rankedPosts = rankFeedCandidates(posts, {
@@ -265,6 +268,8 @@ export async function GET(req: NextRequest) {
   const nextCursor = startIndex + FEED_PAGE_SIZE < rankedPosts.length
     ? page[page.length - 1]?.id ?? null
     : null
+
+  await attachChampionTrophies(page)
 
   return NextResponse.json({
     posts: page.map((post) => ({

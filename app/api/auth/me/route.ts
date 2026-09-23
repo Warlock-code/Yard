@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { verifyToken } from "@/lib/auth"
 import { getEffectiveTier, getTierDaysLeft, getEffectiveStorageLimitMB } from "@/lib/tier"
+import { getChampionTrophies } from "@/lib/champions"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
   const effectiveTier = getEffectiveTier(user)
   const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
   const effectiveStorageLimit = getEffectiveStorageLimitMB(user)
+  const championTrophies = (await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())).get(user.id) ?? 0
 
   return NextResponse.json({
     user: {
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
       storageUsed: Math.max(0, user.storageUsed),
       storageLimit: effectiveStorageLimit,
       storageRemaining: Math.max(0, effectiveStorageLimit - user.storageUsed),
+      championTrophies,
     },
   })
 }

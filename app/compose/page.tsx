@@ -8,6 +8,7 @@ import { getProgramKey } from "@/lib/program"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import RichText from "@/app/components/RichText"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type StorageQuota = {
   campus: string
@@ -17,6 +18,7 @@ type StorageQuota = {
   ghostId?: string
   avatarEmoji?: string
   tier?: string
+  championTrophies?: number
 }
 
 const FALLBACK_SUGGESTED = ["#gossip", "#confession", "#meme", "#gist"] as const
@@ -268,6 +270,7 @@ export default function ComposePage() {
                     <span className="font-semibold">{(quota as any)?.ghostId || "YourGhost"}</span>
                     {(quota as any)?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}
                     {(quota as any)?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                    <ChampionTrophies trophies={(quota as any)?.championTrophies} className="text-[10px] leading-none" />
                     <span className="text-white/30">· now</span>
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-white/30">
                       {visibility === "program" ? "🎓 Program" : "🏫 School"} • {(quota as any)?.campus || "Campus"}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
 import { emitBattleUpdate } from "@/server/socket"
+import { attachChampionTrophies } from "@/lib/champions"
 import type { Prisma } from "@prisma/client"
 
 type BattleEntryCreateInput = Prisma.BattleEntryCreateInput
@@ -79,9 +80,10 @@ export async function POST(req: NextRequest) {
   const entries = await prisma.battleEntry.findMany({
     where: { promptId },
     orderBy: { votes: "desc" },
-    include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+    include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
   })
   const updatedPrompt = await prisma.battlePrompt.findUnique({ where: { id: promptId } })
+  await attachChampionTrophies(entries)
   emitBattleUpdate(promptId, {
     id: promptId,
     status: updatedPrompt?.status || "ACTIVE",
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
       text: e.text,
       votes: e.votes,
       isPrime: e.isPrime,
-      user: { ghostId: e.user.ghostId, avatarEmoji: e.user.avatarEmoji, tier: e.user.tier },
+      user: { ghostId: e.user.ghostId, avatarEmoji: e.user.avatarEmoji, tier: e.user.tier, championTrophies: (e.user as { championTrophies?: number }).championTrophies ?? 0 },
     })),
   })
 

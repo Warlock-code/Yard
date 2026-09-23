@@ -12,6 +12,7 @@ import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 import { logPaywallHit } from "@/lib/logPaywall"
 
 function PostSkeleton() {
@@ -58,7 +59,7 @@ type Post = {
   boosted: boolean
   isFollowing: boolean
   createdAt: string
-  user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
+  user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 type Me = {
@@ -76,6 +77,7 @@ type Me = {
   totalEarnedPesewas?: number
   availableBalancePesewas?: number
   hasPendingPayout?: boolean
+  championTrophies?: number
   storageUsed?: number
   storageLimit?: number
   ghostCoins?: number
@@ -579,6 +581,7 @@ export default function FeedPage() {
                       </Link>
                       {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ Prime</span>}
                       {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                      <ChampionTrophies trophies={post.user.championTrophies} />
                       {post.boosted && <span className="badge badge-boosted">Boosted</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
@@ -724,6 +727,7 @@ export default function FeedPage() {
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold text-xs">{c.user?.ghostId || c.ghostId}</span>
                                         {c.user?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                                        <ChampionTrophies trophies={c.user?.championTrophies} className="text-[10px] leading-none" />
                                         <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
                                       </div>
                                       <p className="text-sm text-white/90 line-clamp-2">{c.text}</p>
@@ -783,7 +787,7 @@ export default function FeedPage() {
                   <Avatar emoji={me.avatarEmoji} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}</p>
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
                   {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
                 </div>

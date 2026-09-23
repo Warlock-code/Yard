@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { apiGet } from "@/lib/useApi"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
-type Ranked = { id: string; ghostId: string; avatarEmoji: string; tier: string; score: number }
+type Ranked = { id: string; ghostId: string; avatarEmoji: string; tier: string; score: number; championTrophies?: number }
 
 export default function LeaderboardPage() {
   const [top, setTop] = useState<Ranked[]>([])
@@ -49,6 +50,7 @@ export default function LeaderboardPage() {
                   </Link>
                   {r.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                   {r.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                  <ChampionTrophies trophies={r.championTrophies} className="text-[10px] leading-none" />
                 </div>
               </div>
               <span className="text-sm text-white/50 font-semibold">{r.score} pts</span>
@@ -72,6 +74,7 @@ export default function LeaderboardPage() {
                   {me.ghostId}
                 </Link>
                 {me.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                <ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" />
               </div>
             </div>
             <span className="text-sm text-white/50 font-semibold">{me.score} pts</span>

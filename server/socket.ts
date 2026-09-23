@@ -19,7 +19,7 @@ interface PostData {
   commentsCount: number
   boosted: boolean
   createdAt: string
-  user: { id: string; ghostId: string; avatarEmoji: string; tier: string }
+  user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
   campus: string
 }
 
@@ -34,6 +34,7 @@ interface CommentData {
       ghostId: string
       avatarEmoji: string
       tier?: string
+      championTrophies?: number
     }
     parentId: string | null
     yeahs: number
@@ -62,7 +63,7 @@ interface BattleEntryData {
   text: string | null
   votes: number
   isPrime: boolean
-  user: { ghostId: string; avatarEmoji: string; tier: string }
+  user: { ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 interface BattleUpdateData {

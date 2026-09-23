@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { recordBattleWin } from "@/lib/champions"
 
 export const dynamic = "force-dynamic"
 
@@ -154,6 +155,7 @@ export async function GET(req: NextRequest) {
         })
 
         await updateBattleStats(winner.userId, true)
+        await recordBattleWin(winner.userId, prompt.campus)
         await createWinNotification(winner)
 
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
@@ -184,6 +186,7 @@ export async function GET(req: NextRequest) {
         where: { id: prompt.id },
         data: { status: "COMPLETED", winnerEntryId: winner.id },
       })
+      await recordBattleWin(winner.userId, prompt.campus)
       await createWinNotification(winner)
     }
   }

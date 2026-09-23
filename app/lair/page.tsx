@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 import { logPaywallHit } from "@/lib/logPaywall"
 
 type Me = {
@@ -13,6 +14,7 @@ type Me = {
   avatarEmoji: string
   campus: string
   tier: string
+  championTrophies?: number
   streakCount: number
   ghostCoins: number
   postCount: number
@@ -198,6 +200,7 @@ export default function LairPage() {
           <span className="text-white/40 text-sm">{me.campus}</span>
           {me.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
           {me.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+          <ChampionTrophies trophies={me.championTrophies} />
         </div>
 
         <div className="flex gap-5 mt-3 text-sm">

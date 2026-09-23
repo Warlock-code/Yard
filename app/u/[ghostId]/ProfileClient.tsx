@@ -8,6 +8,7 @@ import { timeAgo } from "@/lib/timeAgo"
 import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type Post = {
   id: string
@@ -31,6 +32,7 @@ type Profile = {
   score: number
   isFollowing: boolean
   isOwn: boolean
+  championTrophies?: number
 }
 
 export default function ProfileClient({ ghostId }: { ghostId: string }) {
@@ -155,6 +157,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
           <span className="text-white/40 text-sm">{profile.campus}</span>
           {profile.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
           {profile.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+          <ChampionTrophies trophies={profile.championTrophies} />
         </div>
 
         {profile.isOwn ? (

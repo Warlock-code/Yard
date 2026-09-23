@@ -9,6 +9,7 @@ import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type Comment = {
   id: string
@@ -16,7 +17,7 @@ type Comment = {
   ghostId: string
   yeahs: number
   heated?: boolean
-  user: { ghostId: string; avatarEmoji: string; tier?: string }
+  user: { ghostId: string; avatarEmoji: string; tier?: string; championTrophies?: number }
   createdAt: string
   parentId: string | null
   replies: Comment[]
@@ -29,7 +30,7 @@ type Post = {
   yeahs: number
   commentsCount: number
   createdAt: string
-  user: { ghostId: string; avatarEmoji: string; tier: string }
+  user: { ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 function CommentThread({
@@ -53,6 +54,7 @@ function CommentThread({
               {comment.user.ghostId}
             </Link>
             {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+            <ChampionTrophies trophies={comment.user.championTrophies} className="text-[10px] leading-none" />
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
           <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
@@ -321,6 +323,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               </Link>
               {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
               {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+              <ChampionTrophies trophies={post.user.championTrophies} />
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
           </div>

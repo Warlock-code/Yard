@@ -90,6 +90,8 @@ model User {
   battleStats       BattleStats?
   searchHistory     SearchHistory[]
   savedSearches     SavedSearch[]
+  campusBattleWins  CampusBattleWin[]
+  heldChampionships CampusChampion[]
 }
 
 model MediaUpload {
@@ -523,4 +525,26 @@ model PaywallHit {
   createdAt DateTime @default(now())
   @@index([feature, createdAt])
   @@index([createdAt])
+}
+
+model CampusChampion {
+  campus    String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wonAt     DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model CampusBattleWin {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus    String
+  wins      Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, campus])
+  @@index([campus, wins])
 }

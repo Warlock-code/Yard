@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
+import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 export const dynamic = "force-dynamic"
 
@@ -27,22 +28,23 @@ export async function GET(req: NextRequest) {
         entries: {
           orderBy: { votes: "desc" },
           take: 3,
-          include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+          include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
         },
         winnerEntry: {
-          include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+          include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
         },
         season: { select: { id: true, name: true } },
         childPrompts: {
           orderBy: { roundNumber: "asc" },
           include: {
             entries: { orderBy: { votes: "desc" }, take: 1 },
-            winnerEntry: { include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
+            winnerEntry: { include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
           },
         },
       },
     })
 
+    await attachChampionTrophiesDeep(prompts)
     return NextResponse.json({ battles: prompts })
   }
 
@@ -52,23 +54,23 @@ export async function GET(req: NextRequest) {
       include: {
         entries: {
           orderBy: { votes: "desc" },
-          include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+          include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
         },
         winnerEntry: {
-          include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+          include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
         },
         season: { select: { id: true, name: true } },
         childPrompts: {
           orderBy: { roundNumber: "asc" },
           include: {
-            entries: { orderBy: { votes: "desc" }, include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
-            winnerEntry: { include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
+            entries: { orderBy: { votes: "desc" }, include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
+            winnerEntry: { include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
           },
         },
         parentPrompt: {
           include: {
-            entries: { orderBy: { votes: "desc" }, include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
-            winnerEntry: { include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
+            entries: { orderBy: { votes: "desc" }, include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
+            winnerEntry: { include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
           },
         },
       },
@@ -83,6 +85,7 @@ export async function GET(req: NextRequest) {
       select: { entryId: true },
     })
 
+    await attachChampionTrophiesDeep(prompt)
     return NextResponse.json({ prompt, userVote: userVote?.entryId })
   }
 
@@ -99,14 +102,14 @@ export async function GET(req: NextRequest) {
     include: {
       entries: {
         orderBy: { votes: "desc" },
-        include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } },
+        include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
       },
       season: { select: { id: true, name: true } },
       childPrompts: {
         orderBy: { roundNumber: "asc" },
         include: {
           entries: { orderBy: { votes: "desc" }, take: 1 },
-          winnerEntry: { include: { user: { select: { ghostId: true, avatarEmoji: true, tier: true } } } },
+          winnerEntry: { include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } } },
         },
       },
     },
@@ -136,5 +139,6 @@ export async function GET(req: NextRequest) {
     select: { entryId: true },
   })
 
+  await attachChampionTrophiesDeep(prompt)
   return NextResponse.json({ prompt, entries: prompt.entries, userVote: userVote?.entryId })
 }

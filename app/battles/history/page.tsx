@@ -5,6 +5,7 @@ import Link from "next/link"
 import { apiGet } from "@/lib/useApi"
 import { entryRevealVariants, staggerContainer } from "@/lib/battleAnimations"
 import { motion } from "framer-motion"
+import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type Entry = {
   id: string
@@ -14,7 +15,7 @@ type Entry = {
   entryType: string
   votes: number
   wonRound: boolean
-  user: { ghostId: string; avatarEmoji: string; tier: string }
+  user: { ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 type Battle = {
@@ -146,6 +147,7 @@ export default function BattleHistoryPage() {
                           <span className="font-semibold">{battle.winnerEntry.user.ghostId}</span>
                           {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
                           {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                          <ChampionTrophies trophies={battle.winnerEntry.user.championTrophies} />
                         </div>
                         <p className="text-white/80 text-sm mt-2">
                           {battle.winnerEntry.text || battle.winnerEntry.imageUrl ? "📷 Image entry" : battle.winnerEntry.voiceUrl ? "🎤 Voice entry" : ""}
@@ -169,6 +171,7 @@ export default function BattleHistoryPage() {
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-sm truncate min-w-0">{entry.user.ghostId}</p>
                               {entry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px] flex-shrink-0">✓ Plus</span>}
+                              <ChampionTrophies trophies={entry.user.championTrophies} className="text-[10px] leading-none" />
                             </div>
                             <p className="text-white/60 text-xs truncate">
                               {entry.text || entry.imageUrl ? "📷 Image" : entry.voiceUrl ? "🎤 Voice" : ""}
@@ -201,6 +204,7 @@ export default function BattleHistoryPage() {
                                   <span className="text-lg">{round.winnerEntry.user.avatarEmoji}</span>
                                   <span className="text-white/60 text-sm">{round.winnerEntry.user.ghostId}</span>
                                   {round.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                                  <ChampionTrophies trophies={round.winnerEntry.user.championTrophies} className="text-[10px] leading-none" />
                                   <span className="font-bold text-primary">🔥 {round.winnerEntry.votes}</span>
                                 </div>
                               )}

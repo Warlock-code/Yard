@@ -5,6 +5,7 @@ import { isBoostActive } from "@/lib/boost"
 import { getEffectiveTier } from "@/lib/tier"
 import { UTApi } from "uploadthing/server"
 import { getReadablePostWhere } from "@/lib/programAccess"
+import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 const BYTES_PER_MB = 1024 * 1024
 
@@ -27,10 +28,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: true,
       boosted: true,
       boostedUntil: true,
-      user: { select: { ghostId: true, avatarEmoji: true, tier: true } },
+      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } },
     },
   })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+
+  await attachChampionTrophiesDeep(post)
 
   return NextResponse.json({
     post: { ...post, boosted: isBoostActive(post) },

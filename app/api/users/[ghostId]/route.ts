@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getReadablePostWhere } from "@/lib/programAccess"
+import { getChampionTrophies } from "@/lib/champions"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ ghostId: string }> }) {
   const viewer = await getCurrentUser(req)
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   return NextResponse.json({
     user: {
       ...user,
+      championTrophies: (await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())).get(user.id) ?? 0,
       isOwn: user.id === viewer.id,
       postCount,
       followersCount,

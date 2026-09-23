@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma, type AccountTier } from "@prisma/client"
 import { isBoostActive } from "@/lib/boost"
 import { getTierPriority } from "@/lib/tier"
+import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
 
 export const HASHTAG_REGEX = /#(\w+)/g
 
@@ -272,7 +273,7 @@ export async function searchPosts({
       where,
       orderBy,
       include: {
-        user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } },
+        user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } },
         hashtags: { include: { hashtag: { select: { tag: true } } } },
       },
       skip: (safePage - 1) * safeLimit,
@@ -293,6 +294,7 @@ export async function searchPosts({
   // PLUS second, FREE last; existing yeahs/comments/createdAt order kept
   // inside each tier. Array.sort is stable, so equal tiers keep Prisma order.
   const tierRankedPosts = sortPostsByTierFirst(normalizedPosts, now)
+  await attachChampionTrophies(tierRankedPosts).catch(() => {})
 
   return {
     posts: tierRankedPosts,
@@ -307,7 +309,7 @@ export async function searchUsers(query: string, campus: string, limit = 10) {
   if (!clean) return []
   const safeLimit = clampInt(limit, 10, 1, 50)
 
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: {
       campus,
       ghostId: { contains: clean, mode: "insensitive" },
@@ -323,6 +325,8 @@ export async function searchUsers(query: string, campus: string, limit = 10) {
     take: safeLimit,
     orderBy: [{ followers: { _count: "desc" } }, { ghostId: "asc" }],
   })
+  const trophies = await getChampionTrophies(users.map((u) => ({ id: u.id, campus }))).catch(() => new Map<string, number>())
+  return users.map((u) => ({ ...u, championTrophies: trophies.get(u.id) ?? 0 }))
 }
 
 export async function searchHashtags(query: string, campus: string, limit = 10) {
@@ -567,7 +571,7 @@ export async function getTrendingPosts(campus: string, window: TrendingWindow = 
       createdAt: { gte: since },
     },
     include: {
-      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true } },
+      user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } },
       hashtags: { include: { hashtag: { select: { tag: true } } } },
     },
     orderBy: [{ yeahs: "desc" }, { commentsCount: "desc" }, { createdAt: "desc" }],
@@ -582,7 +586,9 @@ export async function getTrendingPosts(campus: string, window: TrendingWindow = 
     ...post,
     boosted: isBoostActive(post, now),
   }))
-  return sortPostsByTierFirst(normalized, now)
+  const ranked = sortPostsByTierFirst(normalized, now)
+  await attachChampionTrophies(ranked).catch(() => {})
+  return ranked
 }
 
 export async function getSuggestedGhosts(userId: string, campus: string, limit = 5) {
@@ -594,7 +600,7 @@ export async function getSuggestedGhosts(userId: string, campus: string, limit =
   const followingIds = new Set(following.map((f) => f.followingId))
   followingIds.add(userId)
 
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: {
       campus,
       status: "ACTIVE",
@@ -610,6 +616,8 @@ export async function getSuggestedGhosts(userId: string, campus: string, limit =
     orderBy: [{ followers: { _count: "desc" } }, { ghostId: "asc" }],
     take: safeLimit,
   })
+  const trophies = await getChampionTrophies(users.map((u) => ({ id: u.id, campus }))).catch(() => new Map<string, number>())
+  return users.map((u) => ({ ...u, championTrophies: trophies.get(u.id) ?? 0 }))
 }
 
 export async function recordSearchHistory(
