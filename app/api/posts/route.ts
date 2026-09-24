@@ -245,6 +245,12 @@ export async function GET(req: NextRequest) {
     where = { AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])] }
   }
 
+  const viewedPosts = await prisma.postView.findMany({
+    where: { userId: user.id },
+    select: { postId: true },
+  })
+  const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
+
   const posts = await prisma.post.findMany({
     where,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -259,14 +265,18 @@ export async function GET(req: NextRequest) {
     followingIds,
   }, now, tieSeed)
 
-  const cursorIndex = cursor ? rankedPosts.findIndex((post) => post.id === cursor) : -1
+  const unseenPosts = rankedPosts.filter((post) => !viewedPostIds.has(post.id))
+  const seenPosts = rankedPosts.filter((post) => viewedPostIds.has(post.id))
+  const combinedPosts = [...unseenPosts, ...seenPosts]
+
+  const cursorIndex = cursor ? combinedPosts.findIndex((post) => post.id === cursor) : -1
   if (cursor && cursorIndex === -1) {
     return NextResponse.json({ error: "Invalid feed cursor." }, { status: 400 })
   }
 
   const startIndex = cursor ? cursorIndex + 1 : 0
-  const page = rankedPosts.slice(startIndex, startIndex + FEED_PAGE_SIZE)
-  const nextCursor = startIndex + FEED_PAGE_SIZE < rankedPosts.length
+  const page = combinedPosts.slice(startIndex, startIndex + FEED_PAGE_SIZE)
+  const nextCursor = startIndex + FEED_PAGE_SIZE < combinedPosts.length
     ? page[page.length - 1]?.id ?? null
     : null
 
@@ -277,6 +287,7 @@ export async function GET(req: NextRequest) {
       ...post,
       boosted: Boolean(post.boostedUntil && post.boostedUntil > now),
       isFollowing: followingIds.has(post.userId),
+      seen: viewedPostIds.has(post.id),
     })),
     nextCursor,
   }, { headers: { "Cache-Control": "private, no-store" } })

@@ -58,6 +58,7 @@ type Post = {
   commentsCount: number
   boosted: boolean
   isFollowing: boolean
+  seen?: boolean
   createdAt: string
   user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
@@ -111,19 +112,21 @@ export default function FeedPage() {
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [availableAvatars, setAvailableAvatars] = useState<string[]>([])
 
-  const [feedVersion, setFeedVersion] = useState(0)
-  // Per-refresh shuffle seed: new seed on every refresh/tab-switch so
-  // tied posts rotate; same seed is reused for infinite-scroll pages so
-  // cursor pagination stays consistent within one refresh session.
-  const [refreshSeed, setRefreshSeed] = useState(() => newRefreshSeed())
-  const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
-  const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
-  const pendingFollowRequests = useRef(new Set<string>())
-  const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
-  const [pullToRefresh, setPullToRefresh] = useState(false)
-  const pullStartRef = useRef<number | null>(null)
+const [feedVersion, setFeedVersion] = useState(0)
+// Per-refresh shuffle seed: new seed on every refresh/tab-switch so
+// tied posts rotate; same seed is reused for infinite-scroll pages so
+// cursor pagination stays consistent within one refresh session.
+const [refreshSeed, setRefreshSeed] = useState(() => newRefreshSeed())
+const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
+const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
+const pendingFollowRequests = useRef(new Set<string>())
+const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
+const [pullToRefresh, setPullToRefresh] = useState(false)
+const pullStartRef = useRef<number | null>(null)
+const viewObserverRef = useRef<IntersectionObserver | null>(null)
+const viewedPostsRef = useRef<Set<string>>(new Set())
 
-  // Expand + inline comments (X-style tap anywhere)
+// Expand + inline comments (X-style tap anywhere)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [inlineComments, setInlineComments] = useState<Record<string, any[]>>({})
   const [inlineLoading, setInlineLoading] = useState<Record<string, boolean>>({})
@@ -242,6 +245,31 @@ export default function FeedPage() {
       window.removeEventListener("scroll", handleScroll)
     }
   }, [nextCursor, loading, mode, feedVersion, refreshSeed])
+
+  // Track viewed posts via IntersectionObserver
+  useEffect(() => {
+    viewObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const postId = entry.target.getAttribute("data-post-id")
+            if (postId && !viewedPostsRef.current.has(postId)) {
+              viewedPostsRef.current.add(postId)
+              fetch(`/api/posts/${postId}/view`, { method: "POST", credentials: "include" }).catch(() => {})
+            }
+          }
+        })
+      },
+      { threshold: 0.5, rootMargin: "100px" }
+    )
+
+    const elements = document.querySelectorAll("[data-post-id]")
+    elements.forEach((el) => viewObserverRef.current?.observe(el))
+
+    return () => {
+      viewObserverRef.current?.disconnect()
+    }
+  }, [posts, feedVersion])
 
   useEffect(() => {
     if (!connected) return
@@ -559,6 +587,7 @@ export default function FeedPage() {
                     toggleExpand(post.id)
                   }
                 }}
+                data-post-id={post.id}
                 className={`relative px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02] cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39] touch-manipulation ${expanded ? "bg-white/[0.03]" : ""}`}
               >
                 <div className="flex items-start gap-3">
