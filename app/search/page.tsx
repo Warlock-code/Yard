@@ -132,7 +132,7 @@ function PostCard({ post }: { post: Post }) {
           </div>
 
           {post.text && (
-            <p className="text-white/90 mt-1 whitespace-pre-wrap leading-snug">
+            <p className="post-mono text-white/90 mt-1 whitespace-pre-wrap leading-snug">
               <RichText text={post.text} />
             </p>
           )}

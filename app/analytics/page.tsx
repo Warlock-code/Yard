@@ -238,7 +238,7 @@ export default function AnalyticsPage() {
             ) : (
               topPosts.map((post) => (
                 <div key={post.id} className="border-b border-white/[0.06] py-3 last:border-0">
-                  <p className="text-sm text-white/90 mb-1">
+                  <p className="post-mono text-sm text-white/90 mb-1">
                     {post.text || (post.imageUrl ? "📷 Image post" : "Post")}
                   </p>
                   <div className="flex gap-4 text-xs text-white/40">
@@ -386,7 +386,7 @@ export default function AnalyticsPage() {
                 <div key={post.id} className="border-b border-white/[0.06] py-3 last:border-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white/90 mb-1">
+                      <p className="post-mono text-sm text-white/90 mb-1">
                         {post.text || (post.imageUrl ? "📷 Image post" : "Post")}
                       </p>
                       <div className="flex gap-4 text-xs text-white/40 flex-wrap">

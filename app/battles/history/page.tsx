@@ -117,7 +117,7 @@ export default function BattleHistoryPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-white/40 text-sm font-bold">⚔️</span>
                   <div>
-                    <p className="font-semibold text-white truncate max-w-[200px]">{battle.text}</p>
+                    <p className="post-mono font-semibold text-white truncate max-w-[200px]">{battle.text}</p>
                     <p className="text-xs text-white/40">
                       {new Date(battle.startsAt).toLocaleDateString()} · Round {battle.roundNumber} of {battle.totalRounds}
                       {battle.isPrimeOnly && <span className="ml-2 badge badge-prime">Prime Only</span>}
@@ -197,7 +197,7 @@ export default function BattleHistoryPage() {
                             >
                               <div className="flex items-center gap-2">
                                 <span className="badge badge-prime text-xs">Round {round.roundNumber}</span>
-                                <p className="text-white/80 text-sm truncate max-w-[180px]">{round.text}</p>
+                                <p className="post-mono text-white/80 text-sm truncate max-w-[180px]">{round.text}</p>
                               </div>
                               {round.winnerEntry && (
                                 <div className="flex items-center gap-2 text-right">

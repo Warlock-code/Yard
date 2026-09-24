@@ -278,7 +278,7 @@ export default function ComposePage() {
                     </span>
                   </div>
                   {text.trim() ? (
-                    <p className="text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
+                    <p className="post-mono text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base" style={{ lineHeight: 1.5 }}>
                       <RichText text={text} />
                     </p>
                   ) : (

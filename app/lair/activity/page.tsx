@@ -70,7 +70,7 @@ export default function ActivityPage() {
               <span className="text-white/30">· {timeAgo(p.createdAt)}</span>
             </div>
             <Link href={`/post/${p.id}`} aria-label={`Open post by ${p.user.ghostId}`} className="block focus-visible:outline-[#baff39]">
-              {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
+              {p.text && <p className="post-mono text-white/90 text-sm">{p.text}</p>}
               <div className="flex gap-4 text-xs text-white/40 mt-1">
                 <span>🔥 {p.yeahs}</span>
                 <span>💬 {p.commentsCount}</span>

@@ -595,7 +595,7 @@ export default function FeedPage() {
                         className="overflow-hidden"
                       >
                         <p
-                          className={`text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base ${expanded ? "" : "clamp-3 line-clamp-3"}`}
+                          className={`post-mono text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base ${expanded ? "" : "clamp-3 line-clamp-3"}`}
                           style={{ lineHeight: 1.5 }}
                         >
                           <RichText text={post.text} />
@@ -731,7 +731,7 @@ export default function FeedPage() {
                                         <ChampionTrophies trophies={c.user?.championTrophies} className="text-[10px] leading-none" />
                                         <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
                                       </div>
-                                      <p className="text-sm text-white/90 line-clamp-2">{c.text}</p>
+                                      <p className="post-mono text-sm text-white/90 line-clamp-2">{c.text}</p>
                                     </div>
                                   </div>
                                 ))}

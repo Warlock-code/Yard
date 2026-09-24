@@ -128,7 +128,7 @@ export default function BattlesClient() {
           <div className="card p-4 mt-3 flex items-center justify-between">
             <div>
               <p className="text-xs text-white/40 mb-1">Today&apos;s prompt</p>
-              <p className="font-semibold">{prompt.text}</p>
+              <p className="post-mono font-semibold">{prompt.text}</p>
             </div>
             <BattleShareButton promptId={prompt.id} promptText={prompt.text} onClick={() => setShowShareMenu(true)} />
           </div>
@@ -168,7 +168,7 @@ export default function BattlesClient() {
                     {entry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
                     <ChampionTrophies trophies={entry.user.championTrophies} />
                   </div>
-                  <p className="text-white/90 mb-3">{entry.text}</p>
+                  <p className="post-mono text-white/90 mb-3">{entry.text}</p>
                   <button
                     onClick={() => handleVote(entry.id)}
                     className="btn-ghost text-sm"

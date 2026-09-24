@@ -57,7 +57,7 @@ function CommentThread({
             <ChampionTrophies trophies={comment.user.championTrophies} className="text-[10px] leading-none" />
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
-          <p className="text-sm text-white/90 mt-0.5">{comment.text}</p>
+          <p className="post-mono text-sm text-white/90 mt-0.5">{comment.text}</p>
           <div className="flex items-center gap-4 mt-1">
             <button
               onClick={() => onHeat(comment.id)}
@@ -329,7 +329,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           </div>
         </div>
 
-        {post.text && <p className="text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
+        {post.text && <p className="post-mono text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
         {post.imageUrl && (
           <div className="relative w-full h-72 mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <OptimizedImage

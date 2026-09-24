@@ -492,6 +492,12 @@ h1, h2, h3 {
   display: none;
 }
 
+/* Post content display — clean monospace, inherits surrounding font-size */
+.post-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0;
+}
+
 /* line-clamp fallback (Tailwind v4 has line-clamp core; this covers older renderers) */
 .clamp-1,
 .clamp-2,

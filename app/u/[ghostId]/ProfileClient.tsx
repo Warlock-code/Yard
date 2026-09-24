@@ -231,7 +231,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
               <span className="font-semibold">{profile.ghostId}</span>
               <span className="text-white/30">· {timeAgo(p.createdAt)}</span>
             </div>
-            {p.text && <p className="text-white/90 text-sm">{p.text}</p>}
+            {p.text && <p className="post-mono text-white/90 text-sm">{p.text}</p>}
             {p.imageUrl && (
               <div className="relative w-full max-h-72 mt-2">
                 <OptimizedImage
