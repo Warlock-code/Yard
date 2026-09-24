@@ -26,6 +26,8 @@ type Me = {
   storageUsed: number
   storageLimit: number
   storageRemaining: number
+  inviteCode: string
+  referralCount: number
 }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
@@ -52,6 +54,32 @@ export default function LairPage() {
   const [storageLoading, setStorageLoading] = useState(true)
   const [storageError, setStorageError] = useState("")
   const [discarding, setDiscarding] = useState<string | null>(null)
+  const [referralStats, setReferralStats] = useState<{
+    code: string
+    referralLink: string
+    stats: {
+      totalReferrals: number
+      verifiedReferrals: number
+      flaggedReferrals: number
+      pendingReferrals: number
+      coinsEarned: number
+      dailyCap: number
+      referrerReward: number
+      refereeReward: number
+    }
+    referrals: Array<{
+      id: string
+      ghostId: string
+      avatarEmoji: string
+      joinedAt: string
+      emailVerified: boolean
+      status: string
+      rewardStatus: string
+      rewardAmount: number
+      completedAt: string | null
+    }>
+  } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/storage")
@@ -115,12 +143,22 @@ export default function LairPage() {
       })
   }, [router])
 
+  const loadReferral = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/referral/stats")
+      .then((data) => {
+        if (!isCurrent()) return
+        setReferralStats(data)
+      })
+      .catch(console.error)
+  }, [])
+
   useEffect(() => {
     let active = true
     load(() => active)
     loadStorage(() => active)
+    loadReferral(() => active)
     return () => { active = false }
-  }, [load, loadStorage])
+  }, [load, loadStorage, loadReferral])
 
   async function openPayoutModal() {
     if (banks.length === 0) {
@@ -229,6 +267,87 @@ export default function LairPage() {
           <p className="text-xs text-white/40">Coins</p>
         </div>
       </div>
+
+      {referralStats && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold">👥 Referrals</p>
+            <span className="text-xs text-white/40">{referralStats.stats.verifiedReferrals}/{referralStats.stats.totalReferrals} verified</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{referralStats.stats.totalReferrals}</p>
+              <p className="text-xs text-white/40">Total</p>
+            </div>
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{referralStats.stats.verifiedReferrals}</p>
+              <p className="text-xs text-white/40">Verified</p>
+            </div>
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{referralStats.stats.coinsEarned}</p>
+              <p className="text-xs text-white/40">Coins Earned</p>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <p className="text-xs text-white/50 mb-1">Your referral link</p>
+            <div className="flex gap-2">
+              <input
+                className="input flex-1 text-sm"
+                readOnly
+                value={referralStats.referralLink}
+              />
+              <button
+                className="btn-primary px-4"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(referralStats.referralLink)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
+                }}
+              >
+                {copied ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+            <p className="text-xs text-white/40 mt-1">
+              Share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} coins for you, {referralStats.stats.refereeReward} for them on verification
+            </p>
+            <p className="text-xs text-white/40 mt-1">Daily cap: {referralStats.stats.dailyCap} rewarded referrals/day</p>
+          </div>
+
+          {referralStats.referrals.length > 0 && (
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer select-none">
+                <span className="text-sm font-medium">Recent referrals</span>
+                <span className="text-xs text-white/40">{referralStats.referrals.length} total</span>
+              </summary>
+              <ul className="space-y-2 mt-3 pt-3 border-t border-white/10">
+                {referralStats.referrals.slice(0, 10).map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 text-sm">
+                    <Avatar emoji={r.avatarEmoji} size={28} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{r.ghostId}</p>
+                      <p className="text-xs text-white/40">
+                        {new Date(r.joinedAt).toLocaleDateString()} •
+                        {r.emailVerified ? " ✓ Verified" : " Pending verification"}
+                      </p>
+                    </div>
+                    <span className={`badge badge-xs ${
+                      r.rewardStatus === "completed" ? "badge-primary" :
+                      r.rewardStatus === "flagged" ? "badge-warning" :
+                      r.status === "pending" ? "badge-ghost" : "badge-ghost"
+                    }`}>
+                      {r.rewardStatus === "completed" ? `+${r.rewardAmount} 🔥` :
+                       r.rewardStatus === "flagged" ? "⚠ Flagged" :
+                       r.status === "pending" ? "Pending" : "No reward"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
 
       <button
         className="card w-full p-4 mb-3 flex items-center justify-between"

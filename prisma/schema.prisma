@@ -433,17 +433,19 @@ model AuditLog {
 }
 
 model Referral {
-  id           String   @id @default(cuid())
-  referrerId   String
-  referrer     User     @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
-  referredId   String   @unique
-  referred     User     @relation("ReferredReferrals", fields: [referredId], references: [id], onDelete: Cascade)
-  status       String   @default("pending") // pending | completed
-  rewardAmount Int      @default(0)
-  createdAt    DateTime @default(now())
-  completedAt  DateTime?
+  id            String   @id @default(cuid())
+  referrerId    String
+  referrer      User     @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId    String   @unique
+  referred      User     @relation("ReferredReferrals", fields: [referredId], references: [id], onDelete: Cascade)
+  status        String   @default("pending") // pending | completed
+  rewardStatus  String   @default("none")    // none | completed | flagged
+  rewardAmount  Int      @default(0)
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
 
   @@index([referrerId, status])
+  @@index([referrerId, rewardStatus])
   @@index([referredId])
 }
 

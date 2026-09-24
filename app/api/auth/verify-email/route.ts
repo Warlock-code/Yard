@@ -4,6 +4,7 @@ import { signToken, verifyToken } from "@/lib/auth"
 import { rateLimitWithInfo } from "@/lib/rateLimit"
 import { verifyEmailSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
+import { REFERRAL_CONFIG } from "@/lib/referral-config"
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,6 +82,84 @@ export async function POST(req: NextRequest) {
     where: { id: userId },
     data: { emailVerified: true, verifyCode: null },
   })
+
+  // Apply referral reward if user was referred
+  if (user.referredBy) {
+    const referrer = await prisma.user.findUnique({
+      where: { inviteCode: user.referredBy },
+      select: { id: true, ghostId: true, inviteCode: true },
+    })
+
+    if (referrer && referrer.id !== userId) {
+      // Check daily cap for referrer
+      const dayStart = new Date()
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+
+      const todaysRewarded = await prisma.referral.count({
+        where: {
+          referrerId: referrer.id,
+          rewardStatus: "completed",
+          createdAt: { gte: dayStart, lt: dayEnd },
+        },
+      })
+
+      if (todaysRewarded < REFERRAL_CONFIG.DAILY_CAP) {
+        // Check velocity flag (unusually high referral rate)
+        const weekStart = new Date()
+        weekStart.setDate(weekStart.getDate() - 7)
+        const weekReferrals = await prisma.referral.count({
+          where: {
+            referrerId: referrer.id,
+            createdAt: { gte: weekStart },
+          },
+        })
+
+        const shouldFlag = weekReferrals >= REFERRAL_CONFIG.VELOCITY_THRESHOLD
+
+        await prisma.$transaction([
+          // Credit referrer
+          prisma.user.update({
+            where: { id: referrer.id },
+            data: { ghostCoins: { increment: REFERRAL_CONFIG.REFERRER_REWARD } },
+          }),
+          // Credit referee (new user)
+          prisma.user.update({
+            where: { id: userId },
+            data: { ghostCoins: { increment: REFERRAL_CONFIG.REFEREE_REWARD } },
+          }),
+          // Update referral record
+          prisma.referral.update({
+            where: { referredId: userId },
+            data: {
+              status: "completed",
+              rewardStatus: shouldFlag ? "flagged" : "completed",
+              rewardAmount: REFERRAL_CONFIG.REFERRER_REWARD,
+              completedAt: new Date(),
+            },
+          }),
+        ])
+
+        if (shouldFlag) {
+          // Create report for admin review
+          await prisma.report.create({
+            data: {
+              reporterId: referrer.id,
+              reason: `High referral velocity: ${weekReferrals} referrals in 7 days`,
+              status: "open",
+            },
+          })
+        }
+      } else {
+        // Daily cap reached - mark referral as pending but don't reward
+        await prisma.referral.update({
+          where: { referredId: userId },
+          data: { status: "completed", rewardStatus: "none", rewardAmount: 0 },
+        })
+      }
+    }
+  }
 
   const token = signToken(user.id)
   const res = NextResponse.json({ success: true, ghostId: user.ghostId })
