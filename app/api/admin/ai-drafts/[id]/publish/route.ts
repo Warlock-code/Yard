@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await prisma.post.create({
     data: {
       userId: systemUser.id,
-      text: draft.text,
+      text: draft.text.toLowerCase(),
       type: "confession",
       campus: "GCTU",
       visibility: "school",

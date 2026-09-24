@@ -20,7 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
 
-  const { text, parentId } = await req.json()
+  let { text, parentId } = await req.json()
+  if (typeof text === "string") text = text.toLowerCase()
   if (typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "Comment can't be empty." }, { status: 400 })
   if (typeof text !== "string" || text.length > 500) {
     return NextResponse.json({ error: "Comment must be 500 characters or fewer." }, { status: 400 })

@@ -319,7 +319,7 @@ export default function FeedPage() {
   }
 
   async function handleInlineSubmit(postId: string) {
-    const text = inlineDraft[postId]?.trim()
+    const text = inlineDraft[postId]?.trim().toLowerCase()
     if (!text || !me) return
     const tempId = `temp-${Date.now()}`
     const optimistic: any = {
@@ -430,8 +430,9 @@ export default function FeedPage() {
   }
 
   async function handleEdit(postId: string, currentText: string | null) {
-    const newText = prompt("Edit your post:", currentText || "")
-    if (newText === null || !newText.trim()) return
+    const rawEdit = prompt("Edit your post:", currentText || "")
+    if (rawEdit === null || !rawEdit.trim()) return
+    const newText = rawEdit.toLowerCase()
     try {
       await apiPatch(`/api/posts/${postId}`, { text: newText })
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, text: newText } : p)))
@@ -744,7 +745,7 @@ export default function FeedPage() {
                                 className="input flex-1 h-9 text-sm"
                                 placeholder="Add a comment..."
                                 value={inlineDraft[post.id] || ""}
-                                onChange={(e) => setInlineDraft((s) => ({ ...s, [post.id]: e.target.value }))}
+                                onChange={(e) => setInlineDraft((s) => ({ ...s, [post.id]: e.target.value.toLowerCase() }))}
                                 onKeyDown={(e) => e.key === "Enter" && handleInlineSubmit(post.id)}
                               />
                               <button

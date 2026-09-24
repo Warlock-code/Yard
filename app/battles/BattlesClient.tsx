@@ -90,7 +90,7 @@ export default function BattlesClient() {
     if (!entryText.trim() || !prompt) return
     setSubmitting(true)
     try {
-      await apiPost("/api/battles/enter", { promptId: prompt.id, text: entryText })
+      await apiPost("/api/battles/enter", { promptId: prompt.id, text: entryText.toLowerCase() })
       setEntryText("")
       setLoading(true)
       load()
@@ -139,7 +139,7 @@ export default function BattlesClient() {
               rows={2}
               placeholder="Enter your take..."
               value={entryText}
-              onChange={(e) => setEntryText(e.target.value)}
+              onChange={(e) => setEntryText(e.target.value.toLowerCase())}
             />
             <button
               className="btn-primary w-full mt-2"

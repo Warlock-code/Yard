@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const text = data.choices?.[0]?.message?.content?.trim()
 
   if (text) {
-    await prisma.aiDraft.create({ data: { text } })
+    await prisma.aiDraft.create({ data: { text: text.toLowerCase() } })
   }
 
   return NextResponse.json({ success: true })

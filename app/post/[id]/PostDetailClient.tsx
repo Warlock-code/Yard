@@ -286,7 +286,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     setSubmitting(true)
     try {
       await apiPost(`/api/posts/${postId}/comments`, {
-        text: commentText,
+        text: commentText.toLowerCase(),
         parentId: replyingTo?.id || null,
       })
       setCommentText("")
@@ -392,7 +392,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
             className="input flex-1"
             placeholder="Add a comment..."
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            onChange={(e) => setCommentText(e.target.value.toLowerCase())}
             onKeyDown={(e) => e.key === "Enter" && handleSubmitComment()}
           />
           <button

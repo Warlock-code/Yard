@@ -83,7 +83,7 @@ export default function ComposePage() {
   }, [])
 
   const insertHashtag = useCallback((tag: string) => {
-    const normalized = tag.startsWith("#") ? tag : `#${tag}`
+    const normalized = (tag.startsWith("#") ? tag : `#${tag}`).toLowerCase()
     const lower = normalized.toLowerCase()
     if (liveHashtags.includes(lower)) {
       textareaRef.current?.focus()
@@ -159,7 +159,8 @@ export default function ComposePage() {
     if (posting || isUploading || removing || (visibility === "program" && !hasProgram) || (!text.trim() && !image)) return
     setPosting(true)
     try {
-      const res: any = await apiPost("/api/posts", { text, imageUrl: image, type: "confession", visibility })
+      const lowerText = text.toLowerCase()
+      const res: any = await apiPost("/api/posts", { text: lowerText, imageUrl: image, type: "confession", visibility })
       const newId = res?.post?.id
       if (newId) router.push(`/post/${newId}`)
       else router.push("/feed")
@@ -193,7 +194,7 @@ export default function ComposePage() {
           placeholder="What's the gist?"
           rows={8}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value.toLowerCase())}
         />
 
         <p className="mt-2 text-xs text-white/35">

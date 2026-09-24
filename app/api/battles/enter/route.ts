@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
 
   const effectiveTier = getEffectiveTier(user)
 
-  const { promptId, text, imageUrl, voiceUrl } = await req.json()
+  let { promptId, text, imageUrl, voiceUrl } = await req.json()
+  if (typeof text === "string") text = text.toLowerCase()
 
   if (!promptId || typeof promptId !== "string") {
     return NextResponse.json({ error: "Prompt ID required." }, { status: 400 })

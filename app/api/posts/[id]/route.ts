@@ -78,7 +78,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
   if (post.userId !== user.id) return NextResponse.json({ error: "Not your post." }, { status: 403 })
 
-  const { text } = await req.json()
+  let { text } = await req.json()
+  if (typeof text === "string") text = text.toLowerCase()
   if (typeof text !== "string" || !text.trim()) {
     return NextResponse.json({ error: "Post text can't be empty." }, { status: 400 })
   }

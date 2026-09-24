@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  const { text, imageUrl, type, visibility } = await req.json()
+  let { text, imageUrl, type, visibility } = await req.json()
+  if (typeof text === "string") text = text.toLowerCase()
 
   if (typeof text !== "undefined" && text !== null && (typeof text !== "string" || text.length > 2000)) {
     return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
