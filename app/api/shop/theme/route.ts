@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { THEME_MAP, isThemeId, themeCosmeticId } from "@/lib/themes"
 
 export async function POST(req: NextRequest) {
@@ -19,6 +20,19 @@ export async function POST(req: NextRequest) {
   const cosmeticId = themeCosmeticId(theme.id)
   if (user.ownedCosmetics.includes(cosmeticId)) {
     return NextResponse.json({ error: "Already owned." }, { status: 400 })
+  }
+
+  const body = await req.json().catch(() => ({}))
+  const useCredits = body.useCredits === true
+  const creditCost = Math.round(theme.pricePesewas / 100)
+
+  if (useCredits) {
+    try {
+      const result = await creditUser(user.id, "THEME_BUY", -creditCost, `theme_${theme.id}_${user.id}_${Date.now()}`, { cosmeticId, themeId: theme.id })
+      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "Theme purchased with credits" })
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+    }
   }
 
   const reference = `theme_${theme.id}_${user.id}_${Date.now()}`

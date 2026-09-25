@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { AVATARS } from "@/lib/avatars"
 
 export const COSMETICS = AVATARS
@@ -16,6 +17,19 @@ export async function POST(req: NextRequest) {
 
   if (user.ownedCosmetics.includes(cosmeticId)) {
     return NextResponse.json({ error: "Already owned." }, { status: 400 })
+  }
+
+  const body = await req.json().catch(() => ({}))
+  const useCredits = body.useCredits === true
+  const creditCost = Math.round(item.pricePesewas / 100) // Convert pesewas to credits (100 pesewas = 1 credit)
+
+  if (useCredits) {
+    try {
+      const result = await creditUser(user.id, "COSMETIC_BUY", -creditCost, `cosmetic_${cosmeticId}_${user.id}_${Date.now()}`, { cosmeticId, emoji: item.emoji })
+      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "Cosmetic purchased with credits" })
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+    }
   }
 
   const reference = `cosmetic_${cosmeticId}_${user.id}_${Date.now()}`
