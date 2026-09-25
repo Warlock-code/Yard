@@ -3,6 +3,8 @@ import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { fulfillPaidTransaction } from "@/lib/paystackFulfillment"
 import { handleCors, addCorsHeaders } from "@/lib/cors"
+import { creditUser } from "@/lib/credits"
+import { getPackById } from "@/lib/credits"
 
 export async function POST(req: NextRequest) {
   const corsPreflight = handleCors(req)
@@ -74,10 +76,30 @@ export async function POST(req: NextRequest) {
                 const next = new Date(base + 31 * 24 * 60 * 60 * 1000)
                 await db.user.update({ where: { id: user.id }, data: { tier: tier!.toUpperCase() as any, tierExpiresAt: next } })
               })
+}
+      }
+
+      // Credit purchase: reference starts with "credits_"
+      if (reference.startsWith("credits_")) {
+        const [, userId, packId] = reference.split("_")
+        if (userId && packId) {
+          const existingTx = await prisma.creditTransaction.findFirst({
+            where: { userId, reference, type: "PURCHASE" },
+          })
+          if (!existingTx) {
+            const pack = getPackById(packId)
+            if (pack) {
+              await creditUser(userId, "PURCHASE", pack.credits, reference, {
+                packId,
+                ghsAmount: pack.ghs,
+                bonusPct: pack.bonusPct,
+              })
             }
           }
         }
       }
+    }
+  }
     }
   }
 

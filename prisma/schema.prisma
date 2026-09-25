@@ -72,26 +72,36 @@ model User {
   referredBy    String?
   referralCount Int      @default(0)
 
+  creditsBalance   Int       @default(0)
+  creditsEarned    Int       @default(0)
+  creditsPurchased Int       @default(0)
+  creditsWithdrawn Int       @default(0)
+  kycStatus        KycStatus @default(NONE)
+  kycData          Json?
+  kycSubmittedAt   DateTime?
+
   createdAt DateTime @default(now())
 
-  posts         Post[]
-  comments      Comment[]
-  battleEntries BattleEntry[]
-  votes         Vote[]
-  transactions  Transaction[]
-  reports       Report[]       @relation("ReportedBy")
-  earnings      Earning[]
-  payouts       Payout[]
-  notifications Notification[]
-  deviceTokens  DeviceToken[]
-  uploads       MediaUpload[]
-  referrals         Referral[]   @relation("ReferrerReferrals")
+  posts              Post[]
+  comments           Comment[]
+  battleEntries      BattleEntry[]
+  votes              Vote[]
+  transactions       Transaction[]
+  reports            Report[]       @relation("ReportedBy")
+  earnings           Earning[]
+  payouts            Payout[]
+  creditTransactions CreditTransaction[]
+  creditPayouts      CreditPayout[]
+  notifications      Notification[]
+  deviceTokens       DeviceToken[]
+  uploads            MediaUpload[]
+  referrals          Referral[]   @relation("ReferrerReferrals")
   referredByReferral Referral?    @relation("ReferredReferrals")
-  battleStats       BattleStats?
-  searchHistory     SearchHistory[]
-  savedSearches     SavedSearch[]
-  campusBattleWins  CampusBattleWin[]
-  heldChampionships CampusChampion[]
+  battleStats        BattleStats?
+  searchHistory      SearchHistory[]
+  savedSearches      SavedSearch[]
+  campusBattleWins   CampusBattleWin[]
+  heldChampionships  CampusChampion[]
 }
 
 model MediaUpload {
@@ -350,6 +360,61 @@ model Payout {
 
   requestedAt DateTime  @default(now())
   processedAt DateTime?
+}
+
+model CreditTransaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String   // PURCHASE | VOTE_REWARD | BATTLE_WIN | LEADERBOARD | REFERRAL | TIP_SENT | TIP_RECEIVED | BOOST_PURCHASE | COSMETIC_BUY | WITHDRAWAL | ADMIN_MINT | ADMIN_BURN
+  amount        Int      // positive = credit, negative = debit
+  balanceAfter  Int
+  reference     String?  // Paystack ref, postId, battleId, etc.
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model CreditPack {
+  id          String   @id @default(cuid())
+  name        String   @unique // starter, student, popular, baller, whale
+  ghsAmount   Int      // price in pesewas
+  credits     Int      // credits received
+  bonusPct    Int      @default(0)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CreditPayout {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditsAmount Int
+  ghsAmount     Int      // pesewas to send
+  feePct        Int      @default(20)
+  feeAmount     Int      // pesewas kept by platform
+  netGhsAmount  Int      // pesewas sent to creator
+  status        String   @default("pending") // pending | processing | approved | paid | rejected
+  bankCode      String
+  accountNumber String
+  accountName   String
+  providerRef   String?  @unique
+  adminNotes    String?
+  requestedAt   DateTime @default(now())
+  processedAt   DateTime?
+  @@index([userId, status])
+  @@index([status, requestedAt])
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Follow {
