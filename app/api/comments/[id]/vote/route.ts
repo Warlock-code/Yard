@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitCommentVote } from "@/server/socket"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { getEffectiveTier } from "@/lib/tier"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -38,6 +40,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   if (updated.userId !== user.id) {
+    const owner = await prisma.user.findUnique({ where: { id: updated.userId } })
+    if (owner) {
+      const tier = getEffectiveTier(owner)
+      const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 1
+      const voteReward = Math.round(CREDIT_CONFIG.EARN.COMMENT_VOTE * multiplier)
+      
+      await creditUser(owner.id, "VOTE_REWARD", voteReward, `comment_${updated.id}`, { 
+        commentId: updated.id, 
+        voterId: user.id, 
+        tier 
+      })
+    }
+
     await createNotification({
       userId: updated.userId,
       pushToken: comment.user.pushToken,

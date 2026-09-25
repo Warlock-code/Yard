@@ -5,6 +5,7 @@ import { rateLimitWithInfo } from "@/lib/rateLimit"
 import { verifyEmailSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
 import { REFERRAL_CONFIG } from "@/lib/referral-config"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
 export async function POST(req: NextRequest) {
   try {
@@ -118,28 +119,26 @@ export async function POST(req: NextRequest) {
 
         const shouldFlag = weekReferrals >= REFERRAL_CONFIG.VELOCITY_THRESHOLD
 
-        await prisma.$transaction([
-          // Credit referrer
-          prisma.user.update({
-            where: { id: referrer.id },
-            data: { ghostCoins: { increment: REFERRAL_CONFIG.REFERRER_REWARD } },
-          }),
-          // Credit referee (new user)
-          prisma.user.update({
-            where: { id: userId },
-            data: { ghostCoins: { increment: REFERRAL_CONFIG.REFEREE_REWARD } },
-          }),
-          // Update referral record
-          prisma.referral.update({
-            where: { referredId: userId },
-            data: {
-              status: "completed",
-              rewardStatus: shouldFlag ? "flagged" : "completed",
-              rewardAmount: REFERRAL_CONFIG.REFERRER_REWARD,
-              completedAt: new Date(),
-            },
-          }),
-        ])
+        // Credit referrer
+        await creditUser(referrer.id, "REFERRAL", CREDIT_CONFIG.EARN.REFERRAL_REFERRER, `referral_${userId}`, { 
+          refereeId: userId, 
+          type: "referrer" 
+        })
+        // Credit referee (new user)
+        await creditUser(userId, "REFERRAL", CREDIT_CONFIG.EARN.REFERRAL_REFEREE, `referral_${referrer.id}`, { 
+          referrerId: referrer.id, 
+          type: "referee" 
+        })
+        // Update referral record
+        await prisma.referral.update({
+          where: { referredId: userId },
+          data: {
+            status: "completed",
+            rewardStatus: shouldFlag ? "flagged" : "completed",
+            rewardAmount: CREDIT_CONFIG.EARN.REFERRAL_REFERRER,
+            completedAt: new Date(),
+          },
+        })
 
         if (shouldFlag) {
           // Create report for admin review

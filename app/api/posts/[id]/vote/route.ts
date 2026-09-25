@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isBoostActive } from "@/lib/boost"
-import { awardEarning } from "@/lib/earnings"
-import { getEffectiveTier } from "@/lib/tier"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitVoteUpdate } from "@/server/socket"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { getEffectiveTier } from "@/lib/tier"
 
 const PESEWAS_PER_VOTE = 5
 const MILESTONES = [10, 50, 100, 500, 1000]
@@ -35,10 +35,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const post = await prisma.post.update({ where: { id }, data: { yeahs: { increment: 1 } } })
   const owner = await prisma.user.findUnique({ where: { id: post.userId } })
 
-  if (owner && getEffectiveTier(owner) === "PRIME") {
-    await awardEarning(owner.id, "post_vote", post.id, PESEWAS_PER_VOTE)
+  if (owner) {
+    const tier = getEffectiveTier(owner)
+    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 1
+    const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier)
+    
+    await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier })
+    
     if (MILESTONES.includes(post.yeahs)) {
-      await awardEarning(owner.id, "milestone_bonus", post.id, MILESTONE_BONUS_PESEWAS[post.yeahs])
+      const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier)
+      await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, { 
+        postId: post.id, 
+        milestone: post.yeahs,
+        tier 
+      })
     }
   }
 

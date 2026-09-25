@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { recordBattleWin } from "@/lib/champions"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { getEffectiveTier } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
 
@@ -106,6 +108,23 @@ export async function GET(req: NextRequest) {
           data: { wonRound: true },
         })
 
+        // Credit reward for bracket round winners
+        for (const w of winners) {
+          const winnerUser = await prisma.user.findUnique({ where: { id: w.userId } })
+          if (winnerUser) {
+            const tier = getEffectiveTier(winnerUser)
+            const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+            const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * multiplier)
+            await creditUser(w.userId, "BATTLE_WIN", winReward, prompt.id, { 
+              promptId: prompt.id, 
+              entryId: w.id,
+              battleType: "bracket_round",
+              round: prompt.roundNumber,
+              tier 
+            })
+          }
+        }
+
         const nextRoundPrompt = await prisma.battlePrompt.create({
           data: {
             text: `${prompt.text} (Round ${prompt.roundNumber + 1})`,
@@ -136,6 +155,52 @@ export async function GET(req: NextRequest) {
           data: { status: "COMPLETED" },
         })
       }
+    } else if (prompt.type === "BRACKET" && prompt.roundNumber === prompt.totalRounds) {
+      // Final bracket round - winner gets BATTLE_WIN_FINAL
+      const winner = await prisma.battleEntry.findFirst({
+        where: { promptId: prompt.id },
+        orderBy: { votes: "desc" },
+        include: { prompt: { select: { id: true, text: true, campus: true } } },
+      })
+
+      if (winner) {
+        await prisma.battlePrompt.update({
+          where: { id: prompt.id },
+          data: { status: "COMPLETED", winnerEntryId: winner.id },
+        })
+
+        await prisma.battleEntry.update({
+          where: { id: winner.id },
+          data: { wonRound: true },
+        })
+
+        await updateBattleStats(winner.userId, true)
+        await recordBattleWin(winner.userId, prompt.campus)
+        await createWinNotification(winner)
+
+        // Credit reward for BRACKET FINAL win
+        const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
+        if (winnerUser) {
+          const tier = getEffectiveTier(winnerUser)
+          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+          const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * multiplier)
+          await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, { 
+            promptId: prompt.id, 
+            entryId: winner.id,
+            battleType: "bracket_final",
+            tier 
+          })
+        }
+
+        for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
+          await updateBattleStats(entry.userId, false)
+        }
+      } else {
+        await prisma.battlePrompt.update({
+          where: { id: prompt.id },
+          data: { status: "COMPLETED" },
+        })
+      }
     } else {
       const winner = await prisma.battleEntry.findFirst({
         where: { promptId: prompt.id },
@@ -157,6 +222,20 @@ export async function GET(req: NextRequest) {
         await updateBattleStats(winner.userId, true)
         await recordBattleWin(winner.userId, prompt.campus)
         await createWinNotification(winner)
+
+        // Credit reward for single battle win
+        const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
+        if (winnerUser) {
+          const tier = getEffectiveTier(winnerUser)
+          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+          const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
+          await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, { 
+            promptId: prompt.id, 
+            entryId: winner.id,
+            battleType: "single",
+            tier 
+          })
+        }
 
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
           await updateBattleStats(entry.userId, false)

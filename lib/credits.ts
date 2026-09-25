@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma"
 import { CREDIT_CONFIG, CreditConfig } from "@/lib/credit-config"
 import { Prisma } from "@prisma/client"
 
+export { CREDIT_CONFIG } from "@/lib/credit-config"
+export type { CreditConfig } from "@/lib/credit-config"
+
 export async function creditUser(
   userId: string,
   type: string,
