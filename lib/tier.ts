@@ -74,7 +74,8 @@ export function getMonthlyFreezeGrant(tier: AccountTier): number {
  *  user's *current* effective tier and disappears automatically on downgrade/expiry. */
 export function getTierStorageBonusMB(tier: AccountTier): number {
   switch (tier) {
-    case "PRIME": return 50
+    case "PLUS": return 50
+    case "PRIME": return 100
     default: return 0
   }
 }
@@ -137,6 +138,7 @@ export const TIER_CONFIG = {
       "1 free post boost per week",
       "Can still buy rare/epic/legendary avatars and shop items",
       "Can buy custom ghost name",
+      "100 MB storage",
     ],
   },
   PRIME: {
@@ -153,7 +155,7 @@ export const TIER_CONFIG = {
       "Real GHS earnings from votes, battle wins, leaderboard",
       "Request payouts (min GHS 20, specific windows)",
       "Full earnings dashboard & analytics",
-      "Best storage limits",
+      "150 MB storage",
       "2 free post boosts per week",
       "1 free streak freeze per month",
     ],
