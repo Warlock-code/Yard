@@ -59,9 +59,9 @@ export const CREDIT_CONFIG = {
   },
 
   TIER_MULTIPLIER: {
-    FREE: { earn: 1.0, tipReceived: 0.9, battle: 1.0, withdrawalFee: 25 },
-    PLUS: { earn: 1.1, tipReceived: 1.0, battle: 1.1, withdrawalFee: 20 },
-    PRIME: { earn: 1.2, tipReceived: 1.1, battle: 1.2, withdrawalFee: 15 },
+    FREE: { earn: 0, tipReceived: 0, battle: 0, withdrawalFee: 100 },
+    PLUS: { earn: 1.0, tipReceived: 1.0, battle: 1.0, withdrawalFee: 50 },
+    PRIME: { earn: 1.0, tipReceived: 1.0, battle: 1.0, withdrawalFee: 20 },
   },
 } as const
 

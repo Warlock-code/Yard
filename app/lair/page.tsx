@@ -46,14 +46,9 @@ export default function LairPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showPayout, setShowPayout] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState("")
   const [deleting, setDeleting] = useState(false)
-  const [banks, setBanks] = useState<Bank[]>([])
-  const [bankCode, setBankCode] = useState("")
-  const [accountNumber, setAccountNumber] = useState("")
-  const [accountName, setAccountName] = useState("")
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const [storageLoading, setStorageLoading] = useState(true)
   const [storageError, setStorageError] = useState("")
@@ -126,6 +121,7 @@ export default function LairPage() {
   const [withdrawBankCode, setWithdrawBankCode] = useState("")
   const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("")
   const [withdrawAccountName, setWithdrawAccountName] = useState("")
+  const [banks, setBanks] = useState<Bank[]>([])
   const [withdrawing, setWithdrawing] = useState(false)
 
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
@@ -220,7 +216,7 @@ export default function LairPage() {
     return () => { active = false }
   }, [load, loadStorage, loadReferral, loadWallet])
 
-  async function openPayoutModal() {
+  async function openWithdrawModal() {
     if (banks.length === 0) {
       try {
         const data = await apiGet("/api/banks")
@@ -229,22 +225,7 @@ export default function LairPage() {
         setBanks([])
       }
     }
-    setShowPayout(true)
-  }
-
-  async function handlePayoutRequest() {
-    if (!bankCode || !accountNumber.trim() || !accountName.trim()) {
-      alert("Fill in all payout details.")
-      return
-    }
-    try {
-      await apiPost("/api/payout/request", { bankCode, accountNumber, accountName })
-      alert("Payout requested — pending admin approval.")
-      setShowPayout(false)
-      load()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    }
+    setShowWithdrawModal(true)
   }
 
   async function handleWithdraw() {
@@ -442,12 +423,9 @@ export default function LairPage() {
         </div>
       )}
 
-      {walletData && (
+      {walletData && (me.tier !== "FREE" && (
         <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold">💳 Wallet</p>
-            <span className="text-xs text-primary">No KYC Required</span>
-          </div>
+          <p className="font-semibold mb-3">💳 Wallet</p>
 
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="card p-3 text-center bg-white/[0.03]">
@@ -475,17 +453,13 @@ export default function LairPage() {
           </div>
 
           <div className="flex gap-2 mb-3">
-            <button className="btn-primary flex-1" onClick={() => setShowWithdrawModal(true)} disabled={walletData.balance < 2000}>
-              {walletData.balance < 2000 ? "Min 2,000 Credits (GHS 20)" : "Withdraw"}
+            <button className="btn-primary flex-1" onClick={openWithdrawModal} disabled={walletData.balance < 2000}>
+              {walletData.balance < 2000 ? "Min 2,000 Credits" : "Withdraw"}
             </button>
             <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
               Buy Credits
             </button>
           </div>
-
-          <p className="text-xs text-white/40 text-center mb-3">
-            Min withdrawal: 2,000 credits (GHS 20). 20% platform fee. Account must be 14+ days old with 1,000+ earned credits.
-          </p>
 
           <details className="group mt-3">
             <summary className="flex items-center justify-between cursor-pointer select-none">
@@ -538,7 +512,7 @@ export default function LairPage() {
             </details>
           )}
         </div>
-      )}
+      ))}
 
       <button
         className="card w-full p-4 mb-3 flex items-center justify-between"
@@ -636,22 +610,6 @@ export default function LairPage() {
             <span className="text-white/50">Available balance</span>
             <span className="font-semibold">{ghs(me.availableBalancePesewas)}</span>
           </div>
-          {me.hasPendingPayout ? (
-            <p className="text-xs text-white/40 text-center">Payout request pending admin approval.</p>
-          ) : (
-            <>
-              <button
-                className="btn-primary w-full"
-                onClick={openPayoutModal}
-                disabled={me.availableBalancePesewas < 2000}
-              >
-                {me.availableBalancePesewas < 2000 ? "Min GHS 20.00 to withdraw" : "Request Payout"}
-              </button>
-              <p className="text-xs text-white/30 text-center mt-2">
-                Payout requests only open at month-end and the 14th–16th of each month.
-              </p>
-            </>
-          )}
         </div>
       )}
 
@@ -662,27 +620,6 @@ export default function LairPage() {
       <button className="btn-ghost w-full mt-2 text-red-400" onClick={() => setShowDeleteModal(true)}>
         Delete Account
       </button>
-
-      {showPayout && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">Request Payout</h3>
-            <p className="text-white/50 text-xs mb-3">Minimum GHS 20.00. Only opens at month-end and the 14th–16th.</p>
-            <select className="input mb-2" value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
-              <option value="">Select your bank or MoMo network</option>
-              {banks.map((b) => (
-                <option key={b.code} value={b.code}>{b.name}</option>
-              ))}
-            </select>
-            <input className="input mb-2" placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
-            <input className="input mb-3" placeholder="Account name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
-            <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowPayout(false)}>Cancel</button>
-              <button className="btn-primary flex-1" onClick={handlePayoutRequest}>Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">

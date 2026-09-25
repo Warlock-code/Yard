@@ -212,7 +212,6 @@ export default function ShopPage() {
 
       {category === "credits" && (
         <div className="space-y-3 mt-2">
-          <p className="text-xs text-white/40 mb-2">Buy credits to spend on boosts, avatars, tips & more. 100 credits = GHS 1</p>
           <div className="grid grid-cols-2 gap-3">
             {getAllPacks().map((pack: CreditPack) => (
               <div key={pack.id} className="card p-4 text-center relative">

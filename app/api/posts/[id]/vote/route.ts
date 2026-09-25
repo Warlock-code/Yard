@@ -37,18 +37,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (owner) {
     const tier = getEffectiveTier(owner)
-    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 1
-    const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier)
-    
-    await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier })
-    
-    if (MILESTONES.includes(post.yeahs)) {
-      const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier)
-      await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, { 
-        postId: post.id, 
-        milestone: post.yeahs,
-        tier 
-      })
+    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 0
+    if (multiplier > 0) {
+      const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier)
+      
+      await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier })
+      
+      if (MILESTONES.includes(post.yeahs)) {
+        const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier)
+        await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, { 
+          postId: post.id, 
+          milestone: post.yeahs,
+          tier 
+        })
+      }
     }
   }
 

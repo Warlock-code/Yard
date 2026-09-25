@@ -60,8 +60,8 @@ export const THEMES: ThemeDef[] = [
   {
     id: "purple",
     name: "Purple Haze",
-    description: "GHS 7.00 — one-time.",
-    pricePesewas: 700,
+    description: "700 credits — one-time.",
+    pricePesewas: 70000,
     swatchFrom: "#a855f7",
     swatchTo: "#050505",
     className: "theme-purple",
@@ -72,8 +72,8 @@ export const THEMES: ThemeDef[] = [
   {
     id: "crimson",
     name: "Crimson",
-    description: "GHS 7.00 — one-time.",
-    pricePesewas: 700,
+    description: "700 credits — one-time.",
+    pricePesewas: 70000,
     swatchFrom: "#f43f5e",
     swatchTo: "#050505",
     className: "theme-crimson",
@@ -84,8 +84,8 @@ export const THEMES: ThemeDef[] = [
   {
     id: "teal",
     name: "Deep Teal",
-    description: "GHS 7.00 — one-time.",
-    pricePesewas: 700,
+    description: "700 credits — one-time.",
+    pricePesewas: 70000,
     swatchFrom: "#14b8a6",
     swatchTo: "#050505",
     className: "theme-teal",
@@ -96,8 +96,8 @@ export const THEMES: ThemeDef[] = [
   {
     id: "rainbow",
     name: "Rainbow",
-    description: "GHS 15.00 — one-time.",
-    pricePesewas: 1500,
+    description: "1500 credits — one-time.",
+    pricePesewas: 150000,
     swatchFrom: "#ff0080",
     swatchTo: "#7928ca",
     className: "theme-rainbow",

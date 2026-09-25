@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { awardEarning } from "@/lib/earnings"
 import { emitBattleVote } from "@/server/socket"
-
-const PESEWAS_PER_BATTLE_VOTE = 10
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { getEffectiveTier } from "@/lib/tier"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -34,8 +33,13 @@ export async function POST(req: NextRequest) {
       promptId = updatedEntry.promptId
 
       const owner = await tx.user.findUnique({ where: { id: candidate.userId } })
-      if (owner && owner.tier === "PRIME") {
-        await awardEarning(owner.id, "battle_win", entryId, PESEWAS_PER_BATTLE_VOTE)
+      if (owner) {
+        const tier = getEffectiveTier(owner)
+        const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 0
+        if (multiplier > 0) {
+          const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier)
+          await creditUser(owner.id, "VOTE_REWARD", voteReward, `battle_${entryId}`, { entryId, voterId: user.id, tier })
+        }
       }
     })
   } catch (err: unknown) {
