@@ -8,8 +8,11 @@ import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow, isAvatar
 import { TIER_CONFIG } from "@/lib/tier"
 import { useTierTheme } from "@/app/components/ThemeProvider"
 import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
+import { getAllPacks } from "@/lib/credits"
+import type { CreditPack } from "@/lib/credit-config"
 
 const CATEGORIES = [
+  { key: "credits", label: "Credits", icon: "💳" },
   { key: "tier", label: "Upgrade" },
   { key: "boosts", label: "Boosts" },
   { key: "streak", label: "Streak" },
@@ -38,7 +41,7 @@ function ThemesPicker({
   return (
     <div className="mt-2">
       <p className="text-white/40 text-xs mb-3 px-1">
-        Default Green is on for everyone. Plus unlocks Blue, Prime unlocks Blue &amp; Gold — all opt-in.
+        Default Green is on for everyone. Plus unlocks Blue, Prime unlocks Blue & Gold — all opt-in.
         Everyone can also buy extra colorways below.
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -83,7 +86,7 @@ function ThemesPicker({
                   disabled={buyingId !== null}
                   onClick={() => onBuy(theme.id)}
                 >
-                  {isBuying ? "..." : `Buy — GHS ${(theme.pricePesewas / 100).toFixed(2)}`}
+                  {isBuying ? "..." : `Buy — ${theme.pricePesewas / 100} credits`}
                 </button>
               ) : (
                 <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
@@ -100,13 +103,14 @@ function ThemesPicker({
 
 export default function ShopPage() {
   const router = useRouter()
-  const [category, setCategory] = useState("tier")
+  const [category, setCategory] = useState("credits")
   const [loading, setLoading] = useState<string | null>(null)
-  const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number } | null>(null)
+  const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
   const { themeChoice, setThemeChoice } = useTierTheme()
 
   useEffect(() => {
     apiGet("/api/auth/me").then((d) => setMe(d.user)).catch(() => {})
+    apiGet("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
@@ -128,11 +132,47 @@ export default function ShopPage() {
     }
   }
 
+  async function buyCredits(packId: string) {
+    setLoading(packId)
+    try {
+      const data = await apiPost("/api/credits/purchase", { packId })
+      const url = data.authorization_url as string | undefined
+      if (url) {
+        await openPaystackCheckout(url)
+      } else {
+        alert(data.message || "Purchased!")
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  async function buyWithCredits(endpoint: string, key: string, body: Record<string, unknown> = {}) {
+    setLoading(key)
+    try {
+      const data = await apiPost(endpoint, body)
+      if (data.status === true || data.message) {
+        alert(data.message || "Purchased!")
+        // Refresh credit balance
+        const bal = await apiGet("/api/credits/balance")
+        setMe(prev => prev ? { ...prev, creditsBalance: bal.balance } : null)
+      } else {
+        alert(data.error || "Failed")
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    } finally {
+      setLoading(null)
+    }
+  }
+
   const getPriceDisplay = (avatar: typeof AVATARS[0]) => {
-    if (!me) return `GHS ${(avatar.pricePesewas / 100).toFixed(2)}`
+    if (!me) return `${avatar.pricePesewas / 100} credits`
     const price = getAvatarPriceForTier(me.tier, avatar)
     if (price === 0) return "Free"
-    return `GHS ${(price / 100).toFixed(2)}`
+    return `${price / 100} credits`
   }
 
   const isOwnedOrFree = (avatar: typeof AVATARS[0]) => {
@@ -158,10 +198,45 @@ export default function ShopPage() {
               category === c.key ? "border-primary text-primary bg-primary/10" : "border-white/10 text-white/40"
             }`}
           >
-            {c.label}
+            {(c as { icon?: string }).icon ? `${(c as { icon?: string }).icon} ` : ""}{c.label}
           </button>
         ))}
       </div>
+
+      {me && (
+        <div className="card p-3 mb-3 flex items-center justify-between">
+          <span className="text-white/50 text-sm">Your Balance</span>
+          <span className="text-lg font-bold text-primary">{me.creditsBalance?.toLocaleString() || 0} credits</span>
+        </div>
+      )}
+
+      {category === "credits" && (
+        <div className="space-y-3 mt-2">
+          <p className="text-xs text-white/40 mb-2">Buy credits to spend on boosts, avatars, tips & more. 100 credits = GHS 1</p>
+          <div className="grid grid-cols-2 gap-3">
+            {getAllPacks().map((pack: CreditPack) => (
+              <div key={pack.id} className="card p-4 text-center relative">
+                {pack.bonusPct > 0 && (
+                  <span className="absolute top-1 right-1 text-xs bg-primary text-black px-2 py-0.5 rounded">
+                    +{pack.bonusPct}%
+                  </span>
+                )}
+                <p className="text-3xl font-bold text-primary mb-1">{pack.credits.toLocaleString()}</p>
+                <p className="text-xs text-white/40 mb-2">credits</p>
+                <p className="text-sm font-semibold mb-1">{pack.name}</p>
+                <p className="text-xs text-white/50 mb-3">{pack.description}</p>
+                <button
+                  className="btn-primary w-full text-sm disabled:opacity-50"
+                  disabled={loading === pack.id}
+                  onClick={() => buyCredits(pack.id)}
+                >
+                  {loading === pack.id ? "..." : `Buy — GHS ${pack.ghs}`}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {category === "tier" && !me && (
         <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
@@ -222,9 +297,9 @@ export default function ShopPage() {
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🚀</p>
             <p className="font-semibold text-sm">1 Boost Credit</p>
-            <p className="text-white/40 text-xs mb-3">GHS 5.00</p>
-            <button className="btn-primary w-full text-sm" onClick={() => buy("/api/shop/boost-credit", "boost")}>
-              {loading === "boost" ? "..." : "Buy"}
+            <p className="text-white/40 text-xs mb-3">300 credits</p>
+            <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/boost-credit", "boost", { useCredits: true })}>
+              {loading === "boost" ? "..." : "Buy — 300 credits"}
             </button>
           </div>
           {me && me.freeBoosts > 0 && (
@@ -243,25 +318,25 @@ export default function ShopPage() {
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🧊</p>
             <p className="font-semibold text-sm">Streak Freeze</p>
-            <p className="text-white/40 text-xs mb-3">GHS 2.00</p>
-            <button className="btn-primary w-full text-sm" onClick={() => buy("/api/shop/streak-freeze", "freeze")}>
-              {loading === "freeze" ? "..." : "Buy"}
+            <p className="text-white/40 text-xs mb-3">200 credits</p>
+            <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/streak-freeze", "freeze", { useCredits: true })}>
+              {loading === "freeze" ? "..." : "Buy — 200 credits"}
             </button>
           </div>
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🔁</p>
             <p className="font-semibold text-sm">Restore Streak</p>
-            <p className="text-white/40 text-xs mb-3">GHS 3.00</p>
-            <button className="btn-primary w-full text-sm" onClick={() => buy("/api/shop/streak-restore", "restore")}>
-              {loading === "restore" ? "..." : "Buy"}
+            <p className="text-white/40 text-xs mb-3">500 credits</p>
+            <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/streak-restore", "restore", { useCredits: true })}>
+              {loading === "restore" ? "..." : "Buy — 500 credits"}
             </button>
           </div>
           <div className="card p-4 text-center col-span-2">
             <p className="text-3xl mb-2">💾</p>
             <p className="font-semibold text-sm">Storage +100MB</p>
-            <p className="text-white/40 text-xs mb-3">GHS 10.00</p>
-            <button className="btn-primary w-full text-sm" onClick={() => buy("/api/shop/storage", "storage")}>
-              {loading === "storage" ? "..." : "Buy"}
+            <p className="text-white/40 text-xs mb-3">200 credits</p>
+            <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/storage", "storage", { useCredits: true })}>
+              {loading === "storage" ? "..." : "Buy — 200 credits"}
             </button>
           </div>
         </div>
@@ -282,14 +357,14 @@ export default function ShopPage() {
                 <p className="font-semibold text-sm">{c.name}</p>
                 <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
                 <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
-                  {owned ? "✓ Owned" : isFree ? "Free (Prime)" : `GHS ${(price / 100).toFixed(2)}`}
+                  {owned ? "✓ Owned" : isFree ? "Free (Prime)" : `${price / 100} credits`}
                 </p>
                 <button
                   className={`w-full text-sm ${owned || isFree ? "btn-ghost" : "btn-primary"}`}
                   disabled={owned || isFree || loading === c.id}
-                  onClick={() => buy("/api/shop/cosmetic", c.id, { cosmeticId: c.id })}
+                  onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
                 >
-                  {owned ? "✓ Owned" : isFree ? "✓ Free" : loading === c.id ? "..." : "Buy"}
+                  {owned ? "✓ Owned" : isFree ? "✓ Free" : loading === c.id ? "..." : `Buy — ${price / 100} credits`}
                 </button>
               </div>
             )
@@ -300,7 +375,7 @@ export default function ShopPage() {
       {category === "identity" && (
         <div className="card p-4 mt-2">
           <p className="font-semibold text-sm mb-1">✏️ Custom Ghost Name</p>
-          <p className="text-white/40 text-xs mb-3">GHS 5.00 — change from your Lair page.</p>
+          <p className="text-white/40 text-xs mb-3">300 credits — change from your Lair page.</p>
           <button className="btn-ghost" onClick={() => router.push("/lair")}>
             Go to Lair
           </button>
@@ -333,7 +408,7 @@ export default function ShopPage() {
               // ignore dispatch failures
             }
           }}
-          onBuy={(themeId) => buy("/api/shop/theme", themeId, { themeId })}
+          onBuy={(themeId) => buyWithCredits("/api/shop/theme", themeId, { themeId, useCredits: true })}
         />
       )}
     </main>
