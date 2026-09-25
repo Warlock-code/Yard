@@ -28,6 +28,11 @@ type Me = {
   storageRemaining: number
   inviteCode: string
   referralCount: number
+  creditsBalance: number
+  creditsEarned: number
+  creditsPurchased: number
+  creditsWithdrawn: number
+  kycStatus: string
 }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
@@ -80,6 +85,51 @@ export default function LairPage() {
     }>
   } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [walletData, setWalletData] = useState<{
+    balance: number
+    earned: number
+    purchased: number
+    withdrawn: number
+    kycStatus: string
+    kycData?: Record<string, unknown>
+    transactions: Array<{
+      id: string
+      type: string
+      amount: number
+      balanceAfter: number
+      reference?: string
+      metadata?: Record<string, unknown>
+      createdAt: string
+    }>
+    payouts: Array<{
+      id: string
+      creditsAmount: number
+      ghsAmount: number
+      netGhsAmount: number
+      feeAmount: number
+      status: string
+      bankCode: string
+      accountNumber: string
+      accountName: string
+      requestedAt: string
+      processedAt?: string
+    }>
+    packs: Array<{
+      id: string
+      name: string
+      ghs: number
+      credits: number
+      bonusPct: number
+      description: string
+    }>
+  } | null>(null)
+  const [walletLoading, setWalletLoading] = useState(true)
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [withdrawAmount, setWithdrawAmount] = useState("")
+  const [withdrawBankCode, setWithdrawBankCode] = useState("")
+  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("")
+  const [withdrawAccountName, setWithdrawAccountName] = useState("")
+  const [withdrawing, setWithdrawing] = useState(false)
 
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet("/api/storage")
@@ -152,13 +202,26 @@ export default function LairPage() {
       .catch(console.error)
   }, [])
 
+  const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet("/api/credits/balance")
+      .then((data) => {
+        if (!isCurrent()) return
+        setWalletData(data)
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (isCurrent()) setWalletLoading(false)
+      })
+  }, [])
+
   useEffect(() => {
     let active = true
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
+    loadWallet(() => active)
     return () => { active = false }
-  }, [load, loadStorage, loadReferral])
+  }, [load, loadStorage, loadReferral, loadWallet])
 
   async function openPayoutModal() {
     if (banks.length === 0) {
@@ -184,6 +247,39 @@ export default function LairPage() {
       load()
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
+    }
+  }
+
+  async function handleWithdraw() {
+    if (!withdrawAmount || !withdrawBankCode || !withdrawAccountNumber || !withdrawAccountName) {
+      alert("Fill in all withdrawal details.")
+      return
+    }
+    const credits = parseInt(withdrawAmount)
+    if (isNaN(credits) || credits < 2000) {
+      alert("Minimum withdrawal is 2,000 credits (GHS 20).")
+      return
+    }
+    setWithdrawing(true)
+    try {
+      await apiPost("/api/credits/withdraw", {
+        creditsAmount: credits,
+        bankCode: withdrawBankCode,
+        accountNumber: withdrawAccountNumber,
+        accountName: withdrawAccountName,
+      })
+      alert("Withdrawal requested — pending admin approval (20% fee deducted).")
+      setShowWithdrawModal(false)
+      setWithdrawAmount("")
+      setWithdrawBankCode("")
+      setWithdrawAccountNumber("")
+      setWithdrawAccountName("")
+      loadWallet()
+      load()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Withdrawal failed.")
+    } finally {
+      setWithdrawing(false)
     }
   }
 
@@ -340,6 +436,106 @@ export default function LairPage() {
                       {r.rewardStatus === "completed" ? `+${r.rewardAmount} 🔥` :
                        r.rewardStatus === "flagged" ? "⚠ Flagged" :
                        r.status === "pending" ? "Pending" : "No reward"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+)}
+        </div>
+      )}
+
+      {walletData && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold">💳 Wallet</p>
+            <span className="text-xs text-white/40">{walletData.kycStatus === "APPROVED" ? "✅ KYC Verified" : walletData.kycStatus === "PENDING" ? "⏳ KYC Pending" : "❌ KYC Required"}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{walletData.balance.toLocaleString()}</p>
+              <p className="text-xs text-white/40">Credits</p>
+              <p className="text-xs text-primary mt-0.5">≈ GHS {(walletData.balance / 100).toFixed(2)}</p>
+            </div>
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{walletData.earned.toLocaleString()}</p>
+              <p className="text-xs text-white/40">Lifetime Earned</p>
+              <p className="text-xs text-white/40 mt-0.5">≈ GHS {(walletData.earned / 100).toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{walletData.purchased.toLocaleString()}</p>
+              <p className="text-xs text-white/40">Purchased</p>
+            </div>
+            <div className="card p-3 text-center bg-white/[0.03]">
+              <p className="text-lg font-bold text-primary">{walletData.withdrawn.toLocaleString()}</p>
+              <p className="text-xs text-white/40">Withdrawn</p>
+              <p className="text-xs text-white/40 mt-0.5">≈ GHS {(walletData.withdrawn / 100).toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mb-3">
+            <button className="btn-primary flex-1" onClick={() => setShowWithdrawModal(true)} disabled={walletData.kycStatus !== "APPROVED" || walletData.balance < 2000}>
+              {walletData.kycStatus !== "APPROVED" ? "Verify KYC First" : walletData.balance < 2000 ? "Min 2,000 Credits (GHS 20)" : "Withdraw"}
+            </button>
+            <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
+              Buy Credits
+            </button>
+          </div>
+
+          {walletData.kycStatus !== "APPROVED" && (
+            <p className="text-xs text-white/40 text-center">
+              Complete KYC to enable withdrawals. Min withdrawal: 2,000 credits (GHS 20). 20% platform fee.
+            </p>
+          )}
+
+          <details className="group mt-3">
+            <summary className="flex items-center justify-between cursor-pointer select-none">
+              <span className="text-sm font-medium">Recent transactions</span>
+              <span className="text-xs text-white/40">{walletData.transactions.length} total</span>
+            </summary>
+            <ul className="space-y-2 mt-3 pt-3 border-t border-white/10 max-h-64 overflow-y-auto">
+              {walletData.transactions.slice(0, 20).map((tx) => (
+                <li key={tx.id} className="flex items-center justify-between text-sm py-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded bg-white/[0.05] ${
+                      tx.amount > 0 ? "text-green-400" : "text-red-400"
+                    }`}>
+                      {tx.amount > 0 ? "+" : ""}{tx.amount}
+                    </span>
+                    <span className="text-white/70 capitalize">{tx.type.toLowerCase().replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white/50 text-xs">Bal: {tx.balanceAfter.toLocaleString()}</p>
+                    <p className="text-white/40 text-xs">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+
+          {walletData.payouts.length > 0 && (
+            <details className="group mt-3">
+              <summary className="flex items-center justify-between cursor-pointer select-none">
+                <span className="text-sm font-medium">Withdrawals</span>
+                <span className="text-xs text-white/40">{walletData.payouts.length} total</span>
+              </summary>
+              <ul className="space-y-2 mt-3 pt-3 border-t border-white/10">
+                {walletData.payouts.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between text-sm py-1">
+                    <div>
+                      <p className="font-medium">GHS {(p.netGhsAmount / 100).toFixed(2)} <span className="text-red-400 text-xs">(-{(p.feeAmount / 100).toFixed(2)} fee)</span></p>
+                      <p className="text-white/40 text-xs">{p.bankCode} • {p.accountNumber.slice(-4)}</p>
+                    </div>
+                    <span className={`badge badge-xs ${
+                      p.status === "paid" ? "badge-primary" :
+                      p.status === "approved" || p.status === "processing" ? "badge-warning" :
+                      "badge-ghost"
+                    }`}>
+                      {p.status}
                     </span>
                   </li>
                 ))}
@@ -503,6 +699,30 @@ export default function LairPage() {
               <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>Cancel</button>
               <button className="btn-primary flex-1" onClick={handleDeleteAccount} disabled={deleting}>
                 {deleting ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="card p-5 w-full max-w-sm bg-black">
+            <h3 className="font-bold text-lg mb-1">Withdraw Credits</h3>
+            <p className="text-white/50 text-xs mb-3">Minimum 2,000 credits (GHS 20). 20% platform fee deducted. KYC required.</p>
+            <input className="input mb-2" type="number" placeholder="Credits to withdraw (min 2000)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+            <select className="input mb-2" value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)}>
+              <option value="">Select your bank or MoMo network</option>
+              {banks.map((b) => (
+                <option key={b.code} value={b.code}>{b.name}</option>
+              ))}
+            </select>
+            <input className="input mb-2" placeholder="Account number" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} />
+            <input className="input mb-3" placeholder="Account name" value={withdrawAccountName} onChange={(e) => setWithdrawAccountName(e.target.value)} />
+            <div className="flex gap-2">
+              <button className="btn-ghost flex-1" onClick={() => setShowWithdrawModal(false)}>Cancel</button>
+              <button className="btn-primary flex-1" onClick={handleWithdraw} disabled={withdrawing}>
+                {withdrawing ? "Processing..." : "Submit"}
               </button>
             </div>
           </div>
