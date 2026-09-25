@@ -84,7 +84,6 @@ export async function withdrawCredits(
       creditsEarned: true,
       creditsWithdrawn: true,
       createdAt: true,
-      kycStatus: true,
       tier: true,
     },
   })
@@ -96,9 +95,6 @@ export async function withdrawCredits(
   }
   if (creditsAmount > user.creditsBalance) {
     throw new Error("Insufficient credits balance")
-  }
-  if (user.kycStatus !== "APPROVED" && CREDIT_CONFIG.LIMITS.KYC_REQUIRED) {
-    throw new Error("KYC verification required before withdrawal")
   }
   const accountAgeDays = (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
   if (accountAgeDays < CREDIT_CONFIG.LIMITS.MIN_ACCOUNT_AGE_DAYS) {
@@ -170,8 +166,6 @@ export async function getUserCredits(userId: string) {
       creditsEarned: true,
       creditsPurchased: true,
       creditsWithdrawn: true,
-      kycStatus: true,
-      kycData: true,
       tier: true,
     },
   })

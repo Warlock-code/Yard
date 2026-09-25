@@ -32,7 +32,6 @@ type Me = {
   creditsEarned: number
   creditsPurchased: number
   creditsWithdrawn: number
-  kycStatus: string
 }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
@@ -90,8 +89,6 @@ export default function LairPage() {
     earned: number
     purchased: number
     withdrawn: number
-    kycStatus: string
-    kycData?: Record<string, unknown>
     transactions: Array<{
       id: string
       type: string
@@ -449,7 +446,7 @@ export default function LairPage() {
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <p className="font-semibold">💳 Wallet</p>
-            <span className="text-xs text-white/40">{walletData.kycStatus === "APPROVED" ? "✅ KYC Verified" : walletData.kycStatus === "PENDING" ? "⏳ KYC Pending" : "❌ KYC Required"}</span>
+            <span className="text-xs text-primary">No KYC Required</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 mb-3">
@@ -478,19 +475,17 @@ export default function LairPage() {
           </div>
 
           <div className="flex gap-2 mb-3">
-            <button className="btn-primary flex-1" onClick={() => setShowWithdrawModal(true)} disabled={walletData.kycStatus !== "APPROVED" || walletData.balance < 2000}>
-              {walletData.kycStatus !== "APPROVED" ? "Verify KYC First" : walletData.balance < 2000 ? "Min 2,000 Credits (GHS 20)" : "Withdraw"}
+            <button className="btn-primary flex-1" onClick={() => setShowWithdrawModal(true)} disabled={walletData.balance < 2000}>
+              {walletData.balance < 2000 ? "Min 2,000 Credits (GHS 20)" : "Withdraw"}
             </button>
             <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
               Buy Credits
             </button>
           </div>
 
-          {walletData.kycStatus !== "APPROVED" && (
-            <p className="text-xs text-white/40 text-center">
-              Complete KYC to enable withdrawals. Min withdrawal: 2,000 credits (GHS 20). 20% platform fee.
-            </p>
-          )}
+          <p className="text-xs text-white/40 text-center mb-3">
+            Min withdrawal: 2,000 credits (GHS 20). 20% platform fee. Account must be 14+ days old with 1,000+ earned credits.
+          </p>
 
           <details className="group mt-3">
             <summary className="flex items-center justify-between cursor-pointer select-none">
@@ -709,7 +704,7 @@ export default function LairPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">Withdraw Credits</h3>
-            <p className="text-white/50 text-xs mb-3">Minimum 2,000 credits (GHS 20). 20% platform fee deducted. KYC required.</p>
+            <p className="text-white/50 text-xs mb-3">Minimum 2,000 credits (GHS 20). 20% platform fee deducted. Account must be 14+ days old with 1,000+ earned credits.</p>
             <input className="input mb-2" type="number" placeholder="Credits to withdraw (min 2000)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
             <select className="input mb-2" value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)}>
               <option value="">Select your bank or MoMo network</option>
