@@ -50,7 +50,7 @@ export function useSocket() {
     return () => {
       socketRef.current?.off(event, handler)
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   }, []) as <K extends keyof SocketEvents>(event: K, handler: SocketEvents[K]) => () => void
 
   const emit = useCallback(<K extends keyof SocketEvents>(event: K, data: Parameters<SocketEvents[K]>[0]) => {

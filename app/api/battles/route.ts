@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date()
-  let prompt = await prisma.battlePrompt.findFirst({
+  const prompt = await prisma.battlePrompt.findFirst({
     where: {
       campus: user.campus,
       active: true,

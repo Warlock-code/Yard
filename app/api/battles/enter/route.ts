@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
 
   const effectiveTier = getEffectiveTier(user)
 
-  let { promptId, text, imageUrl, voiceUrl } = await req.json()
-  if (typeof text === "string") text = text.toLowerCase()
+  const { promptId, text: rawText, imageUrl, voiceUrl } = await req.json()
+  const text = typeof rawText === "string" ? rawText.toLowerCase() : rawText
 
   if (!promptId || typeof promptId !== "string") {
     return NextResponse.json({ error: "Prompt ID required." }, { status: 400 })
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const entryType = prompt.entryType
-  let entryData: BattleEntryCreateInput = {
+  const entryData: BattleEntryCreateInput = {
     prompt: { connect: { id: promptId } },
     user: { connect: { id: user.id } },
     campus: user.campus,
