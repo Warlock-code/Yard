@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { hashPassword, makeGhostId, makeVerifyCode } from "@/lib/auth"
+import { hashPassword, makeGhostId, signToken } from "@/lib/auth"
 import { getCampusFromEmail } from "@/lib/schoolEmails"
-import { sendVerifyEmail } from "@/lib/resend"
-import { rateLimit, rateLimitWithInfo } from "@/lib/rateLimit"
+import { rateLimit } from "@/lib/rateLimit"
 import { getProgramKey } from "@/lib/program"
 import { signupSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
@@ -34,19 +33,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many signup attempts. Try again later." }, { status: 429 })
   }
 
-  const emailRl = rateLimitWithInfo(`verify-email:${normalizedEmail}`, 2, 60 * 60 * 1000)
-  if (!emailRl.allowed) {
-    await auditLog("user.signup", null, null, { success: false, reason: "Email rate limited", email: normalizedEmail, ipAddress: ip })
-    return NextResponse.json({ error: "Too many verification emails sent. Try again later." }, { status: 429 })
-  }
-
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (existing) {
     return NextResponse.json({ error: "Account already exists." }, { status: 400 })
   }
 
   const passwordHash = await hashPassword(password)
-  const verifyCode = makeVerifyCode()
   // Ensure ghostId uniqueness with retry loop (was missing, caused P2002 on collision)
   let ghostId: string
   let ghostAttempts = 0
@@ -87,7 +79,7 @@ export async function POST(req: NextRequest) {
         program: program?.trim() || null,
         programKey: getProgramKey(campus, program),
         ghostId,
-        verifyCode,
+        emailVerified: true,
         inviteCode,
         referredBy: validatedReferralCode,
       },
@@ -128,20 +120,20 @@ export async function POST(req: NextRequest) {
 
   const referralMeta = referralCode && !validatedReferralCode ? { referralInvalid: true } : {}
 
-  try {
-    await sendVerifyEmail(normalizedEmail, verifyCode)
-  } catch (emailErr) {
-    console.error("[signup] sendVerifyEmail failed for", normalizedEmail, emailErr)
-    // Don't fail signup if email fails — user can resend code
-    // Still audit and return success but include a warning
-    // Sanitize error message to avoid leaking internal details
-    await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, emailFailed: true, ...referralMeta })
-    return NextResponse.json({ userId: user.id, ghostId: user.ghostId, emailFailed: true, message: "Failed to send verification email. Please resend code." })
-  }
+  // Issue JWT immediately since email is auto-verified
+  const token = signToken(user.id)
+  const res = NextResponse.json({ userId: user.id, ghostId: user.ghostId, token })
+  res.cookies.set("yard_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  })
 
   await auditLog("user.signup", user.id, user.id, { success: true, email: normalizedEmail, campus, ghostId, inviteCode, referralCode, ipAddress: ip, ...referralMeta })
 
-  return NextResponse.json({ userId: user.id, ghostId: user.ghostId })
+  return res
   } catch (err) {
     console.error("[signup] unexpected error", err)
     // Don't leak internal error details (Prisma, etc.) to client

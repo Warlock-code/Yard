@@ -39,9 +39,11 @@ function SignupForm() {
         programLevel: programLevel.trim(),
         program: program.trim(),
         referralCode: referralCode || undefined,
-      }) as { userId: string; emailFailed?: boolean }
-      const suffix = data.emailFailed ? "&emailFailed=1" : ""
-      router.push(`/verify-email?userId=${data.userId}${suffix}`)
+      }) as { userId: string; ghostId: string; token?: string }
+      
+      // Token is set via httpOnly cookie by the API
+      router.push("/feed")
+      router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
     } finally {

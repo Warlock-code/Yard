@@ -149,7 +149,22 @@ export default function AdminPage() {
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [users, setUsers] = useState<AdminUser[]>([])
   const [posts, setPosts] = useState<AdminPost[]>([])
-  const [metrics, setMetrics] = useState<null | { range: number; dau: {day:string;count:number}[]; postsPerDay: {day:string;count:number}[]; paywallHits: {day:string;count:number}[]; funnel: {hits:number;checkoutStarted:number;paid:number}; conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; arppuPesewas:number; revenuePesewas:number; paidOutPesewas:number; payoutRatio:number }>(null)
+  const [metrics, setMetrics] = useState<null | { 
+  range: number; 
+  dau: {day:string;count:number}[]; 
+  postsPerDay: {day:string;count:number}[]; 
+  postsPerUserByDay: {day:string;count:number}[];
+  paywallHits: {day:string;count:number}[]; 
+  payConversionByDay: {day:string;rate:number}[];
+  retentionD1: {day:string;rate:number}[];
+  retentionD7: {day:string;rate:number}[];
+  funnel: {hits:number;checkoutStarted:number;paid:number}; 
+  conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; 
+  arppuPesewas:number; 
+  revenuePesewas:number; 
+  paidOutPesewas:number; 
+  payoutRatio:number 
+}>(null)
   const [range, setRange] = useState<7|30>(30)
   const [metricsError, setMetricsError] = useState<string | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
@@ -220,7 +235,22 @@ export default function AdminPage() {
     adminFetch("/api/admin/metrics?range="+range)
       .then((d) => {
         if (!active) return
-        setMetrics(d as unknown as { range: number; dau: {day:string;count:number}[]; postsPerDay: {day:string;count:number}[]; paywallHits: {day:string;count:number}[]; funnel: {hits:number;checkoutStarted:number;paid:number}; conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; arppuPesewas:number; revenuePesewas:number; paidOutPesewas:number; payoutRatio:number })
+        setMetrics(d as unknown as { 
+          range: number; 
+          dau: {day:string;count:number}[]; 
+          postsPerDay: {day:string;count:number}[]; 
+          postsPerUserByDay: {day:string;count:number}[];
+          paywallHits: {day:string;count:number}[]; 
+          payConversionByDay: {day:string;rate:number}[];
+          retentionD1: {day:string;rate:number}[];
+          retentionD7: {day:string;rate:number}[];
+          funnel: {hits:number;checkoutStarted:number;paid:number}; 
+          conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; 
+          arppuPesewas:number; 
+          revenuePesewas:number; 
+          paidOutPesewas:number; 
+          payoutRatio:number 
+        })
         setMetricsError(null)
       })
       .catch((e: unknown) => {
@@ -694,34 +724,34 @@ export default function AdminPage() {
                         </Card>
                       </div>
 
-                      <div className="grid lg:grid-cols-3 gap-4">
+<div className="grid lg:grid-cols-3 gap-4">
                         <Card className="lg:col-span-2">
                           <CardHeader title="Paywall funnel" sub={`Hits → checkout → paid · last ${metrics.range || range}d`} />
                           <div className="p-5 space-y-4">
                             {(() => {
-                              const hits = metrics.funnel?.hits || 0
-                              const started = metrics.funnel?.checkoutStarted || 0
-                              const paid = metrics.funnel?.paid || 0
-                              const s1 = hits > 0 ? (started / hits) * 100 : 0
-                              const s2 = started > 0 ? (paid / started) * 100 : 0
-                              const overall = hits > 0 ? (paid / hits) * 100 : 0
-                              const rows = [
-                                { n: "Paywall hits", c: hits, pct: 100, color: "#baff39", note: "entry" },
-                                { n: "Checkout started", c: started, pct: s1, color: "#38bdf8", note: `${s1.toFixed(1)}% of hits` },
-                                { n: "Paid", c: paid, pct: overall, color: "#facc15", note: `${s2.toFixed(1)}% of checkout · ${overall.toFixed(1)}% overall` },
-                              ]
-                              return rows.map((r) => (
-                                <div key={r.n}>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-bold">{r.n}</p>
-                                    <p className="text-sm font-black" style={{ color: r.color }}>{r.c.toLocaleString()} <span className="text-[11px] font-semibold text-white/35 ml-1">{r.note}</span></p>
+                                const hits = metrics.funnel?.hits || 0
+                                const started = metrics.funnel?.checkoutStarted || 0
+                                const paid = metrics.funnel?.paid || 0
+                                const s1 = hits > 0 ? (started / hits) * 100 : 0
+                                const s2 = started > 0 ? (paid / started) * 100 : 0
+                                const overall = hits > 0 ? (paid / hits) * 100 : 0
+                                const rows = [
+                                  { n: "Paywall hits", c: hits, pct: 100, color: "#baff39", note: "entry" },
+                                  { n: "Checkout started", c: started, pct: s1, color: "#38bdf8", note: `${s1.toFixed(1)}% of hits` },
+                                  { n: "Paid", c: paid, pct: overall, color: "#facc15", note: `${s2.toFixed(1)}% of checkout · ${overall.toFixed(1)}% overall` },
+                                ]
+                                return rows.map((r) => (
+                                  <div key={r.n}>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-sm font-bold">{r.n}</p>
+                                      <p className="text-sm font-black" style={{ color: r.color }}>{r.c.toLocaleString()} <span className="text-[11px] font-semibold text-white/35 ml-1">{r.note}</span></p>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-white/[0.07] mt-2 overflow-hidden">
+                                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: r.color }} />
+                                    </div>
                                   </div>
-                                  <div className="h-2 rounded-full bg-white/[0.07] mt-2 overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, r.pct)}%`, background: r.color }} />
-                                  </div>
-                                </div>
-                              ))
-                            })()}
+                                ))
+                              })()}
                           </div>
                         </Card>
                         <Card>
@@ -731,6 +761,75 @@ export default function AdminPage() {
                             <div className="mt-4 rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.06] p-3">
                               <p className="text-[11px] font-bold text-[#baff39]">ARPPU = revenue / paid users</p>
                               <p className="text-[11px] text-white/40 mt-1">Payout ratio over 1x means paying out more than revenue.</p>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+
+                      <div className="grid lg:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader title="Retention" sub={`D1 / D7 cohorts · last ${metrics.range || range}d`} />
+                          <div className="p-5 space-y-4">
+                            {(() => {
+                              const d1 = metrics.retentionD1 || []
+                              const d7 = metrics.retentionD7 || []
+                              const avgD1 = d1.length > 0 ? d1.reduce((a: number, r: any) => a + (r.rate || 0), 0) / d1.length : 0
+                              const avgD7 = d7.length > 0 ? d7.reduce((a: number, r: any) => a + (r.rate || 0), 0) / d7.length : 0
+                              return (
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
+                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">D1 Retention</p>
+                                      <p className="text-2xl font-black text-[#baff39] mt-1">{avgD1.toFixed(1)}%</p>
+                                    </div>
+                                    <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
+                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">D7 Retention</p>
+                                      <p className="text-2xl font-black text-sky-300 mt-1">{avgD7.toFixed(1)}%</p>
+                                    </div>
+                                  </div>
+                                  <div className="h-[140px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={d1.map((r: any) => ({ day: r.day.slice(5), d1: r.rate, d7: (d7.find((x: any) => x.day === r.day) || {}).rate || 0 }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, "dataMax"]} />
+                                        <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                        <Bar dataKey="d1" radius={[4, 4, 0, 0]} fill="#baff39" name="D1" />
+                                        <Bar dataKey="d7" radius={[4, 4, 0, 0]} fill="#38bdf8" name="D7" />
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        </Card>
+                        <Card>
+                          <CardHeader title="Posts per user / day" sub={`Engagement depth · last ${metrics.range || range}d`} />
+                          <div className="p-5">
+                            <div className="h-[190px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={(metrics.postsPerUserByDay || []).map((d: any) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                  <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#facc15" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </Card>
+                        <Card>
+                          <CardHeader title="Pay conversion / day" sub={`% of signups that paid · last ${metrics.range || range}d`} />
+                          <div className="p-5">
+                            <div className="h-[190px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={(metrics.payConversionByDay || []).map((d: any) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                  <Bar dataKey="rate" radius={[8, 8, 0, 0]} fill="#a855f7" />
+                                </BarChart>
+                              </ResponsiveContainer>
                             </div>
                           </div>
                         </Card>
