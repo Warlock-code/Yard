@@ -104,6 +104,16 @@ function SignupForm() {
         </button>
       </form>
 
+      <div className="mt-6 p-4 rounded-xl border border-[#baff39]/20 bg-[#baff39]/[0.04]">
+        <h3 className="font-bold text-white mb-1 flex items-center gap-2">📲 iPhone users — get the app</h3>
+        <p className="text-sm text-white/60 mb-3">Yard works best from your Home Screen. No App Store needed:</p>
+        <ol className="text-sm text-white/70 space-y-1.5">
+          <li><span className="font-bold text-[#baff39]">1.</span> Tap the <span className="font-semibold text-white">Share</span> button in Safari (square with arrow ↑)</li>
+          <li><span className="font-bold text-[#baff39]">2.</span> Scroll down and tap <span className="font-semibold text-white">“Add to Home Screen”</span></li>
+          <li><span className="font-bold text-[#baff39]">3.</span> Tap <span className="font-semibold text-white">“Add”</span> — Yard opens full-screen like a native app</li>
+        </ol>
+      </div>
+
       <div className="mt-6 p-4 rounded-xl border border-white/10 bg-white/[0.03]">
         <h3 className="font-bold text-white mb-2 flex items-center gap-2">📜 Community Rules</h3>
         <ul className="text-sm text-white/70 space-y-1.5 pl-5 list-disc">
