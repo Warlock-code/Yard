@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Payments & banking</h2>
-          <p>Payments are processed by Paystack. We do not store your card or mobile money details — Paystack handles that directly and shares only transaction status with us. If you request a payout (Prime users only), we store your bank/MoMo account name, number, and code solely to process the transfer via Paystack. This data is encrypted at rest and deleted after the payout is paid.</p>
+          <p>Payments are processed by Paystack. We do not store your card or mobile money details — Paystack handles that directly and shares only transaction status with us. There are no cash payouts or earnings withdrawals.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Push notifications</h2>
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Public profile scope</h2>
-          <p>Your ghost ID, avatar emoji, campus, tier badge, streak, post count, and follower/following counts are visible to other users. Your email, password, program, level, earnings, storage, and payout details are never public.</p>
+          <p>Your ghost ID, avatar emoji, campus, tier badge, streak, post count, and follower/following counts are visible to other users. Your email, password, program, level, storage are never public.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Third parties</h2>

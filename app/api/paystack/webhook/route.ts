@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     if (tx && tx.status !== "success") {
       // For subscriptions, Paystack amount is source of truth — correct legacy 0 amounts so admin revenue is accurate
-      if ((tx.kind === "plus" || tx.kind === "prime") && Number.isSafeInteger(event.data?.amount) && event.data.amount !== tx.amount) {
+      if (tx.kind === "plus" && Number.isSafeInteger(event.data?.amount) && event.data.amount !== tx.amount) {
         await prisma.transaction.update({ where: { reference }, data: { amount: event.data.amount } })
       }
       await fulfillPaidTransaction(reference)
@@ -49,11 +49,9 @@ export async function POST(req: NextRequest) {
       const amount: number | undefined = event.data?.amount
       const subCode: string | undefined = event.data?.subscription?.subscription_code || event.data?.subscription_code
       if (email && planCode && Number.isSafeInteger(amount)) {
-        const primeCode = process.env.PAYSTACK_PRIME_PLAN_CODE
         const plusCode = process.env.PAYSTACK_PLUS_PLAN_CODE
         let tier: string | null = null
-        if (planCode === primeCode) tier = "prime"
-        else if (planCode === plusCode) tier = "plus"
+        if (planCode === plusCode) tier = "plus"
         if (tier) {
           const user = await prisma.user.findUnique({ where: { email } })
           if (user) {

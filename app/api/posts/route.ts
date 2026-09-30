@@ -6,7 +6,7 @@ import { getEffectiveTier } from "@/lib/tier"
 import { notifyMentions } from "@/lib/mentions"
 import { rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
-import { emitNewPost } from "@/server/socket"
+import { emitNewPost } from "@/lib/socket-client"
 import { processPostHashtags } from "@/lib/search"
 import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
 

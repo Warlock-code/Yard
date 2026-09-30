@@ -19,7 +19,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Payments and subscriptions</h2>
-          <p>Plus and Prime are recurring subscriptions billed via Paystack. Boosts, cosmetics, and other one-time purchases are non-refundable once delivered. Prime earnings are paid out at our discretion following admin review, subject to a minimum payout threshold.</p>
+          <p>Plus is a recurring subscription billed via Paystack. Boosts, cosmetics, and other one-time purchases are non-refundable once delivered. There are no cash payouts or earnings withdrawals.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">Account actions</h2>

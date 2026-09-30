@@ -126,13 +126,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ prompt: null, entries: [] })
   }
 
-  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && effectiveTier !== "PRIME") {
-    return NextResponse.json({ prompt, entries: [], earlyAccess: true })
-  }
-
-  if (prompt.isPrimeOnly && effectiveTier !== "PRIME") {
-    return NextResponse.json({ prompt, entries: [], primeOnly: true })
-  }
+  // Removed Prime-only restrictions
 
   const userVote = await prisma.vote.findFirst({
     where: { userId: user.id, entry: { promptId: prompt.id } },

@@ -453,8 +453,8 @@ export default function LairPage() {
           </div>
 
           <div className="flex gap-2 mb-3">
-            <button className="btn-primary flex-1" onClick={openWithdrawModal} disabled={walletData.balance < 2000}>
-              {walletData.balance < 2000 ? "Min 2,000 Credits" : "Withdraw"}
+            <button className="btn-primary flex-1" disabled>
+              Withdrawals disabled
             </button>
             <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
               Buy Credits

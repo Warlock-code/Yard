@@ -6,8 +6,8 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PRIME") {
-    return NextResponse.json({ error: "Prime feature. Upgrade to save searches." }, { status: 403 })
+  if (user.tier !== "PLUS") {
+    return NextResponse.json({ error: "Plus feature. Upgrade to save searches." }, { status: 403 })
   }
 
   const searches = await getSavedSearches(user.id)
@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PRIME") {
-    return NextResponse.json({ error: "Prime feature. Upgrade to save searches." }, { status: 403 })
+  if (user.tier !== "PLUS") {
+    return NextResponse.json({ error: "Plus feature. Upgrade to save searches." }, { status: 403 })
   }
 
   const { name, query, filters, alertEnabled } = await req.json()

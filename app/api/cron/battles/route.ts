@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   for (const draft of scheduledDrafts) {
     try {
       const scheduleData = JSON.parse(draft.text)
-      const { campus, text, type, totalRounds, isPrimeOnly, earlyAccessForPrime, entryType, durationHours, schedule, scheduleTime, scheduleDays, seasonId } = scheduleData
+      const { campus, text, type, totalRounds, entryType, durationHours, schedule, scheduleTime, scheduleDays, seasonId } = scheduleData
 
       let nextStart: Date
       const scheduleTimeDate = new Date(scheduleTime)
@@ -59,8 +59,6 @@ export async function GET(req: NextRequest) {
           endsAt: nextEnd,
           totalRounds,
           roundNumber: 1,
-          isPrimeOnly,
-          earlyAccessForPrime,
           entryType,
           seasonId,
         },
@@ -136,8 +134,6 @@ export async function GET(req: NextRequest) {
             totalRounds: prompt.totalRounds,
             roundNumber: prompt.roundNumber + 1,
             parentPromptId: prompt.id,
-            isPrimeOnly: prompt.isPrimeOnly,
-            earlyAccessForPrime: prompt.earlyAccessForPrime,
             entryType: prompt.entryType,
             seasonId: prompt.seasonId,
           },

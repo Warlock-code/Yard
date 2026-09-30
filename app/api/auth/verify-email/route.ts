@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
-  const verifyRl = rateLimitWithInfo(`verify-code:${userId}`, 5, 15 * 60 * 1000)
+  const verifyRl = await rateLimitWithInfo(`verify-code:${userId}`, 5, 15 * 60 * 1000)
   if (!verifyRl.allowed) {
     await auditLog("user.verify_email", null, null, { success: false, reason: "Rate limited", userId, ipAddress: ip })
     return NextResponse.json({ error: "Too many verification attempts. Try again later." }, { status: 429 })

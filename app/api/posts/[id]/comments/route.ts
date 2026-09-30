@@ -5,7 +5,7 @@ import { createNotification } from "@/lib/notifications"
 import { notifyMentions } from "@/lib/mentions"
 import { rateLimit } from "@/lib/rateLimit"
 import { getReadablePostWhere } from "@/lib/programAccess"
-import { emitCommentAdded } from "@/server/socket"
+import { emitCommentAdded } from "@/lib/socket-client"
 import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 

@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
     paidCount,
     userCount,
     plusCount,
-    primeCount,
     revenueAgg,
     paidOutAgg,
     payers,
@@ -45,7 +44,6 @@ export async function GET(req: NextRequest) {
     prisma.transaction.count({ where: { status: "success", createdAt: windowFilter } }),
     prisma.user.count(),
     prisma.user.count({ where: { tier: "PLUS" } }),
-    prisma.user.count({ where: { tier: "PRIME" } }),
     prisma.transaction.aggregate({ where: { status: "success", createdAt: windowFilter }, _sum: { amount: true } }),
     prisma.payout.aggregate({ where: { status: "paid", requestedAt: windowFilter }, _sum: { amount: true } }),
     prisma.transaction.findMany({
@@ -178,8 +176,7 @@ export async function GET(req: NextRequest) {
   }
 
   const plusRate = userCount > 0 ? plusCount / userCount : 0
-  const primeRate = userCount > 0 ? primeCount / userCount : 0
-  const paidRate = userCount > 0 ? (plusCount + primeCount) / userCount : 0
+  const paidRate = userCount > 0 ? plusCount / userCount : 0
 
   const revenuePesewas = revenueAgg._sum.amount ?? 0
   const paidOutPesewas = paidOutAgg._sum.amount ?? 0
@@ -219,7 +216,7 @@ export async function GET(req: NextRequest) {
     postsPerUserByDay,
     paywallHits: days.map((day) => ({ day, count: paywallByDay.get(day) ?? 0 })),
     funnel: { hits, checkoutStarted, paid: paidCount },
-    conversion: { userCount, plusCount, primeCount, plusRate, primeRate, paidRate },
+    conversion: { userCount, plusCount, plusRate, paidRate },
     payConversionByDay,
     retentionD1: signupDays.map((day) => ({ day, rate: retentionD1.get(day) ?? 0 })),
     retentionD7: signupDays.map((day) => ({ day, rate: retentionD7.get(day) ?? 0 })),

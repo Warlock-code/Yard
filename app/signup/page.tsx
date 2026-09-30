@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
 import { Suspense } from "react"
+import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 
 function SignupForm() {
   const router = useRouter()
@@ -103,6 +104,19 @@ function SignupForm() {
         </button>
       </form>
 
+      <div className="mt-6 p-4 rounded-xl border border-white/10 bg-white/[0.03]">
+        <h3 className="font-bold text-white mb-2 flex items-center gap-2">📜 Community Rules</h3>
+        <ul className="text-sm text-white/70 space-y-1.5 pl-5 list-disc">
+          <li>Confessions, gossip, opinions, jokes, roasts — all allowed</li>
+          <li>No direct threats of violence against real people</li>
+          <li>No doxxing — sharing real names, addresses, phone numbers without consent</li>
+          <li>No child sexual abuse material in any form</li>
+          <li>No content facilitating illegal acts (drug sales, crime coordination)</li>
+        </ul>
+        <p className="text-xs text-white/40 mt-3">Reported posts are hidden immediately and reviewed by admins. Repeated violations lead to suspension or permanent ban.</p>
+        <a href="/guidelines" className="text-[#baff39] text-sm font-semibold underline mt-2 inline-block">Read full guidelines →</a>
+      </div>
+
       <p className="text-center text-white/40 text-sm mt-5">
         Already have an account?{" "}
         <a href="/login" className="text-white font-semibold">
@@ -121,6 +135,7 @@ function SignupForm() {
         <a href="/privacy" className="underline">Privacy Policy</a>, and{" "}
         <a href="/guidelines" className="underline">Community Guidelines</a>.
       </p>
+      <IOSInstallPrompt />
     </main>
   )
 }

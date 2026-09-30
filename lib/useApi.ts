@@ -119,7 +119,6 @@ export const api = {
   reportPost: (postId: string, reason: string) => apiPost<ReportResponse>("/api/reports", { postId, reason }),
   deletePost: (postId: string) => apiDelete(`/api/posts/${postId}`),
   editPost: (postId: string, text: string) => apiPatch(`/api/posts/${postId}`, { text }),
-  getMe: () => apiGet<MeResponse>("/api/auth/me"),
   getStorage: () => apiGet<{ storageUsed: number; storageRemaining: number; storageLimit: number }>("/api/storage"),
   getTrending: (type: "hashtags" | "posts", limit?: number) =>
     apiGet<TrendingResponse>(`/api/trending?type=${type}${limit ? `&limit=${limit}` : ""}`),

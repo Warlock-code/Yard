@@ -59,9 +59,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user || getEffectiveTier(user) !== "PRIME") {
+  if (!user || getEffectiveTier(user) !== "PLUS") {
     void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "trending", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "Prime feature — recomputing trending scores requires an active Prime subscription." }, { status: 403 })
+    return NextResponse.json({ error: "Plus feature — recomputing trending scores requires an active Plus subscription." }, { status: 403 })
   }
 
   let targetCampus = user.campus

@@ -162,6 +162,8 @@ export interface MetricsResponse {
   revenuePesewas: number
   paidOutPesewas: number
   payoutRatio: number
+  signupPostDay0: { day: string; count: number; rate: number }[]
+  signupPostDay1: { day: string; count: number; rate: number }[]
 }
 
 export interface AdminUser {

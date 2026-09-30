@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { api } from "@/lib/useApi"
 
 type Stats = {
   userCount: number
   postCount: number
-  primeCount: number
   plusCount: number
   revenuePesewas: number
   pendingPayoutPesewas: number
@@ -75,8 +75,6 @@ function errMsg(e: unknown, fallback: string) {
 
 function TierBadge({ tier }: { tier: string }) {
   const t = tier?.toUpperCase() || "FREE"
-  if (t === "PRIME")
-    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15]">👑 PRIME</span>
   if (t === "PLUS")
     return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300">★ PLUS</span>
   return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-white/50">FREE</span>
@@ -159,11 +157,13 @@ export default function AdminPage() {
   retentionD1: {day:string;rate:number}[];
   retentionD7: {day:string;rate:number}[];
   funnel: {hits:number;checkoutStarted:number;paid:number}; 
-  conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; 
+  conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number}; 
   arppuPesewas:number; 
   revenuePesewas:number; 
   paidOutPesewas:number; 
-  payoutRatio:number 
+  payoutRatio:number;
+  signupPostDay0: {day:string;count:number;rate:number}[];
+  signupPostDay1: {day:string;count:number;rate:number}[];
 }>(null)
   const [range, setRange] = useState<7|30>(30)
   const [metricsError, setMetricsError] = useState<string | null>(null)
@@ -245,11 +245,13 @@ export default function AdminPage() {
           retentionD1: {day:string;rate:number}[];
           retentionD7: {day:string;rate:number}[];
           funnel: {hits:number;checkoutStarted:number;paid:number}; 
-          conversion: {userCount:number;plusCount:number;primeCount:number;plusRate:number;primeRate:number;paidRate:number}; 
+          conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number}; 
           arppuPesewas:number; 
           revenuePesewas:number; 
           paidOutPesewas:number; 
-          payoutRatio:number 
+          payoutRatio:number;
+          signupPostDay0: {day:string;count:number;rate:number}[];
+          signupPostDay1: {day:string;count:number;rate:number}[];
         })
         setMetricsError(null)
       })
@@ -349,11 +351,10 @@ export default function AdminPage() {
     finally { setBusyId(null) }
   }
 
-  const freeCount = Math.max(0, stats ? stats.userCount - stats.primeCount - stats.plusCount : 0)
+  const freeCount = Math.max(0, stats ? stats.userCount - stats.plusCount : 0)
   const total = Math.max(1, stats?.userCount || 1)
-  const paidTotal = (stats?.primeCount || 0) + (stats?.plusCount || 0)
+  const paidTotal = stats?.plusCount || 0
   const tierData = useMemo(() => ([
-    { name: "Prime", value: stats?.primeCount || 0, color: "#facc15" },
     { name: "Plus", value: stats?.plusCount || 0, color: "#38bdf8" },
     { name: "Free", value: freeCount, color: "#baff39" },
   ]), [stats, freeCount])
@@ -530,12 +531,12 @@ export default function AdminPage() {
                     <StatCard label="Active 7d" value={stats.activeUsers.toLocaleString()} sub="post · comment · vote" icon="⚡" accent="#38bdf8" trend={`${total ? Math.round(stats.activeUsers / total * 100) : 0}%`} />
                     <StatCard label="Posts" value={stats.postCount.toLocaleString()} sub="total" icon="📝" accent="#facc15" />
                     <StatCard label="Revenue" value={ghs(stats.revenuePesewas)} sub="Paystack success" icon="💰" accent="#baff39" />
-                    <StatCard label="Paid Tiers" value={paidTotal.toLocaleString()} sub={`${stats.primeCount} Prime · ${stats.plusCount} Plus`} icon="💎" accent="#a855f7" trend={`${total ? Math.round(paidTotal / total * 100) : 0}% paid`} />
+                    <StatCard label="Paid Tiers" value={paidTotal.toLocaleString()} sub={`${stats.plusCount} Plus`} icon="💎" accent="#a855f7" trend={`${total ? Math.round(paidTotal / total * 100) : 0}% paid`} />
                   </div>
 
                   <div className="grid lg:grid-cols-3 gap-4">
                     <Card className="lg:col-span-2">
-                      <CardHeader title="Tier distribution" sub="Who pays — push Free → Plus → Prime" right={
+                      <CardHeader title="Tier distribution" sub="Who pays — push Free → Plus" right={
                         <div className="flex gap-3 text-[11px] text-white/40">
                           {tierData.map((d) => <span key={d.name} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: d.color }} />{d.name} {d.value}</span>)}
                         </div>
@@ -555,7 +556,6 @@ export default function AdminPage() {
                         </div>
                         <div className="grid sm:grid-cols-3 gap-2 mt-4">
                           {[
-                            { n: "Prime", c: stats.primeCount, color: "#facc15", note: "GH₵20/mo" },
                             { n: "Plus", c: stats.plusCount, color: "#38bdf8", note: "GH₵10/mo" },
                             { n: "Free", c: freeCount, color: "#baff39", note: "upsell pool" },
                           ].map((r) => (
@@ -661,7 +661,6 @@ export default function AdminPage() {
                         const hits = metrics.funnel?.hits || 0
                         const paywallPct = dauSum > 0 ? (hits / dauSum) * 100 : 0
                         const plusP = metrics.conversion ? (metrics.conversion.plusRate > 1 ? metrics.conversion.plusRate : metrics.conversion.plusRate * 100) : 0
-                        const primeP = metrics.conversion ? (metrics.conversion.primeRate > 1 ? metrics.conversion.primeRate : metrics.conversion.primeRate * 100) : 0
                         const ratio = metrics.payoutRatio || 0
                         const over = ratio > 1
                         return (
@@ -670,7 +669,6 @@ export default function AdminPage() {
                             <StatCard label="Posts/day avg" value={postsAvg.toFixed(1)} sub="posts per day" icon="📝" accent="#facc15" />
                             <StatCard label="Paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / DAU`} icon="◊" accent="#38bdf8" />
                             <StatCard label="Plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} Plus`} icon="★" accent="#38bdf8" />
-                            <StatCard label="Prime conv %" value={`${primeP.toFixed(1)}%`} sub={`${(metrics.conversion?.primeCount || 0).toLocaleString()} Prime`} icon="👑" accent="#facc15" />
                             <StatCard label="ARPPU" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev`} icon="💰" accent="#baff39" />
                             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between min-h-[128px] hover:border-white/20 transition-colors">
                               <div className="flex items-center justify-between">
@@ -894,7 +892,7 @@ export default function AdminPage() {
                         <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search ghost name or email…" className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       </div>
                       <div className="flex gap-1.5">
-                        {["ALL", "FREE", "PLUS", "PRIME"].map((t) => (
+                        {["ALL", "FREE", "PLUS"].map((t) => (
                           <button key={t} onClick={() => setTierFilter(t)} className={`text-xs font-bold px-3.5 py-2 rounded-full border transition-colors ${tierFilter === t ? "bg-[#baff39] text-black border-[#baff39]" : "border-white/10 text-white/50 hover:text-white"}`}>{t === "ALL" ? "All" : t}</button>
                         ))}
                       </div>
@@ -1005,7 +1003,7 @@ export default function AdminPage() {
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-4">
                     <p className="text-xs font-black text-amber-300 uppercase tracking-wider">⚠️ Real money — check before approving</p>
-                    <p className="text-xs text-white/50 mt-1.5 leading-relaxed">Verify Prime earnings + readable bank/MoMo details. Approve → Paystack transfer (needs balance). Status flows <span className="text-white/80 font-semibold">pending → approved → paid / rejected</span>. Failed transfers revert to pending.</p>
+                    <p className="text-xs text-white/50 mt-1.5 leading-relaxed">Verify earnings + readable bank/MoMo details. Approve → Paystack transfer (needs balance). Status flows <span className="text-white/80 font-semibold">pending → approved → paid / rejected</span>. Failed transfers revert to pending.</p>
                   </div>
 
                   <Card>
@@ -1065,7 +1063,7 @@ export default function AdminPage() {
                   <Card className="lg:col-span-2">
                     <CardHeader title="API options" sub="Power fields" />
                     <div className="p-5">
-                      <p className="text-xs text-white/40 leading-relaxed"><span className="text-white/70 font-mono">POST /api/admin/battles/create</span> accepts <span className="text-white/70 font-mono">type: SINGLE | BRACKET, totalRounds, entryType: TEXT | IMAGE | VOICE, isPrimeOnly, schedule, seasonId</span>.</p>
+                      <p className="text-xs text-white/40 leading-relaxed"><span className="text-white/70 font-mono">POST /api/admin/battles/create</span> accepts <span className="text-white/70 font-mono">type: SINGLE | BRACKET, totalRounds, entryType: TEXT | IMAGE | VOICE, schedule, seasonId</span>.</p>
                       <div className="mt-4 grid grid-cols-2 gap-2 text-center">
                         {[["⚔", "Single"], ["🏆", "Bracket"], ["🖼", "Image"], ["🎙", "Voice"]].map(([i, l]) => (
                           <div key={l} className="rounded-xl border border-white/[0.07] bg-black/30 py-3"><p>{i}</p><p className="text-[11px] font-bold text-white/50 mt-1">{l}</p></div>
@@ -1103,8 +1101,8 @@ type EnvStatus = {
   source: string
   paystack: {
     publicKey: KeyState; secretKey: KeyState; webhookSecret: FlagState
-    plusPlan: string | null; primePlan: string | null
-    plusPricePesewas: number; primePricePesewas: number
+    plusPlan: string | null
+    plusPricePesewas: number
   }
   security: { payoutEncryption: FlagState; jwt: FlagState; adminJwt: FlagState; cron: FlagState }
   services: { resend: FlagState; uploadthing: FlagState; openrouter: FlagState; firebase: FlagState; vapid: FlagState; database: FlagState }
@@ -1156,9 +1154,7 @@ function SettingsPanel() {
               ["Secret key", keyVal(env.paystack.secretKey), env.paystack.secretKey.set],
               ["Webhook secret", env.paystack.webhookSecret.set ? `set (${env.paystack.webhookSecret.chars} chars)` : "not set", env.paystack.webhookSecret.set],
               ["Plus plan", env.paystack.plusPlan || "not set", !!env.paystack.plusPlan],
-              ["Prime plan", env.paystack.primePlan || "not set", !!env.paystack.primePlan],
               ["Plus price", ghs(env.paystack.plusPricePesewas), true],
-              ["Prime price", ghs(env.paystack.primePricePesewas), true],
             ].map(([k, v, ok]) => (
               <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>

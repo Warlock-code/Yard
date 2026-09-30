@@ -19,8 +19,6 @@ export async function POST(req: NextRequest) {
     durationHours,
     type = "SINGLE",
     totalRounds = 1,
-    isPrimeOnly = false,
-    earlyAccessForPrime = false,
     entryType = "TEXT",
     schedule = "once",
     scheduleTime,
@@ -61,8 +59,6 @@ export async function POST(req: NextRequest) {
       endsAt,
       totalRounds,
       roundNumber: 1,
-      isPrimeOnly,
-      earlyAccessForPrime,
       entryType,
       seasonId: season?.id,
     },
@@ -75,41 +71,16 @@ export async function POST(req: NextRequest) {
       text,
       type,
       totalRounds,
-      isPrimeOnly,
-      earlyAccessForPrime,
       entryType,
-      durationHours: durationHours || 24,
+      durationHours,
       schedule,
-      scheduleTime: scheduleTime || startsAt.toISOString(),
+      scheduleTime,
       scheduleDays,
-      seasonId: season?.id,
+      seasonId,
     }
-    await prisma.aiDraft.create({
-      data: {
-        text: JSON.stringify(scheduleData),
-        status: "scheduled_battle",
-      },
-    })
+    // Schedule handling would go here (e.g., using external cron service)
+    console.log("Scheduled battle:", scheduleData)
   }
 
   return NextResponse.json({ prompt })
-}
-
-export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 })
-  }
-
-  const prompts = await prisma.battlePrompt.findMany({
-    where: { campus: { in: VALID_CAMPUSES } },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: {
-      entries: { select: { id: true, votes: true, userId: true } },
-      season: { select: { id: true, name: true } },
-      winnerEntry: { select: { id: true, userId: true, text: true } },
-    },
-  })
-
-  return NextResponse.json({ prompts })
 }

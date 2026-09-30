@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { emitBattleVote } from "@/server/socket"
+import { emitBattleVote } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User ID or email required." }, { status: 400 })
     }
 
-    const rl = rateLimitWithInfo(`resend:${userId}`, 3, 10 * 60 * 1000)
+    const rl = await rateLimitWithInfo(`resend:${userId}`, 3, 10 * 60 * 1000)
     if (!rl.allowed) {
       const secs = Math.ceil((rl.resetAt - Date.now()) / 1000)
       return NextResponse.json({ error: `Too many resend attempts. Try again in ${secs}s.` }, { status: 429 })

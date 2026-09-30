@@ -125,6 +125,70 @@ function ShareButton({ postId, postText }: { postId: string; postText?: string }
   )
 }
 
+function ReportButton({ postId }: { postId: string }) {
+  const [reporting, setReporting] = useState(false)
+  const [reason, setReason] = useState("")
+  const [error, setError] = useState("")
+
+  async function handleReport() {
+    if (!reason.trim()) {
+      setError("Please select a reason")
+      return
+    }
+    setReporting(true)
+    setError("")
+    try {
+      await apiPost("/api/reports", { postId, reason: reason.trim() })
+      alert("Post reported. It will be hidden pending review.")
+      setReporting(false)
+      setReason("")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to report")
+      setReporting(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setReporting(!reporting)}
+        aria-label="Report post"
+        className="inline-flex items-center gap-1 text-red-300 hover:text-red-100 focus-visible:outline-[#baff39]"
+      >
+        ⚑ Report
+      </button>
+      {reporting && (
+        <div className="absolute bottom-full right-0 mb-2 card p-3 min-w-[220px] shadow-lg border border-white/10 z-10">
+          <p className="text-xs font-semibold text-white/70 mb-2">Why are you reporting this?</p>
+          <div className="space-y-1.5">
+            {["Harassment / bullying", "Hate speech", "Threats of violence", "Doxxing / private info", "Illegal content", "Spam / scam", "Something else"].map((r) => (
+              <label key={r} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="report-reason"
+                  value={r}
+                  checked={reason === r}
+                  onChange={() => setReason(r)}
+                  className="accent-[#baff39]"
+                />
+                <span className="text-sm text-white/90">{r}</span>
+              </label>
+            ))}
+          </div>
+          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+          <button
+            onClick={handleReport}
+            disabled={!reason.trim()}
+            className="mt-3 w-full bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 text-sm font-medium py-2 rounded-xl transition-colors disabled:opacity-50"
+          >
+            Submit Report
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PostDetailClient({ postId }: { postId: string }) {
   const router = useRouter()
 
@@ -346,6 +410,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
           <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
           <ShareButton postId={post.id} postText={post.text || undefined} />
+          <ReportButton postId={post.id} />
         </div>
       </div>
 

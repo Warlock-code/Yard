@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isBoostActive } from "@/lib/boost"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
-import { emitVoteUpdate } from "@/server/socket"
+import { emitVoteUpdate } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 

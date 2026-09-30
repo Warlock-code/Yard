@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 })
   }
 
-  const rl = rateLimitWithInfo(`admin:login:${ip}`, 5, 15 * 60 * 1000)
+  const rl = await rateLimitWithInfo(`admin:login:${ip}`, 5, 15 * 60 * 1000)
   if (!rl.allowed) {
     await auditLog("admin.login", null, null, { success: false, reason: "Rate limited", ipAddress: ip })
     return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 })

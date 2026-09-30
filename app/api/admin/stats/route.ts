@@ -7,10 +7,9 @@ export const dynamic = "force-dynamic"
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
 
-  const [userCount, postCount, primeCount, plusCount, revenueSum, pendingPayoutSum, paidOutSum] = await Promise.all([
+  const [userCount, postCount, plusCount, revenueSum, pendingPayoutSum, paidOutSum] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
-    prisma.user.count({ where: { tier: "PRIME" } }),
     prisma.user.count({ where: { tier: "PLUS" } }),
     prisma.transaction.aggregate({ where: { status: "success" }, _sum: { amount: true } }),
     prisma.payout.aggregate({ where: { status: { in: ["pending", "processing", "approved"] } }, _sum: { amount: true } }),
@@ -32,7 +31,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     userCount,
     postCount,
-    primeCount,
     plusCount,
     activeUsers: activeUserIds.size,
     revenuePesewas: revenueSum._sum.amount || 0,

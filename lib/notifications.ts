@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { sendPush } from "@/lib/sendPush"
 import { canReadPost } from "@/lib/program"
-import { emitNotification } from "@/server/socket"
+import { emitNotification } from "@/lib/socket-client"
 
 type NotificationInput = {
   userId: string

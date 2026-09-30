@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { createNotification } from "@/lib/notifications"
 import { getReadablePostWhere } from "@/lib/programAccess"
-import { emitCommentVote } from "@/server/socket"
+import { emitCommentVote } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 

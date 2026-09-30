@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
-import { emitBattleUpdate } from "@/server/socket"
+import { emitBattleUpdate } from "@/lib/socket-client"
 import { attachChampionTrophies } from "@/lib/champions"
 import type { Prisma } from "@prisma/client"
 
@@ -28,22 +28,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "This battle is not open for entries." }, { status: 400 })
   }
 
-  if (prompt.isPrimeOnly && effectiveTier !== "PRIME") {
-    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "battle", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "This battle is for Prime members only." }, { status: 403 })
-  }
-
-  if (prompt.earlyAccessForPrime && prompt.status === "UPCOMING" && effectiveTier !== "PRIME") {
-    void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "battle", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "Early access for Prime members only." }, { status: 403 })
-  }
-
   const entryType = prompt.entryType
   const entryData: BattleEntryCreateInput = {
     prompt: { connect: { id: promptId } },
     user: { connect: { id: user.id } },
     campus: user.campus,
-    isPrime: effectiveTier === "PRIME",
+    isPrime: effectiveTier === "PLUS",
     entryType,
     roundNumber: prompt.roundNumber,
   }

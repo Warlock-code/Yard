@@ -5,12 +5,10 @@ import { initializeSubscription } from "@/lib/paystack"
 
 const PLANS: Record<string, string> = {
   plus: process.env.PAYSTACK_PLUS_PLAN_CODE!,
-  prime: process.env.PAYSTACK_PRIME_PLAN_CODE!,
 }
 
 const PLAN_PRICE_PESEWAS: Record<string, number> = {
   plus: Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000), // GHS 10
-  prime: Number(process.env.PAYSTACK_PRIME_PRICE_PESEWAS || 2000), // GHS 20
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
@@ -20,11 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
   const tier = tierParam.toLowerCase()
   const planCode = PLANS[tier]
-  if (!planCode) return NextResponse.json({ error: "Invalid tier." }, { status: 400 })
+  if (!planCode) return NextResponse.json({ error: "Invalid tier. Only 'plus' is available." }, { status: 400 })
 
-  // Server guard — frontend also blocks but we enforce here (agents flagged missing check)
-  if (user.tier === "PRIME") return NextResponse.json({ error: "Already on Prime." }, { status: 400 })
-  if (tier === "plus" && user.tier === "PLUS") return NextResponse.json({ error: "Already on Plus. Upgrade to Prime instead." }, { status: 400 })
+  // Server guard — frontend also blocks but we enforce here
+  if (tier === "plus" && user.tier === "PLUS") return NextResponse.json({ error: "Already on Plus." }, { status: 400 })
 
   const reference = `sub_${tier}_${user.id}_${Date.now()}`
   const amount = PLAN_PRICE_PESEWAS[tier]
@@ -48,11 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     await prisma.transaction.updateMany({
       where: { reference, status: "pending" },
       data: { status: "failed", metadata: { tier, initError: payErr instanceof Error ? payErr.message : String(payErr) } },
-    }).catch(() => {})
-    console.error("[subscribe] Paystack init failed", { tier, reference, error: payErr })
-    return NextResponse.json(
-      { error: payErr instanceof Error ? payErr.message : "Subscription checkout failed. Try again." },
-      { status: 400 }
-    )
+    })
+    return NextResponse.json({ error: payErr instanceof Error ? payErr.message : "Payment init failed." }, { status: 500 })
   }
 }

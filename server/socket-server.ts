@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken"
 import { PrismaClient } from "@prisma/client"
 
 const JWT_SECRET = process.env.JWT_SECRET!
+const SOCKET_SECRET = process.env.SOCKET_SECRET || process.env.CRON_SECRET!
 
 interface AuthenticatedSocket extends Socket {
   userId?: string
@@ -135,10 +136,69 @@ async function initializeSocket() {
     })
   })
 
+  // HTTP endpoint for Next.js to emit events
+  httpServer.on("request", async (req, res) => {
+    if (req.method === "POST" && req.url === "/emit") {
+      let body = ""
+      for await (const chunk of req) body += chunk
+      
+      try {
+        const { event, data } = JSON.parse(body)
+        
+        // Verify secret
+        const auth = req.headers.authorization
+        if (auth !== `Bearer ${SOCKET_SECRET}`) {
+          res.writeHead(401, { "Content-Type": "application/json" })
+          res.end(JSON.stringify({ error: "Unauthorized" }))
+          return
+        }
+
+        switch (event) {
+          case "new_post":
+            io.to(`campus:${data.campus}`).emit("new_post", data.post)
+            break
+          case "vote_update":
+            io.to(`campus:${data.campus}`).emit("vote_update", { postId: data.postId, yeahs: data.yeahs })
+            break
+          case "comment_added":
+            io.to(`campus:${data.campus}`).emit("comment_added", { postId: data.postId, comment: data.comment })
+            break
+          case "comment_vote":
+            io.to(`campus:${data.campus}`).emit("comment_vote", { postId: data.postId, commentId: data.commentId, yeahs: data.yeahs })
+            break
+          case "notification":
+            io.to(`user:${data.userId}`).emit("notification", data.notification)
+            break
+          case "battle_vote":
+            io.to(`battle:${data.battleId}`).emit("battle_vote", { entryId: data.entryId, votes: data.votes })
+            break
+          case "battle_update":
+            io.to(`battle:${data.battleId}`).emit("battle_update", data.data)
+            break
+          default:
+            res.writeHead(400, { "Content-Type": "application/json" })
+            res.end(JSON.stringify({ error: "Unknown event" }))
+            return
+        }
+
+        res.writeHead(200, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ success: true }))
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "Invalid request" }))
+      }
+      return
+    }
+    
+    // Let Socket.io handle other requests
+    res.writeHead(404)
+    res.end()
+  })
+
   return { io, httpServer, pubClient, subClient }
 }
 
-let ioInstance: ReturnType<typeof initializeSocket> | null = null
+let ioInstance: Awaited<ReturnType<typeof initializeSocket>> | null = null
 
 export async function startSocketServer() {
   const { io, httpServer, pubClient, subClient } = await initializeSocket()
@@ -149,7 +209,7 @@ export async function startSocketServer() {
     console.log(`> Socket.io server ready on port ${port}`)
   })
 
-  ioInstance = { io, pubClient, subClient }
+  ioInstance = { io, httpServer, pubClient, subClient }
   return io
 }
 
@@ -182,7 +242,6 @@ export function emitBattleUpdate(battleId: string, data: BattleUpdateData) {
 }
 
 export function getOnlineUsers(campus: string): number {
-  // Would need to query Redis for accurate count across instances
   return 0
 }
 

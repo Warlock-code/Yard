@@ -30,9 +30,7 @@ export async function GET(req: NextRequest) {
       secretKey: keyState(process.env.PAYSTACK_SECRET_KEY),
       webhookSecret: flag(process.env.PAYSTACK_WEBHOOK_SECRET),
       plusPlan: process.env.PAYSTACK_PLUS_PLAN_CODE || null,
-      primePlan: process.env.PAYSTACK_PRIME_PLAN_CODE || null,
       plusPricePesewas: Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000),
-      primePricePesewas: Number(process.env.PAYSTACK_PRIME_PRICE_PESEWAS || 2000),
     },
     security: {
       payoutEncryption: flag(process.env.PAYOUT_ENCRYPTION_KEY),

@@ -14,7 +14,6 @@ datasource db {
 enum AccountTier {
   FREE
   PLUS
-  PRIME
 }
 
 enum AccountStatus {
