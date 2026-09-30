@@ -217,7 +217,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
 
   async function loadComments(sort: "top" | "latest" = commentSort) {
     try {
-      const data = await apiGet(`/api/posts/${postId}/comments?sort=${sort}`)
+      const data = await apiGet<{ comments: Comment[] }>(`/api/posts/${postId}/comments?sort=${sort}`)
       setComments(data.comments)
     } catch (err) {
       console.error(err)
@@ -248,7 +248,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     })
     if (alreadyHeated) return
     try {
-      const data = await apiPost(`/api/comments/${commentId}/vote`, {})
+      const data = await apiPost<{ comment?: { yeahs?: number } }>(`/api/comments/${commentId}/vote`, {})
       const yeahs = data.comment?.yeahs
       if (typeof yeahs === "number") {
         setComments((prev) => patchCommentTree(prev, commentId, (c) => ({ ...c, yeahs })))
@@ -278,7 +278,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         if (!data.post) throw new Error("Unable to load post. Please try again.")
         setPost(data.post)
         try {
-          const data = await apiGet(`/api/posts/${postId}/comments`)
+          const data = await apiGet<{ comments: Comment[] }>(`/api/posts/${postId}/comments`)
           if (active) setComments(data.comments)
         } catch (err) {
           console.error(err)

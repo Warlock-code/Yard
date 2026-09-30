@@ -44,7 +44,7 @@ export default function BattlesClient() {
   }
 
   const load = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/battles")
+    return apiGet<{ prompt: Prompt | null; entries: Entry[] }>("/api/battles")
       .then((data) => {
         if (!isCurrent()) return
         setPrompt(data.prompt)

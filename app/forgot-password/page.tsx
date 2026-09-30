@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
     setMessage("")
 
     try {
-      const data = await apiPost("/api/auth/forgot-password", { email })
+      const data = await apiPost<{ message?: string; emailFailed?: boolean }>("/api/auth/forgot-password", { email })
       setMessage(data.message || "If the email exists, a reset link has been sent.")
       if (data.emailFailed) {
         setError("Could not send email. Please try again or contact support.")

@@ -57,7 +57,7 @@ async function getOrCreateUser(campus: string): Promise<string> {
       campus: campus,
       ghostId: `ghost_${Math.random().toString(36).substring(2, 8)}`,
       avatarEmoji: ['👻', '🐍', '👽', '🦇'][Math.floor(Math.random() * 4)],
-      tier: Math.random() > 0.7 ? 'PRIME' : 'FREE',
+      tier: Math.random() > 0.7 ? 'PLUS' : 'FREE',
       status: 'ACTIVE',
       // Omit relational fields for now - they have defaults
       ghostCoins: Math.floor(Math.random() * 1000),

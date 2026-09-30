@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
+import type { MeResponse } from "@/lib/api-types"
 import { useHoverPrefetch } from "@/lib/prefetch"
 import { useTierTheme } from "@/app/components/ThemeProvider"
 
@@ -31,7 +32,7 @@ export default function BottomNav() {
 
     async function loadUnreadCount() {
       try {
-        const data = await apiGet("/api/notifications?limit=1")
+        const data = await apiGet<{ unreadCount: number }>("/api/notifications?limit=1")
         if (active) setUnreadCount(data.unreadCount || 0)
       } catch {
         if (active) setUnreadCount(0)
@@ -40,7 +41,7 @@ export default function BottomNav() {
 
     async function refresh() {
       try {
-        const data = await apiGet("/api/auth/me")
+        const data = await apiGet<MeResponse>("/api/auth/me")
         if (!active) return
         setAuthenticatedPath(data.user ? pathname : null)
         if (!data.user) {

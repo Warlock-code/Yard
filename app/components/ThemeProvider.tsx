@@ -70,7 +70,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     async function loadTier() {
       try {
-        const data = await apiGet("/api/auth/me")
+        const data = await apiGet<{ user: { tier: "FREE" | "PLUS"; tierExpiresAt: string | null; ownedCosmetics: string[] } | null }>("/api/auth/me")
         if (active && data.user) {
           const effectiveTier = getEffectiveTier({
             tier: data.user.tier,

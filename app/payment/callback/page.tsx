@@ -18,7 +18,7 @@ function CallbackContent() {
   useEffect(() => {
     if (!reference) return
     let active = true
-    apiPost("/api/paystack/verify", { reference })
+    apiPost<{ kind?: string }>("/api/paystack/verify", { reference })
       .then((data) => {
         if (active) setResult({ reference, status: "success", kind: typeof data?.kind === "string" ? data.kind : undefined })
         // If opened in Chrome Custom Tab from app, close it so user returns to app (App Link will keep them)

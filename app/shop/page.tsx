@@ -109,14 +109,19 @@ export default function ShopPage() {
   const { themeChoice, setThemeChoice } = useTierTheme()
 
   useEffect(() => {
-    apiGet("/api/auth/me").then((d) => setMe(d.user)).catch(() => {})
-    apiGet("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
+    apiGet<{ user: { tier: "FREE" | "PLUS"; ownedCosmetics: string[]; freeBoosts?: number } | null }>("/api/auth/me").then((d) => {
+      if (d.user) {
+        const u = d.user
+        setMe((prev) => ({ tier: u.tier, ownedCosmetics: u.ownedCosmetics, freeBoosts: u.freeBoosts ?? prev?.freeBoosts ?? 0, creditsBalance: prev?.creditsBalance ?? 0 }))
+      }
+    }).catch(() => {})
+    apiGet<{ balance: number }>("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
     setLoading(key)
     try {
-      const data = await apiPost(endpoint, body)
+      const data = await apiPost<{ data?: { authorization_url?: string }; status?: boolean; message?: string }>(endpoint, body)
       const url = data.data?.authorization_url as string | undefined
       if (url) {
         await openPaystackCheckout(url)
@@ -135,7 +140,7 @@ export default function ShopPage() {
   async function buyCredits(packId: string) {
     setLoading(packId)
     try {
-      const data = await apiPost("/api/credits/purchase", { packId })
+      const data = await apiPost<{ authorization_url?: string; message?: string }>("/api/credits/purchase", { packId })
       const url = data.authorization_url as string | undefined
       if (url) {
         await openPaystackCheckout(url)
@@ -152,11 +157,11 @@ export default function ShopPage() {
   async function buyWithCredits(endpoint: string, key: string, body: Record<string, unknown> = {}) {
     setLoading(key)
     try {
-      const data = await apiPost(endpoint, body)
+      const data = await apiPost<{ status?: boolean; message?: string; error?: string }>(endpoint, body)
       if (data.status === true || data.message) {
         alert(data.message || "Purchased!")
         // Refresh credit balance
-        const bal = await apiGet("/api/credits/balance")
+        const bal = await apiGet<{ balance: number }>("/api/credits/balance")
         setMe(prev => prev ? { ...prev, creditsBalance: bal.balance } : null)
       } else {
         alert(data.error || "Failed")

@@ -32,7 +32,7 @@ export default function OwnedPage() {
   const { tier, themeChoice, setThemeChoice, ownedCosmetics } = useTierTheme()
 
   useEffect(() => {
-    apiGet("/api/auth/me")
+    apiGet<{ user: Me | null }>("/api/auth/me")
       .then((d) => {
         if (!d.user) {
           router.push("/login")
@@ -48,7 +48,7 @@ export default function OwnedPage() {
     if (!me || equipping) return
     setEquipping(emoji)
     try {
-      const data = await apiPost("/api/profile/avatar", { emoji })
+      const data = await apiPost<{ avatarEmoji: string }>("/api/profile/avatar", { emoji })
       setMe((current) => (current ? { ...current, avatarEmoji: data.avatarEmoji } : current))
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Could not equip avatar.")

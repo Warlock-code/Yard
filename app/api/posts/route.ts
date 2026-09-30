@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { getEffectiveTier } from "@/lib/tier"
 import { notifyMentions } from "@/lib/mentions"
 import { rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
       program: user.program,
       programLevel: user.programLevel,
       programKey: user.programKey,
-      isPrime: getEffectiveTier(user) === "PRIME",
+      isPrime: false, // Prime tier removed — no post is Prime-flagged anymore
       visibility: visibility === "program" ? "program" : "school",
     },
   })

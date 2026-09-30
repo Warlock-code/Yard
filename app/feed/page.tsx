@@ -64,8 +64,17 @@ type Post = {
   user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
-type Me = {
+type InlineComment = {
   id: string
+  text: string
+  ghostId: string
+  createdAt: string
+  parentId: string | null
+  replies: InlineComment[]
+  user?: { ghostId: string; avatarEmoji: string; tier?: string; championTrophies?: number }
+}
+
+type Me = {  id: string
   ghostId: string
   avatarEmoji: string
   campus: string
@@ -129,7 +138,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
 // Expand + inline comments (X-style tap anywhere)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [inlineComments, setInlineComments] = useState<Record<string, any[]>>({})
+  const [inlineComments, setInlineComments] = useState<Record<string, InlineComment[]>>({})
   const [inlineLoading, setInlineLoading] = useState<Record<string, boolean>>({})
   const [inlineDraft, setInlineDraft] = useState<Record<string, string>>({})
   const [inlineSubmitting, setInlineSubmitting] = useState<Record<string, boolean>>({})
@@ -141,7 +150,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const { connected, on, joinCampus, leaveCampus } = useSocket()
 
   const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/auth/me")
+    return apiGet<{ user: Me | null }>("/api/auth/me")
       .then((data) => {
         if (!data.user) {
           if (isCurrent()) router.push("/login")
@@ -183,9 +192,9 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (me?.tier !== "PRIME") return
     let active = true
-    apiGet("/api/analytics/earnings?range=7d&period=day").then((d) => {
+    apiGet<{ byDate: { date: string; total: number }[] }>("/api/analytics/earnings?range=7d&period=day").then((d) => {
       if (!active || !d.byDate) return
-      const mapped = d.byDate.map((r: any) => ({ date: r.date.slice(5), total: r.total / 100 }))
+      const mapped = d.byDate.map((r) => ({ date: r.date.slice(5), total: r.total / 100 }))
       setPrimeEarnings(mapped.length ? mapped : null)
     }).catch(() => {})
     return () => { active = false }
@@ -193,7 +202,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let active = true
-    apiGet(`/api/posts?mode=${mode}&seed=${refreshSeed}`)
+    apiGet<{ posts: Post[]; nextCursor: string | null }>(`/api/posts?mode=${mode}&seed=${refreshSeed}`)
       .then((data) => {
         if (!active) return
         setPosts(data.posts)
@@ -223,7 +232,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       pending = true
       setLoadingMore(true)
       try {
-        const data = await apiGet(`/api/posts?mode=${mode}&cursor=${nextCursor}&seed=${refreshSeed}`)
+        const data = await apiGet<{ posts: Post[]; nextCursor: string | null }>(`/api/posts?mode=${mode}&cursor=${nextCursor}&seed=${refreshSeed}`)
         if (!active) return
         setPosts((prev) => [...prev, ...data.posts])
         setNextCursor(data.nextCursor)
@@ -274,15 +283,15 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!connected) return
-    const unsubNewPost = on("new_post", (post: any) => {
+    const unsubNewPost = on("new_post", (post: Post & { campus: string }) => {
       if (mode === "campus" && post.campus === me?.campus) {
-        setPosts((prev) => [post as Post, ...prev])
+        setPosts((prev) => [post, ...prev])
       }
     })
     const unsubVote = on("vote_update", ({ postId, yeahs }: { postId: string; yeahs: number }) => {
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, yeahs } : p)))
     })
-    const unsubComment = on("comment_added", ({ postId, comment }: { postId: string; comment: any }) => {
+    const unsubComment = on("comment_added", ({ postId, comment }: { postId: string; comment: InlineComment }) => {
       // if expanded inline, append without dupe
       setInlineComments((prev) => {
         if (!prev[postId]) return prev
@@ -310,9 +319,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     setPoppingId(postId)
     setTimeout(() => setPoppingId((c) => (c === postId ? null : c)), 420)
     try {
-      const res: any = await apiPost(`/api/posts/${postId}/vote`, {})
-      if (res?.post?.yeahs != null) {
-        setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, yeahs: res.post.yeahs } : p)))
+      const res = await apiPost<{ post?: { yeahs?: number } }>(`/api/posts/${postId}/vote`, {})
+      const freshYeahs = res.post?.yeahs
+      if (freshYeahs != null) {
+        setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, yeahs: freshYeahs } : p)))
       }
     } catch (err: unknown) {
       // revert on error (already voted / own post / network)
@@ -338,7 +348,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     if (inlineComments[postId]) return
     setInlineLoading((s) => ({ ...s, [postId]: true }))
     try {
-      const data: any = await apiGet(`/api/posts/${postId}/comments`)
+      const data = await apiGet<{ comments: InlineComment[] }>(`/api/posts/${postId}/comments`)
       setInlineComments((s) => ({ ...s, [postId]: data.comments || [] }))
     } catch (e) {
       console.error(e)
@@ -351,7 +361,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     const text = inlineDraft[postId]?.trim().toLowerCase()
     if (!text || !me) return
     const tempId = `temp-${Date.now()}`
-    const optimistic: any = {
+    const optimistic: InlineComment = {
       id: tempId,
       text,
       ghostId: me.ghostId,
@@ -365,8 +375,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     setInlineDraft((s) => ({ ...s, [postId]: "" }))
     setInlineSubmitting((s) => ({ ...s, [postId]: true }))
     try {
-      const data: any = await apiPost(`/api/posts/${postId}/comments`, { text, parentId: null })
-      const real = data.comment || data
+      const data = await apiPost<{ comment: InlineComment }>(`/api/posts/${postId}/comments`, { text, parentId: null })
+      const real = data.comment
       setInlineComments((s) => ({
         ...s,
         [postId]: (s[postId] || []).map((c) => (c.id === tempId ? { ...real, replies: real.replies || [] } : c)),
@@ -402,7 +412,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     pendingFollowRequests.current.add(targetUserId)
     setPendingFollows(new Set(pendingFollowRequests.current))
     try {
-      const data = await apiPost("/api/follow", { targetUserId })
+      const data = await apiPost<{ following: boolean }>("/api/follow", { targetUserId })
       setFollowingByAuthor((prev) => ({ ...prev, [targetUserId]: data.following }))
       setPosts((prev) => prev.map((post) => post.user.id === targetUserId ? { ...post, isFollowing: data.following } : post))
       loadMe()
@@ -475,7 +485,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   async function handleNameChange() {
     if (!newName.trim()) return
     try {
-      const data = await apiPost("/api/shop/custom-name", { newName })
+      const data = await apiPost<{ data?: { authorization_url?: string } }>("/api/shop/custom-name", { newName })
       if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")
@@ -484,7 +494,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   async function openAvatarModal() {
     try {
-      const data = await apiGet("/api/profile/avatar")
+      const data = await apiGet<{ available: string[] }>("/api/profile/avatar")
       setAvailableAvatars(data.available)
       setShowDrawer(false)
       setShowAvatarModal(true)
@@ -755,7 +765,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                               <p className="text-xs text-white/30 py-2">No comments yet — be first.</p>
                             ) : (
                               <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pr-1">
-                                {inlineComments[post.id]?.slice(-3).map((c: any) => (
+                                {inlineComments[post.id]?.slice(-3).map((c: InlineComment) => (
                                   <div key={c.id} className="flex gap-2 py-1.5">
                                     <Avatar emoji={c.user?.avatarEmoji || "💬"} size={24} />
                                     <div className="flex-1 min-w-0">

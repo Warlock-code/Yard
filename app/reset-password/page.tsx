@@ -36,7 +36,7 @@ function ResetPasswordContent() {
     setMessage("")
 
     try {
-      const data = await apiPost("/api/auth/reset-password", { token, password })
+      const data = await apiPost<{ message?: string }>("/api/auth/reset-password", { token, password })
       setMessage(data.message || "Password reset successful.")
       setTimeout(() => router.push("/login"), 3000)
     } catch (err: unknown) {

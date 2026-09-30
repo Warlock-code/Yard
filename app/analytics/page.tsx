@@ -84,9 +84,9 @@ export default function AnalyticsPage() {
     setLoading(true)
     try {
       const [e, p, a] = await Promise.all([
-        apiGet(`/api/analytics/earnings?range=${range}`),
-        apiGet(`/api/analytics/posts?range=${range}`),
-        apiGet(`/api/analytics/audience?range=${range}`),
+        apiGet<EarningsData>(`/api/analytics/earnings?range=${range}`),
+        apiGet<PostsData>(`/api/analytics/posts?range=${range}`),
+        apiGet<AudienceData>(`/api/analytics/audience?range=${range}`),
       ])
       setEarnings(e)
       setPosts(p)

@@ -17,7 +17,9 @@ export async function awardEarning(
   if (!user) return null
 
   const effectiveTier = getEffectiveTier(user)
-  if (effectiveTier !== "PRIME") return null
+  // Prime tier removed — GHS earnings are paused for every tier for now
+  // (PLUS/FREE both return null). Flip this to `=== "PLUS"` when payouts reopen.
+  if (effectiveTier === "FREE" || effectiveTier === "PLUS") return null
 
   const existing = await prisma.earning.findFirst({ where: { userId, source, sourceId } })
   if (existing) return existing

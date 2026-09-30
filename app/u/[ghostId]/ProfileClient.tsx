@@ -76,7 +76,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
 
   useEffect(() => {
     let active = true
-    apiGet(`/api/users/${encodeURIComponent(ghostId)}`)
+    apiGet<{ user: Profile; posts: Post[]; nextCursor: string | null }>(`/api/users/${encodeURIComponent(ghostId)}`)
       .then((data) => {
         if (!active) return
         setProfile(data.user)
@@ -102,7 +102,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
     setLoadingMore(true)
     setError("")
     try {
-      const data = await apiGet(`/api/users/${encodeURIComponent(ghostId)}?cursor=${encodeURIComponent(nextCursor)}`)
+      const data = await apiGet<{ posts: Post[]; nextCursor: string | null }>(`/api/users/${encodeURIComponent(ghostId)}?cursor=${encodeURIComponent(nextCursor)}`)
       setPosts((prev) => [...prev, ...data.posts])
       setNextCursor(data.nextCursor)
     } catch (err: unknown) {
@@ -118,7 +118,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
     followRequest.current = true
     setFollowPending(true)
     try {
-      const data = await apiPost("/api/follow", { targetUserId: profile.id })
+      const data = await apiPost<{ following: boolean }>("/api/follow", { targetUserId: profile.id })
       setProfile((prev) => (prev ? {
         ...prev,
         isFollowing: data.following,

@@ -21,7 +21,7 @@ import type {
 
 type ApiResponse<T> = T extends { error: string } ? T : T
 
-export async function apiPost<T = any>(url: string, body: unknown): Promise<ApiResponse<T>> {
+export async function apiPost<T = unknown>(url: string, body: unknown): Promise<ApiResponse<T>> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export async function apiPost<T = any>(url: string, body: unknown): Promise<ApiR
   return data as ApiResponse<T>
 }
 
-export async function apiGet<T = any>(url: string): Promise<ApiResponse<T>> {
+export async function apiGet<T = unknown>(url: string): Promise<ApiResponse<T>> {
   const res = await fetch(url, { credentials: "include" })
 
   const text = await res.text()
@@ -62,7 +62,7 @@ export async function apiGet<T = any>(url: string): Promise<ApiResponse<T>> {
   return data as ApiResponse<T>
 }
 
-export async function apiDelete<T = any>(url: string): Promise<ApiResponse<T>> {
+export async function apiDelete<T = unknown>(url: string): Promise<ApiResponse<T>> {
   const res = await fetch(url, { method: "DELETE", credentials: "include" })
   const text = await res.text()
   let data: unknown = {}
@@ -78,7 +78,7 @@ export async function apiDelete<T = any>(url: string): Promise<ApiResponse<T>> {
   return data as ApiResponse<T>
 }
 
-export async function apiPatch<T = any>(url: string, body: unknown): Promise<ApiResponse<T>> {
+export async function apiPatch<T = unknown>(url: string, body: unknown): Promise<ApiResponse<T>> {
   const res = await fetch(url, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

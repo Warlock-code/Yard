@@ -50,7 +50,7 @@ export default function ComposePage() {
   }, [trendingTags])
 
   const refreshQuota = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/auth/me")
+    return apiGet<{ user: StorageQuota | null }>("/api/auth/me")
       .then((data) => {
         if (!data.user) throw new Error("Sign in to check your storage.")
         if (!isCurrent()) return
@@ -72,8 +72,8 @@ export default function ComposePage() {
 
   useEffect(() => {
     let active = true
-    apiGet("/api/trending?type=hashtags&limit=8")
-      .then((data: { hashtags?: { tag: string }[] }) => {
+    apiGet<{ hashtags?: { tag: string }[] }>("/api/trending?type=hashtags&limit=8")
+      .then((data) => {
         if (!active) return
         const tags = (data.hashtags ?? []).map((h) => `#${h.tag.toLowerCase()}`)
         if (tags.length > 0) setTrendingTags(tags.slice(0, 8))
@@ -112,7 +112,7 @@ export default function ComposePage() {
 
   const { startUpload, isUploading } = useUploadThing("postImage", {
     onClientUploadComplete: async (res) => {
-      const r: any = res?.[0]
+      const r = res?.[0] as { serverData?: { url?: string }; ufsUrl?: string; url?: string } | undefined
       const url = r?.serverData?.url || r?.ufsUrl || r?.url
       if (url) setImage(url)
       else alert("Upload completed without an image URL. Check pending images in your lair.")
@@ -160,7 +160,7 @@ export default function ComposePage() {
     setPosting(true)
     try {
       const lowerText = text.toLowerCase()
-      const res: any = await apiPost("/api/posts", { text: lowerText, imageUrl: image, type: "confession", visibility })
+      const res = await apiPost<{ post?: { id?: string } }>("/api/posts", { text: lowerText, imageUrl: image, type: "confession", visibility })
       const newId = res?.post?.id
       if (newId) router.push(`/post/${newId}`)
       else router.push("/feed")
@@ -265,16 +265,16 @@ export default function ComposePage() {
             <p className="text-xs font-semibold tracking-widest text-white/30 uppercase mb-2">Preview — how others will see it</p>
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
               <div className="flex items-start gap-3">
-                <Avatar emoji={(quota as any)?.avatarEmoji || "👻"} size={36} />
+                <Avatar emoji={quota?.avatarEmoji || "👻"} size={36} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-semibold">{(quota as any)?.ghostId || "YourGhost"}</span>
-                    {(quota as any)?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}
-                    {(quota as any)?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
-                    <ChampionTrophies trophies={(quota as any)?.championTrophies} className="text-[10px] leading-none" />
+                    <span className="font-semibold">{quota?.ghostId || "YourGhost"}</span>
+                    {quota?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}
+                    {quota?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                    <ChampionTrophies trophies={quota?.championTrophies} className="text-[10px] leading-none" />
                     <span className="text-white/30">· now</span>
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-white/30">
-                      {visibility === "program" ? "🎓 Program" : "🏫 School"} • {(quota as any)?.campus || "Campus"}
+                      {visibility === "program" ? "🎓 Program" : "🏫 School"} • {quota?.campus || "Campus"}
                     </span>
                   </div>
                   {text.trim() ? (

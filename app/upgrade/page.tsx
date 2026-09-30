@@ -18,7 +18,7 @@ export default function UpgradePage() {
 
   useEffect(() => {
     let active = true
-    apiGet("/api/auth/me")
+    apiGet<{ user: { tier: "FREE" | "PLUS" } | null }>("/api/auth/me")
       .then((data) => {
         if (active) setMe(data.user)
       })
@@ -30,7 +30,7 @@ export default function UpgradePage() {
     if (!me || loading || me.tier === tier.toUpperCase()) return
     setLoading(true)
     try {
-      const data = await apiPost(`/api/subscribe/${tier}`, {})
+      const data = await apiPost<{ data?: { authorization_url?: string } }>(`/api/subscribe/${tier}`, {})
       if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Something went wrong.")

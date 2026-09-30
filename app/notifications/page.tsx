@@ -56,7 +56,7 @@ export default function NotificationsPage() {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const data = await apiGet("/api/notifications")
+      const data = await apiGet<{ notifications: Notification[] }>("/api/notifications")
       setNotifications(data.notifications)
     } catch {}
     finally {

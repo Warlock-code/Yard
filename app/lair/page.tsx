@@ -38,6 +38,69 @@ type PendingUpload = { id: string; url: string; sizeBytes: number }
 
 type Bank = { name: string; code: string }
 
+type ReferralStats = {
+  code: string
+  referralLink: string
+  stats: {
+    totalReferrals: number
+    verifiedReferrals: number
+    flaggedReferrals: number
+    pendingReferrals: number
+    coinsEarned: number
+    dailyCap: number
+    referrerReward: number
+    refereeReward: number
+  }
+  referrals: Array<{
+    id: string
+    ghostId: string
+    avatarEmoji: string
+    joinedAt: string
+    emailVerified: boolean
+    status: string
+    rewardStatus: string
+    rewardAmount: number
+    completedAt: string | null
+  }>
+}
+
+type WalletData = {
+  balance: number
+  earned: number
+  purchased: number
+  withdrawn: number
+  transactions: Array<{
+    id: string
+    type: string
+    amount: number
+    balanceAfter: number
+    reference?: string
+    metadata?: Record<string, unknown>
+    createdAt: string
+  }>
+  payouts: Array<{
+    id: string
+    creditsAmount: number
+    ghsAmount: number
+    netGhsAmount: number
+    feeAmount: number
+    status: string
+    bankCode: string
+    accountNumber: string
+    accountName: string
+    requestedAt: string
+    processedAt?: string
+  }>
+  packs: Array<{
+    id: string
+    name: string
+    ghs: number
+    credits: number
+    bonusPct: number
+    description: string
+  }>
+}
+
 function ghs(pesewas: number) {
   return `GHS ${(pesewas / 100).toFixed(2)}`
 }
@@ -125,7 +188,7 @@ export default function LairPage() {
   const [withdrawing, setWithdrawing] = useState(false)
 
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/storage")
+    return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
       .then((data) => {
         if (!isCurrent()) return
         setUploads(data.uploads)
@@ -155,13 +218,14 @@ export default function LairPage() {
         throw new Error(data.error || "Could not discard image.")
       }
       setUploads((current) => current.filter((item) => item.id !== upload.id))
-      const data = await apiGet("/api/auth/me")
-      if (!data.user) throw new Error("Could not refresh storage. Reload to try again.")
+      const data = await apiGet<{ user: Pick<Me, "storageUsed" | "storageLimit" | "storageRemaining"> | null }>("/api/auth/me")
+      const refreshed = data.user
+      if (!refreshed) throw new Error("Could not refresh storage. Reload to try again.")
       setMe((current) => current ? {
         ...current,
-        storageUsed: data.user.storageUsed,
-        storageLimit: data.user.storageLimit,
-        storageRemaining: data.user.storageRemaining,
+        storageUsed: refreshed.storageUsed,
+        storageLimit: refreshed.storageLimit,
+        storageRemaining: refreshed.storageRemaining,
       } : current)
     } catch (err: unknown) {
       setStorageError(err instanceof Error ? err.message : "Could not update storage.")
@@ -171,7 +235,7 @@ export default function LairPage() {
   }
 
   const load = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/auth/me")
+    return apiGet<{ user: Me | null }>("/api/auth/me")
       .then((data) => {
         if (!isCurrent()) return
         if (!data.user) {
@@ -187,7 +251,7 @@ export default function LairPage() {
   }, [router])
 
   const loadReferral = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/referral/stats")
+    return apiGet<ReferralStats>("/api/referral/stats")
       .then((data) => {
         if (!isCurrent()) return
         setReferralStats(data)
@@ -196,7 +260,7 @@ export default function LairPage() {
   }, [])
 
   const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet("/api/credits/balance")
+    return apiGet<WalletData>("/api/credits/balance")
       .then((data) => {
         if (!isCurrent()) return
         setWalletData(data)
@@ -219,7 +283,7 @@ export default function LairPage() {
   async function openWithdrawModal() {
     if (banks.length === 0) {
       try {
-        const data = await apiGet("/api/banks")
+        const data = await apiGet<{ banks: Bank[] }>("/api/banks")
         setBanks(data.banks || [])
       } catch {
         setBanks([])

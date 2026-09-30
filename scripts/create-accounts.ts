@@ -73,7 +73,7 @@ async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
 
-async function createUser(email: string, password: string, campus: string, ghostId: string, tier: 'PLUS' | 'PRIME' = 'PLUS') {
+async function createUser(email: string, password: string, campus: string, ghostId: string, tier: 'PLUS' = 'PLUS') {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     console.log(`User ${email} already exists, updating...`);
@@ -110,7 +110,7 @@ async function createUser(email: string, password: string, campus: string, ghost
       ghostCoins: 1000,
       freeBoosts: 5,
       storageUsed: 0,
-      storageLimit: tier === 'PRIME' ? 200 : 100,
+      storageLimit: 100,
       inviteCode,
       referralCount: 0,
       streakCount: 0,

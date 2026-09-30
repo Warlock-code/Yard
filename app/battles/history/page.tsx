@@ -46,7 +46,7 @@ export default function BattleHistoryPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await apiGet("/api/battles?history=true")
+      const data = await apiGet<{ battles: Battle[] }>("/api/battles?history=true")
       setBattles(data.battles || [])
     } catch (err) {
       console.error("Failed to load battle history:", err)

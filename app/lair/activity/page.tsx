@@ -24,7 +24,7 @@ export default function ActivityPage() {
 
   useEffect(() => {
     let active = true
-    apiGet(`/api/profile/activity?type=${tab}`)
+    apiGet<{ posts: Post[] }>(`/api/profile/activity?type=${tab}`)
       .then((d) => {
         if (active) setPosts(d.posts)
       })

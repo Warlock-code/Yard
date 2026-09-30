@@ -111,12 +111,12 @@ async function main() {
         verifyCode: null,
         ghostId, // update to new makeGhostId value
         inviteCode: existing.inviteCode || inviteCode, // keep existing if present, else use new
-        tier: "PRIME",
+        tier: "PLUS",
         status: "ACTIVE",
         avatarEmoji: existing.avatarEmoji || "👻",
       },
     });
-    console.log(`Updated user ${email} with new ghostId ${ghostId} and tier PRIME`);
+    console.log(`Updated user ${email} with new ghostId ${ghostId} and tier PLUS`);
     // If we changed ghostId but kept inviteCode, ensure inviteCode uniqueness is preserved - it already was.
     // If we generated new inviteCode but existing had one, we didn't use new. That's fine.
     // However if existing inviteCode was like inv_xxx (non-standard 8-char), keep it as it's unique.
@@ -136,7 +136,7 @@ async function main() {
         inviteCode,
         emailVerified: true,
         verifyCode: null,
-        tier: "PRIME",
+        tier: "PLUS",
         status: "ACTIVE",
         // other defaults will apply
       },
@@ -144,12 +144,12 @@ async function main() {
     console.log(`Created user ${email}`);
   }
 
-  // Ensure tier is PRIME (if update didn't apply or for safety, double update)
-  if (user.tier !== "PRIME") {
-    console.log("Ensuring tier is PRIME...");
+  // Ensure tier is PLUS (if update didn't apply or for safety, double update)
+  if (user.tier !== "PLUS") {
+    console.log("Ensuring tier is PLUS...");
     user = await prisma.user.update({
       where: { email },
-      data: { tier: "PRIME" },
+      data: { tier: "PLUS" },
     });
   }
 

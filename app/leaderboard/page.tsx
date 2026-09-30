@@ -14,7 +14,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiGet("/api/leaderboard")
+    apiGet<{ leaderboard: Ranked[]; myRank: number | null; me: Ranked | null }>("/api/leaderboard")
       .then((data) => {
         setTop(data.leaderboard)
         setMyRank(data.myRank)

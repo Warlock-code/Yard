@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { isAdmin } from "@/lib/getAdmin"
 import { getTreasuryStats, mintCreditsAdmin, burnCreditsAdmin } from "@/lib/credits"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user || user.tier !== "PRIME") {
+  if (!user || !isAdmin(req)) {
     return NextResponse.json({ error: "Admin only" }, { status: 403 })
   }
 
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user || user.tier !== "PRIME") {
+  if (!user || !isAdmin(req)) {
     return NextResponse.json({ error: "Admin only" }, { status: 403 })
   }
 
