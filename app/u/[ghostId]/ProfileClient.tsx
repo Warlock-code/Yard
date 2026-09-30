@@ -9,6 +9,7 @@ import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
+import SmartNudge from "@/app/components/SmartNudge"
 
 type Post = {
   id: string
@@ -141,6 +142,8 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
         <button onClick={() => router.back()} className="text-white/60" aria-label="Go back">←</button>
         <h1 className="text-lg font-bold">Ghost Profile</h1>
       </div>
+
+      {profile.isOwn && <SmartNudge compact />}
 
       <div className="flex flex-col items-center mt-2 mb-4 relative">
         {profile.tier === "PRIME" && (

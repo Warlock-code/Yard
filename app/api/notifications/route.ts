@@ -16,6 +16,14 @@ const iconByType: Record<string, string> = {
   follow: "\u{2795}",
   return_reminder: "\u{1F47B}",
   nudge: "\u{2728}",
+  nudge_boost_popping: "\u{1F680}",
+  nudge_avatar: "\u{1F3AD}",
+  nudge_streak_freeze: "\u{1F9CA}",
+  nudge_plus: "\u{2728}",
+  nudge_custom_name: "\u{270F}\uFE0F",
+  nudge_first_buy: "\u{1F381}",
+  nudge_storage: "\u{1F4BE}",
+  nudge_comeback: "\u{1F47B}",
 }
 
 const defaultIcon = "\u{1F514}"

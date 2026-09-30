@@ -7,7 +7,7 @@ const logLevels = process.env.NODE_ENV === "development"
   : ["error"] as const
 
 const prismaClientOptions = {
-  log: logLevels,
+  log: [...logLevels],
   datasources: {
     db: {
       url: process.env.DATABASE_URL,

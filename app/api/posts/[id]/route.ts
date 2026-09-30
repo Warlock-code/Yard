@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   await attachChampionTrophiesDeep(post)
 
   return NextResponse.json({
-    post: { ...post, boosted: isBoostActive(post) },
+    post: { ...post, boosted: isBoostActive(post), isOwn: post.user.id === viewer.id },
   })
 }
 

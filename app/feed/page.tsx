@@ -13,6 +13,7 @@ import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
+import SmartNudge from "@/app/components/SmartNudge"
 import { logPaywallHit } from "@/lib/logPaywall"
 
 function PostSkeleton() {
@@ -382,15 +383,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   async function handleBoost(postId: string) {
     try {
-      await apiPost(`/api/boost/${postId}`, {})
+      const data = await apiPost<{ data?: { authorization_url?: string }; success?: boolean }>(`/api/boost/${postId}`, {})
+      const url = data?.data?.authorization_url as string | undefined
+      if (url) {
+        // No free boosts — contextual paid boost: GHS 3 for 24h
+        await openPaystackCheckout(url)
+        return
+      }
       alert("Boosted for 24h!")
       loadFeed()
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes("Buy")) {
-        if (confirm("No boost credits left. Go buy some in the Shop?")) router.push("/shop")
-      } else {
-        alert(err instanceof Error ? err.message : "Something went wrong.")
-      }
+      alert(err instanceof Error ? err.message : "Something went wrong.")
     }
   }
 
@@ -549,6 +552,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           </div>
         </div>
       )}
+
+      {!loading && <SmartNudge />}
 
       {loading ? (
         <div>

@@ -10,6 +10,8 @@ import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
+import SmartNudge from "@/app/components/SmartNudge"
+import { openPaystackCheckout } from "@/lib/purchaseGate"
 
 type Comment = {
   id: string
@@ -30,7 +32,9 @@ type Post = {
   yeahs: number
   commentsCount: number
   createdAt: string
-  user: { ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
+  boosted?: boolean
+  isOwn?: boolean
+  user: { id?: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
 function CommentThread({
@@ -336,6 +340,21 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     }
   }
 
+  async function handleBoost() {
+    if (!post) return
+    try {
+      const data = await apiPost<{ data?: { authorization_url?: string }; success?: boolean }>(`/api/boost/${post.id}`, {})
+      const url = data?.data?.authorization_url as string | undefined
+      if (url) {
+        await openPaystackCheckout(url)
+        return
+      }
+      alert("Boosted for 24h!")
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Something went wrong.")
+    }
+  }
+
   async function handleShare(target: ShareTarget) {
     if (!post) return
     try {
@@ -376,6 +395,18 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       </div>
 
       <div className="card m-4 p-4">
+        {post.isOwn && !post.boosted && post.yeahs >= 5 && (
+          <div className="rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-3 mb-3 flex items-center gap-3">
+            <span className="text-xl">🚀</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Your post is popping</p>
+              <p className="text-[13px] text-white/60">Boost it for 24h for GHS 3.</p>
+            </div>
+            <button className="btn-primary px-4 h-8 text-xs" onClick={handleBoost}>
+              Boost
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-3 mb-3">
           <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
             <Avatar emoji={post.user.avatarEmoji} size={40} />
@@ -409,12 +440,16 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
           <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
           <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
+          {post.isOwn && !post.boosted && (
+            <button onClick={handleBoost} className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]">🚀 Boost</button>
+          )}
           <ShareButton postId={post.id} postText={post.text || undefined} />
           <ReportButton postId={post.id} />
         </div>
       </div>
 
       <div className="px-4">
+        <SmartNudge compact />
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-semibold text-white/60">Comments</h3>
           <div className="flex items-center gap-1 text-xs bg-white/5 rounded-full p-0.5" role="tablist" aria-label="Sort comments">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isBoostActive } from "@/lib/boost"
 import { createNotification } from "@/lib/notifications"
+import { evalHotPostNudge } from "@/lib/nudges"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitVoteUpdate } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
@@ -78,6 +79,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   emitVoteUpdate(post.campus, post.id, post.yeahs)
+
+  // Smart nudge: post heating up -> "boost it for 24h for GHS 3" (fire-and-forget)
+  evalHotPostNudge(post.id).catch(() => {})
 
   return NextResponse.json({ post: { ...post, boosted: isBoostActive(post) } })
 }

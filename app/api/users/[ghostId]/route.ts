@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
+import { evalProfileAvatarNudge } from "@/lib/nudges"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { getChampionTrophies } from "@/lib/champions"
@@ -31,7 +32,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
         body: `${viewer.ghostId} viewed your profile`,
         href: `/u/${viewer.ghostId}`,
         actorName: viewer.ghostId,
+      }).then(() => {
+        // Smart nudge: profile getting views + default avatar -> upsell avatar (fire-and-forget)
+        evalProfileAvatarNudge(user.id).catch(() => {})
       }).catch(() => {})
+    } else {
+      // Even on deduped views, re-evaluate — traffic may have crossed threshold
+      evalProfileAvatarNudge(user.id).catch(() => {})
     }
   }
 
