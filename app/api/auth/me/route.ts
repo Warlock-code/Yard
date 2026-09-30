@@ -16,30 +16,23 @@ export async function GET(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { id: payload.userId } })
   if (!user || user.status !== "ACTIVE") return NextResponse.json({ user: null })
 
-  const postCount = await prisma.post.count({ where: { userId: user.id } })
-  const followersCount = await prisma.follow.count({ where: { followingId: user.id } })
-  const followingCount = await prisma.follow.count({ where: { followerId: user.id } })
-
-  const earningsSum = await prisma.earning.aggregate({
-    where: { userId: user.id },
-    _sum: { amount: true },
-  })
-
-  const paidOutSum = await prisma.payout.aggregate({
-    where: { userId: user.id, status: { in: ["approved", "paid"] } },
-    _sum: { amount: true },
-  })
-
-  const pendingPayout = await prisma.payout.findFirst({
-    where: { userId: user.id, status: "pending" },
-  })
+  // Parallel fan-out: was 6 sequential round-trips, now 1 wave
+  const [postCount, followersCount, followingCount, earningsSum, paidOutSum, pendingPayout, trophiesMap] = await Promise.all([
+    prisma.post.count({ where: { userId: user.id } }),
+    prisma.follow.count({ where: { followingId: user.id } }),
+    prisma.follow.count({ where: { followerId: user.id } }),
+    prisma.earning.aggregate({ where: { userId: user.id }, _sum: { amount: true } }),
+    prisma.payout.aggregate({ where: { userId: user.id, status: { in: ["approved", "paid"] } }, _sum: { amount: true } }),
+    prisma.payout.findFirst({ where: { userId: user.id, status: "pending" }, select: { id: true } }),
+    getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>()),
+  ])
 
   const totalEarned = earningsSum._sum.amount || 0
   const totalPaidOut = paidOutSum._sum.amount || 0
   const effectiveTier = getEffectiveTier(user)
   const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
   const effectiveStorageLimit = getEffectiveStorageLimitMB(user)
-  const championTrophies = (await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())).get(user.id) ?? 0
+  const championTrophies = trophiesMap.get(user.id) ?? 0
 
   return NextResponse.json({
     user: {

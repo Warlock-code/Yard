@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
+import { prewarmAppData } from "@/lib/client-cache"
 import { Suspense } from "react"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 
@@ -44,6 +45,7 @@ function SignupForm() {
       
       // Token is set via httpOnly cookie by the API
       router.push("/feed")
+      prewarmAppData()
       router.refresh()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "something went wrong. please try again.")

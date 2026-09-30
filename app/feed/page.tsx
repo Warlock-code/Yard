@@ -14,6 +14,7 @@ import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import SmartNudge from "@/app/components/SmartNudge"
 import { logPaywallHit } from "@/lib/logPaywall"
+import { getCached, setCached, cacheKeys, TTL } from "@/lib/client-cache"
 
 function PostSkeleton() {
   return (
@@ -154,10 +155,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           if (isCurrent()) router.push("/login")
           return
         }
+        setCached(cacheKeys.me, data, TTL.me)
         if (isCurrent()) setMe(data.user)
       })
       .catch(() => {
-        if (isCurrent()) router.push("/login")
+        if (isCurrent() && !getCached<{ user: Me | null }>(cacheKeys.me)) router.push("/login")
       })
   }, [router])
 
@@ -182,17 +184,30 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let active = true
+    // Instant paint from cache, then silent revalidate
+    const cachedMe = getCached<{ user: Me | null }>(cacheKeys.me)
+    if (cachedMe?.user && active) setMe(cachedMe.user)
     loadMe(() => active)
     return () => { active = false }
   }, [loadMe])
 
   useEffect(() => {
     let active = true
+    // Show cached campus feed instantly on first paint
+    if (mode === "campus" && feedVersion === 0) {
+      const cached = getCached<{ posts: Post[]; nextCursor: string | null }>(cacheKeys.feed("campus"))
+      if (cached?.posts?.length) {
+        setPosts(cached.posts)
+        setNextCursor(cached.nextCursor)
+        setLoading(false)
+      }
+    }
     apiGet<{ posts: Post[]; nextCursor: string | null }>(`/api/posts?mode=${mode}&seed=${refreshSeed}`)
       .then((data) => {
         if (!active) return
         setPosts(data.posts)
         setNextCursor(data.nextCursor)
+        if (mode === "campus") setCached(cacheKeys.feed("campus"), data, TTL.feed)
       })
       .catch((err: unknown) => {
         if (!active) return

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
 import type { MeResponse } from "@/lib/api-types"
 import { useHoverPrefetch } from "@/lib/prefetch"
+import { prefetchDataFor } from "@/lib/prefetch"
+import { getCached, setCached, cacheKeys, TTL } from "@/lib/client-cache"
 
 const TABS = [
   { href: "/feed", icon: "🏠", label: "feed" },
@@ -27,11 +29,17 @@ export default function BottomNav() {
 
   useEffect(() => {
     let active = true
+    // Instant badge from cache
+    const cachedCount = getCached<{ unreadCount: number }>(cacheKeys.notificationsCount)
+    if (cachedCount && typeof cachedCount.unreadCount === "number") setUnreadCount(cachedCount.unreadCount)
 
     async function loadUnreadCount() {
       try {
         const data = await apiGet<{ unreadCount: number }>("/api/notifications?limit=1")
-        if (active) setUnreadCount(data.unreadCount || 0)
+        if (active) {
+          setUnreadCount(data.unreadCount || 0)
+          setCached(cacheKeys.notificationsCount, data, TTL.misc)
+        }
       } catch {
         if (active) setUnreadCount(0)
       }
@@ -93,6 +101,9 @@ export default function BottomNav() {
               href={tab.href}
               aria-label={tab.label}
               aria-current={active ? "page" : undefined}
+              prefetch={true}
+              onMouseEnter={() => prefetchDataFor(tab.href)}
+              onTouchStart={() => prefetchDataFor(tab.href)}
               className={`relative flex h-9 items-center justify-center gap-1 rounded-full text-base transition-all ${
                 active
                   ? "bg-primary/15 text-primary px-3"

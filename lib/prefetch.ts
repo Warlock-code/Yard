@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { prewarmAppData, setCached, cacheKeys, TTL } from "@/lib/client-cache"
 
 const ROUTES_TO_PREFETCH = [
   "/feed",
@@ -20,6 +21,8 @@ export function useRoutePrefetch() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    // Warm data once (me + campus feed) alongside route JS
+    prewarmAppData()
 
     const idleCallback = (deadline: IdleDeadline) => {
       while (deadline.timeRemaining() > 0 && ROUTES_TO_PREFETCH.length > 0) {
@@ -43,7 +46,30 @@ export function useRoutePrefetch() {
   }, [router])
 }
 
+export function prefetchDataFor(href: string) {
+  if (typeof window === "undefined") return
+  try {
+    if (href === "/feed" || href.startsWith("/feed")) {
+      fetch("/api/posts?mode=campus", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d?.posts) setCached(cacheKeys.feed("campus"), d, TTL.feed) })
+        .catch(() => {})
+    } else if (href === "/battles") {
+      fetch("/api/battles", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setCached(cacheKeys.battles, d, TTL.misc) })
+        .catch(() => {})
+    } else if (href === "/leaderboard") {
+      fetch("/api/leaderboard", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setCached(cacheKeys.leaderboard, d, TTL.misc) })
+        .catch(() => {})
+    }
+  } catch {}
+}
+
 export function prefetchOnHover(href: string) {
+  prefetchDataFor(href);
   if (typeof window !== "undefined") {
     const link = document.createElement("link")
     link.rel = "prefetch"

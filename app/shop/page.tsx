@@ -241,12 +241,13 @@ export default function ShopPage() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-white/20 to-transparent" />
             <p className="text-xs text-white/40 uppercase mb-1">plus — ghs 10</p>
             <p className="font-bold text-lg mb-2">more perks, more style</p>
+            <p className="text-white/50 text-sm mb-3">compare free vs plus, then checkout.</p>
             <button
               className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading !== null}
-              onClick={() => buy("/api/subscribe/plus", "plus")}
+              onClick={() => router.push("/upgrade")}
             >
-              {loading === "plus" ? "..." : "subscribe"}
+              compare plans →
             </button>
           </div>
         </div>

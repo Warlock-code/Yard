@@ -3,6 +3,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "crons": [
+    { "path": "/api/health", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/daily-maintenance", "schedule": "0 2 * * *" },
     { "path": "/api/cron/daily-engagement", "schedule": "0 9 * * *" }
   ]

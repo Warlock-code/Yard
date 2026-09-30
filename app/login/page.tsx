@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { prewarmAppData } from "@/lib/client-cache"
 
 
 export default function LoginPage() {
@@ -37,6 +38,8 @@ export default function LoginPage() {
         throw new Error(data.error || "something went wrong.")
       }
       router.push("/feed")
+      // Warm feed + me in background so /feed opens instantly
+      prewarmAppData()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "something went wrong.")
     } finally {

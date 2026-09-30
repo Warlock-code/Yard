@@ -195,19 +195,25 @@ export async function GET(req: NextRequest) {
   // (keeps cursor pagination consistent); new seed = ties rotate.
   const tieSeed = searchParams.get("seed") || undefined
 
-  const follows = await prisma.follow.findMany({
-    where: { followerId: user.id },
-    select: { followingId: true },
-  })
+  const [follows, readableWhere, programWhereBase, viewedPosts] = await Promise.all([
+    prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } }),
+    getReadablePostWhere(user),
+    getProgramPostWhere(user),
+    prisma.postView.findMany({
+      where: { userId: user.id },
+      select: { postId: true },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    }),
+  ])
   const followingIds = new Set(follows.map((follow) => follow.followingId))
-  const readableWhere = await getReadablePostWhere(user)
   const now = new Date()
   const boostedActiveWhere: Prisma.PostWhereInput = { boostedUntil: { gt: now }, archived: false }
   let scopeWhere: Prisma.PostWhereInput
   let boostedScopeWhere: Prisma.PostWhereInput | null = null
 
   if (mode === "campus") {
-    const programWhere = await getProgramPostWhere(user)
+    const programWhere = programWhereBase
     scopeWhere = {
       OR: [
         { campus: user.campus, visibility: "school" },
@@ -218,7 +224,7 @@ export async function GET(req: NextRequest) {
     boostedScopeWhere = { campus: user.campus, ...boostedActiveWhere }
   } else if (mode === "program") {
     scopeWhere = {
-      AND: [{ campus: user.campus, visibility: "program" }, await getProgramPostWhere(user)],
+      AND: [{ campus: user.campus, visibility: "program" }, programWhereBase],
     }
     boostedScopeWhere = null // keep program niche
   } else if (mode === "following") {
@@ -247,15 +253,12 @@ export async function GET(req: NextRequest) {
     where = { AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])] }
   }
 
-  const viewedPosts = await prisma.postView.findMany({
-    where: { userId: user.id },
-    select: { postId: true },
-  })
   const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
 
   const posts = await prisma.post.findMany({
     where,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 200,
     // tier + tierExpiresAt feed the ranking-only tier boost in
     // rankFeedCandidates (expired tiers count as FREE). No UI effect.
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
