@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const normalizedEmail = email.trim().toLowerCase()
 
   const lockoutKey = `lockout:${normalizedEmail}`
-  const lockout = rateLimitWithInfo(lockoutKey, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION)
+  const lockout = await rateLimitWithInfo(lockoutKey, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION)
   if (!lockout.allowed) {
     const minutes = Math.ceil((lockout.resetAt - Date.now()) / 60000)
     return NextResponse.json({ error: `Too many failed attempts. Try again in ${minutes} minutes.` }, { status: 429 })
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Success: clear failed lockout count
-  clearRateLimit(lockoutKey)
+  await clearRateLimit(lockoutKey)
 
   const token = signToken(user.id)
   const res = NextResponse.json({ success: true, ghostId: user.ghostId })

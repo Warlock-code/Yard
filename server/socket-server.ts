@@ -1,7 +1,9 @@
 import { Server as HTTPServer } from "http"
 import { Server, type Socket } from "socket.io"
+import { createClient } from "redis"
+import { createAdapter } from "@socket.io/redis-adapter"
 import jwt from "jsonwebtoken"
-import { prisma } from "@/lib/prisma"
+import { PrismaClient } from "@prisma/client"
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
@@ -74,19 +76,24 @@ interface BattleUpdateData {
   entries?: BattleEntryData[]
 }
 
-const userSockets = new Map<string, Set<string>>()
-const campusRooms = new Map<string, Set<string>>()
-const battleRooms = new Map<string, Set<string>>()
+const prisma = new PrismaClient()
 
-let ioInstance: ReturnType<typeof initializeSocket> | null = null
+async function initializeSocket() {
+  const httpServer = new HTTPServer()
+  
+  const pubClient = createClient({ url: process.env.REDIS_URL || "redis://localhost:6379" })
+  const subClient = pubClient.duplicate()
+  
+  await pubClient.connect()
+  await subClient.connect()
 
-export function initializeSocket(httpServer: HTTPServer) {
   const io = new Server(httpServer, {
     cors: {
       origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
       credentials: true,
     },
     path: "/api/socket",
+    adapter: createAdapter(pubClient, subClient),
   })
 
   io.use(async (socket: AuthenticatedSocket, next) => {
@@ -112,71 +119,75 @@ export function initializeSocket(httpServer: HTTPServer) {
   io.on("connection", (socket: AuthenticatedSocket) => {
     const { userId, campus } = socket
 
-    if (!userSockets.has(userId!)) userSockets.set(userId!, new Set())
-    userSockets.get(userId!)!.add(socket.id)
-
     socket.join(`user:${userId}`)
     socket.join(`campus:${campus}`)
 
-    if (!campusRooms.has(campus!)) campusRooms.set(campus!, new Set())
-    campusRooms.get(campus!)!.add(socket.id)
-
     socket.on("join:battle", (battleId: string) => {
       socket.join(`battle:${battleId}`)
-      if (!battleRooms.has(battleId)) battleRooms.set(battleId, new Set())
-      battleRooms.get(battleId)!.add(socket.id)
     })
 
     socket.on("leave:battle", (battleId: string) => {
       socket.leave(`battle:${battleId}`)
-      battleRooms.get(battleId)?.delete(socket.id)
     })
 
     socket.on("disconnect", () => {
-      userSockets.get(userId!)?.delete(socket.id)
-      if (userSockets.get(userId!)?.size === 0) userSockets.delete(userId!)
-      campusRooms.get(campus!)?.delete(socket.id)
-      battleRooms.forEach((sockets, bid) => {
-        sockets.delete(socket.id)
-        if (sockets.size === 0) battleRooms.delete(bid)
-      })
+      // cleanup handled by redis adapter
     })
   })
 
-  ioInstance = io
+  return { io, httpServer, pubClient, subClient }
+}
+
+let ioInstance: ReturnType<typeof initializeSocket> | null = null
+
+export async function startSocketServer() {
+  const { io, httpServer, pubClient, subClient } = await initializeSocket()
+  
+  const port = parseInt(process.env.SOCKET_PORT || "3001", 10)
+  
+  httpServer.listen(port, () => {
+    console.log(`> Socket.io server ready on port ${port}`)
+  })
+
+  ioInstance = { io, pubClient, subClient }
   return io
 }
 
 export function emitNewPost(campus: string, post: PostData) {
-  ioInstance?.to(`campus:${campus}`).emit("new_post", post)
+  ioInstance?.io.to(`campus:${campus}`).emit("new_post", post)
 }
 
 export function emitVoteUpdate(campus: string, postId: string, yeahs: number) {
-  ioInstance?.to(`campus:${campus}`).emit("vote_update", { postId, yeahs })
+  ioInstance?.io.to(`campus:${campus}`).emit("vote_update", { postId, yeahs })
 }
 
 export function emitCommentAdded(campus: string, postId: string, comment: CommentData) {
-  ioInstance?.to(`campus:${campus}`).emit("comment_added", { postId, comment })
+  ioInstance?.io.to(`campus:${campus}`).emit("comment_added", { postId, comment })
 }
 
 export function emitCommentVote(campus: string, postId: string, commentId: string, yeahs: number) {
-  ioInstance?.to(`campus:${campus}`).emit("comment_vote", { postId, commentId, yeahs })
+  ioInstance?.io.to(`campus:${campus}`).emit("comment_vote", { postId, commentId, yeahs })
 }
 
 export function emitNotification(userId: string, notification: NotificationData) {
-  ioInstance?.to(`user:${userId}`).emit("notification", notification)
+  ioInstance?.io.to(`user:${userId}`).emit("notification", notification)
 }
 
 export function emitBattleVote(battleId: string, entryId: string, votes: number) {
-  ioInstance?.to(`battle:${battleId}`).emit("battle_vote", { entryId, votes })
+  ioInstance?.io.to(`battle:${battleId}`).emit("battle_vote", { entryId, votes })
 }
 
 export function emitBattleUpdate(battleId: string, data: BattleUpdateData) {
-  ioInstance?.to(`battle:${battleId}`).emit("battle_update", data)
+  ioInstance?.io.to(`battle:${battleId}`).emit("battle_update", data)
 }
 
 export function getOnlineUsers(campus: string): number {
-  return campusRooms.get(campus)?.size || 0
+  // Would need to query Redis for accurate count across instances
+  return 0
 }
 
 export const emitPostNew = emitNewPost
+
+if (require.main === module) {
+  startSocketServer().catch(console.error)
+}

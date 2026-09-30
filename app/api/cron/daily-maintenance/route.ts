@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getMaxBoostExpiry } from "@/lib/boost"
 
 export const dynamic = "force-dynamic"
 
@@ -10,10 +11,10 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date()
-  // Grace period: 3 days after expiry before hard downgrade
-  const graceCutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+  const results: Record<string, unknown> = {}
 
-  // Find users whose tier expired beyond grace
+  // 1. Tier expiry (with 3-day grace period)
+  const graceCutoff = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
   const expiredUsers = await prisma.user.findMany({
     where: { tier: { not: "FREE" }, tierExpiresAt: { lte: graceCutoff } },
     select: { id: true, tier: true, tierExpiresAt: true, email: true },
@@ -25,7 +26,6 @@ export async function GET(req: NextRequest) {
       where: { id: u.id },
       data: { tier: "FREE", tierExpiresAt: null },
     })
-    // Notify user their tier expired
     try {
       await prisma.notification.create({
         data: {
@@ -40,7 +40,6 @@ export async function GET(req: NextRequest) {
     downgraded++
   }
 
-  // Also find soon-expiring (within 3 days) to send reminder (without downgrade)
   const soonExpiring = await prisma.user.findMany({
     where: {
       tier: { not: "FREE" },
@@ -49,5 +48,28 @@ export async function GET(req: NextRequest) {
     select: { id: true },
   })
 
-  return NextResponse.json({ downgraded, soonExpiring: soonExpiring.length, checkedAt: now })
+  results.tierExpiry = { downgraded, soonExpiring: soonExpiring.length }
+
+  // 2. Boost expiry
+  const maxExpiry = getMaxBoostExpiry(now)
+
+  const expired = await prisma.post.updateMany({
+    where: {
+      boosted: true,
+      OR: [{ boostedUntil: { lte: now } }, { boostedUntil: null }],
+    },
+    data: { boosted: false, boostedUntil: null },
+  })
+
+  const capped = await prisma.post.updateMany({
+    where: {
+      boosted: true,
+      boostedUntil: { gt: maxExpiry },
+    },
+    data: { boostedUntil: maxExpiry },
+  })
+
+  results.boostExpiry = { expired: expired.count, capped: capped.count, checkedAt: now }
+
+  return NextResponse.json({ success: true, ...results })
 }

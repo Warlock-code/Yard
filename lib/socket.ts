@@ -26,7 +26,8 @@ export function useSocket() {
     const token = document.cookie.split("yard_token=")[1]?.split(";")[0]
     if (!token) return
 
-    const socket = io(process.env.NEXT_PUBLIC_APP_URL || "", {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_APP_URL || ""
+    const socket = io(socketUrl, {
       path: "/api/socket",
       auth: { token },
       transports: ["websocket", "polling"],

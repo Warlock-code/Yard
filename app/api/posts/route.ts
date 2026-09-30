@@ -17,7 +17,10 @@ const FEED_PAGE_SIZE = 20
 export const dynamic = "force-dynamic"
 
 async function checkImage(imageUrl: string): Promise<boolean> {
-  if (!process.env.OPENROUTER_API_KEY) return true // moderation disabled — allow
+  if (!process.env.OPENROUTER_API_KEY) {
+    // Moderation not configured — fail closed for safety
+    return false
+  }
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -35,12 +38,12 @@ async function checkImage(imageUrl: string): Promise<boolean> {
         ],
       }),
     })
-    if (!res.ok) return true // fail open — don't block post if moderation down
+    if (!res.ok) return false // fail closed — block post if moderation down
     const data = await res.json()
     const verdict = data.choices?.[0]?.message?.content?.trim().toUpperCase()
     return verdict !== "UNSAFE"
   } catch {
-    return true // network error — allow post, admin can still moderate via reports
+    return false // network error — block post for safety
   }
 }
 

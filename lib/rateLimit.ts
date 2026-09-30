@@ -1,50 +1,48 @@
-const WINDOW_MS = 60 * 1000
+import { Redis } from "@upstash/redis"
 
-const hits = new Map<string, { count: number; resetAt: number }>()
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
-export function rateLimit(key: string, max: number, windowMs: number): boolean {
-  const now = Date.now()
-  const record = hits.get(key)
-
-  if (!record || now > record.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + windowMs })
-    return true
-  }
-
-  if (record.count >= max) {
-    return false
-  }
-
-  record.count++
-  return true
+export async function rateLimit(key: string, max: number, windowMs: number): Promise<boolean> {
+  const result = await rateLimitWithInfo(key, max, windowMs)
+  return result.allowed
 }
 
-export function rateLimitWithInfo(key: string, max: number, windowMs: number) {
+export async function rateLimitWithInfo(key: string, max: number, windowMs: number) {
   const now = Date.now()
-  const record = hits.get(key)
+  const windowSec = Math.ceil(windowMs / 1000)
+  const redisKey = `ratelimit:${key}`
 
-  if (!record || now > record.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true, remaining: max - 1, resetAt: now + windowMs }
+  const current = await redis.incr(redisKey)
+
+  if (current === 1) {
+    await redis.expire(redisKey, windowSec)
   }
 
-  if (record.count >= max) {
-    return { allowed: false, remaining: 0, resetAt: record.resetAt }
+  if (current > max) {
+    const ttl = await redis.ttl(redisKey)
+    return { allowed: false, remaining: 0, resetAt: now + (ttl > 0 ? ttl * 1000 : windowMs) }
   }
 
-  record.count++
-  return { allowed: true, remaining: max - record.count, resetAt: record.resetAt }
+  const ttl = await redis.ttl(redisKey)
+  return { allowed: true, remaining: max - current, resetAt: now + (ttl > 0 ? ttl * 1000 : windowMs) }
 }
 
-export function clearRateLimit(key: string) {
-  hits.delete(key)
+export async function clearRateLimit(key: string) {
+  await redis.del(`ratelimit:${key}`)
 }
 
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, record] of hits.entries()) {
-    if (now > record.resetAt) {
-      hits.delete(key)
-    }
+export async function getRateLimitInfo(key: string, max: number, windowMs: number) {
+  const redisKey = `ratelimit:${key}`
+  const current = await redis.get(redisKey)
+  const count = typeof current === "number" ? current : 0
+  const ttl = await redis.ttl(redisKey)
+  return {
+    count,
+    remaining: Math.max(0, max - count),
+    resetAt: Date.now() + (ttl > 0 ? ttl * 1000 : windowMs),
+    allowed: count < max,
   }
-}, WINDOW_MS)
+}

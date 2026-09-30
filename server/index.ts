@@ -1,7 +1,6 @@
 import { createServer } from "http"
 import { parse } from "url"
 import next from "next"
-import { initializeSocket } from "./socket"
 
 const dev = process.env.NODE_ENV !== "production"
 const hostname = "localhost"
@@ -21,8 +20,6 @@ app.prepare().then(() => {
       res.end("internal server error")
     }
   })
-
-  initializeSocket(httpServer)
 
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`)

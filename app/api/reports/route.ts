@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (typeof reason !== "string" || reason.length > 500) {
     return NextResponse.json({ error: "Report reason must be 500 characters or fewer." }, { status: 400 })
   }
-  if (!rateLimit(`report:${user.id}`, 10, 60 * 60 * 1000)) {
+  if (!(await rateLimit(`report:${user.id}`, 10, 60 * 60 * 1000))) {
     return NextResponse.json({ error: "Too many reports. Try again later." }, { status: 429 })
   }
 

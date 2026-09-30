@@ -6,6 +6,7 @@ import { RoutePrefetcher } from "@/app/components/RoutePrefetcher"
 import { ThemeProvider } from "@/app/components/ThemeProvider"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 import SWRegistration from "@/app/components/SWRegistration"
+import { ErrorBoundaryWrapper } from "@/app/components/ErrorBoundaryWrapper"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://yardapp.me"),
@@ -98,9 +99,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <RoutePrefetcher />
         <SWRegistration />
         <ThemeProvider>
-          {children}
-          <BottomNav />
-          <IOSInstallPrompt />
+          <ErrorBoundaryWrapper>
+            {children}
+            <BottomNav />
+            <IOSInstallPrompt />
+          </ErrorBoundaryWrapper>
         </ThemeProvider>
       </body>
     </html>

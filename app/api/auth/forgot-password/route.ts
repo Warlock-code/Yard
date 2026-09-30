@@ -18,13 +18,13 @@ export async function POST(req: NextRequest) {
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
 
-    const rl = rateLimit(`forgot-password:${normalizedEmail}`, 3, 60 * 60 * 1000)
+    const rl = await rateLimit(`forgot-password:${normalizedEmail}`, 3, 60 * 60 * 1000)
     if (!rl) {
       await auditLog("user.forgot_password", null, null, { success: false, reason: "Rate limited", email: normalizedEmail, ipAddress: ip })
       return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 })
     }
 
-    const emailRl = rateLimitWithInfo(`reset-email:${normalizedEmail}`, 2, 60 * 60 * 1000)
+    const emailRl = await rateLimitWithInfo(`reset-email:${normalizedEmail}`, 2, 60 * 60 * 1000)
     if (!emailRl.allowed) {
       await auditLog("user.forgot_password", null, null, { success: false, reason: "Email rate limited", email: normalizedEmail, ipAddress: ip })
       return NextResponse.json({ error: "Too many reset emails sent. Try again later." }, { status: 429 })

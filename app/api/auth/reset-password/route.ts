@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
 
-    const rl = rateLimit(`reset-password:${token}`, 5, 15 * 60 * 1000)
+    const rl = await rateLimit(`reset-password:${token}`, 5, 15 * 60 * 1000)
     if (!rl) {
       await auditLog("user.reset_password", null, null, { success: false, reason: "Rate limited", ipAddress: ip })
       return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 })

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (typeof text !== "string" || text.length > 500) {
     return NextResponse.json({ error: "Comment must be 500 characters or fewer." }, { status: 400 })
   }
-  if (!rateLimit(`comment:${user.id}`, 20, 60 * 60 * 1000)) {
+  if (!(await rateLimit(`comment:${user.id}`, 20, 60 * 60 * 1000))) {
     return NextResponse.json({ error: "Too many comments. Try again later." }, { status: 429 })
   }
 

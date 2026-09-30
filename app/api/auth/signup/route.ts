@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Use a valid school email." }, { status: 400 })
   }
 
-  const rl = rateLimit(`signup:${normalizedEmail}`, 3, 60 * 60 * 1000)
+  const rl = await rateLimit(`signup:${normalizedEmail}`, 3, 60 * 60 * 1000)
   if (!rl) {
     await auditLog("user.signup", null, null, { success: false, reason: "Rate limited", email: normalizedEmail, ipAddress: ip })
     return NextResponse.json({ error: "Too many signup attempts. Try again later." }, { status: 429 })
