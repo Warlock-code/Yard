@@ -41,20 +41,13 @@ function getWeekStart(date: Date) {
   return d
 }
 
-function getMonthStart(date: Date) {
-  const d = new Date(date)
-  d.setDate(1)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   if (user.tier !== "PLUS") {
     void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "analytics", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "Plus subscription required." }, { status: 403 })
+    return NextResponse.json({ error: "plus subscription required." }, { status: 403 })
   }
 
   const { startDate, endDate, range } = parseDateRange(new URL(req.url).searchParams)
@@ -120,9 +113,6 @@ export async function GET(req: NextRequest) {
   const totalFollowers = await prisma.follow.count({ where: { followingId: user.id } })
   const totalFollowing = following.length
   const newFollowers = followers.length
-  const lostFollowers = await prisma.follow.count({
-    where: { followingId: user.id, createdAt: { lt: startDate } },
-  })
 
   return NextResponse.json({
     range,

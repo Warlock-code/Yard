@@ -5,7 +5,7 @@ import { isAdmin } from "@/lib/getAdmin"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
   const drafts = await prisma.aiDraft.findMany({ where: { status: "pending" }, orderBy: { createdAt: "desc" } })
   return NextResponse.json({ drafts })

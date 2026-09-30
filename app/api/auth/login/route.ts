@@ -21,25 +21,25 @@ export async function POST(req: NextRequest) {
   const lockout = await rateLimitWithInfo(lockoutKey, MAX_FAILED_ATTEMPTS, LOCKOUT_DURATION)
   if (!lockout.allowed) {
     const minutes = Math.ceil((lockout.resetAt - Date.now()) / 60000)
-    return NextResponse.json({ error: `Too many failed attempts. Try again in ${minutes} minutes.` }, { status: 429 })
+    return NextResponse.json({ error: `too many failed attempts. Try again in ${minutes} minutes.` }, { status: 429 })
   }
 
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (!user) {
-    return NextResponse.json({ error: "Invalid credentials." }, { status: 400 })
+    return NextResponse.json({ error: "invalid credentials." }, { status: 400 })
   }
 
   const valid = await comparePassword(password, user.passwordHash)
   if (!valid) {
-    return NextResponse.json({ error: "Invalid credentials." }, { status: 400 })
+    return NextResponse.json({ error: "invalid credentials." }, { status: 400 })
   }
 
   if (!user.emailVerified) {
-    return NextResponse.json({ error: "Verify your email first.", userId: user.id }, { status: 403 })
+    return NextResponse.json({ error: "verify your email first.", userId: user.id }, { status: 403 })
   }
 
   if (user.status !== "ACTIVE") {
-    return NextResponse.json({ error: "Account suspended." }, { status: 403 })
+    return NextResponse.json({ error: "account suspended." }, { status: 403 })
   }
 
   // Success: clear failed lockout count
@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[login] unexpected", err)
     if (err instanceof Error && err.message.includes("JWT_SECRET")) {
-      return NextResponse.json({ error: "Service temporarily unavailable. Please try again later." }, { status: 500 })
+      return NextResponse.json({ error: "service temporarily unavailable. Please try again later." }, { status: 500 })
     }
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "something went wrong. Please try again." }, { status: 500 })
   }
 }

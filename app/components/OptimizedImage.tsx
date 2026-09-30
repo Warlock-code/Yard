@@ -59,7 +59,7 @@ export default function OptimizedImage({
         style={fill ? undefined : { width, height }}
         aria-hidden="true"
       >
-        <span className="text-2xl" role="img" aria-label="Failed to load image">🖼️</span>
+        <span className="text-2xl" role="img" aria-label="failed to load image">🖼️</span>
       </div>
     )
   }

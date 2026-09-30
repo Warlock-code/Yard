@@ -10,12 +10,12 @@ import { ErrorBoundaryWrapper } from "@/app/components/ErrorBoundaryWrapper"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://yardapp.me"),
-  title: "Yard — Your Campus Whisper Network",
-  description: "Anonymous campus social network for students. Post confessions, gossip, memes, and more. Verified by school email.",
-  keywords: ["campus", "anonymous", "social", "students", "confessions", "Ghana"],
-  authors: [{ name: "Yard Team" }],
-  creator: "Yard",
-  publisher: "Yard",
+  title: "yard — your campus whisper network",
+  description: "anonymous campus social network for students. post confessions, gossip, memes, and more. verified by school email.",
+  keywords: ["campus", "anonymous", "social", "students", "confessions", "ghana"],
+  authors: [{ name: "yard team" }],
+  creator: "yard",
+  publisher: "yard",
   robots: {
     index: true,
     follow: true,
@@ -31,22 +31,22 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_GH",
     url: "https://yardapp.me",
-    siteName: "Yard",
-    title: "Yard — Your Campus Whisper Network",
-    description: "Anonymous campus social network for students. Post confessions, gossip, memes, and more.",
+    siteName: "yard",
+    title: "yard — your campus whisper network",
+    description: "anonymous campus social network for students. post confessions, gossip, memes, and more.",
     images: [
       {
         url: "/og-image.svg",
         width: 1200,
         height: 630,
-        alt: "Yard App",
+        alt: "yard app",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yard — Your Campus Whisper Network",
-    description: "Anonymous campus social network for students.",
+    title: "yard — your campus whisper network",
+    description: "anonymous campus social network for students.",
     images: ["/og-image.svg"],
   },
   icons: {
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Yard",
+    title: "yard",
     startupImage: [
       { url: "/splash-640x1136.png", media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" },
       { url: "/splash-750x1334.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },

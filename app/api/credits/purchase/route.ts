@@ -10,7 +10,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
   const { packId } = body
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const pack = getPackById(packId)
   if (!pack) {
-    return NextResponse.json({ error: "Invalid pack" }, { status: 400 })
+    return NextResponse.json({ error: "invalid pack" }, { status: 400 })
   }
 
 try {
@@ -37,6 +37,6 @@ try {
     })
   } catch (err) {
     console.error("[credits/purchase] error", err)
-    return NextResponse.json({ error: "Failed to initialize payment" }, { status: 500 })
+    return NextResponse.json({ error: "failed to initialize payment" }, { status: 500 })
   }
 }

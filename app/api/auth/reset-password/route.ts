@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`reset-password:${token}`, 5, 15 * 60 * 1000)
     if (!rl) {
       await auditLog("user.reset_password", null, null, { success: false, reason: "Rate limited", ipAddress: ip })
-      return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 })
+      return NextResponse.json({ error: "too many attempts. Try again later." }, { status: 429 })
     }
 
     const user = await prisma.user.findUnique({ where: { resetToken: token } })
     if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
       await auditLog("user.reset_password", null, null, { success: false, reason: "Invalid or expired token", ipAddress: ip })
-      return NextResponse.json({ error: "Invalid or expired reset link." }, { status: 400 })
+      return NextResponse.json({ error: "invalid or expired reset link." }, { status: 400 })
     }
 
     const passwordHash = await hashPassword(password)
@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
 
     await auditLog("user.reset_password", user.id, user.id, { success: true, email: user.email, ipAddress: ip })
 
-    return NextResponse.json({ success: true, message: "Password reset successful. You can now log in." })
+    return NextResponse.json({ success: true, message: "password reset successful. you can now log in." })
   } catch (err) {
     console.error("[reset-password] unexpected error", err)
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "something went wrong. Please try again." }, { status: 500 })
   }
 }

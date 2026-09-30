@@ -19,7 +19,7 @@ const VALID_TYPES = new Set(["all", "hashtags", "posts", "ghosts"])
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const window = normalizeTrendingWindow(searchParams.get("window"))
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     )
   } catch (err) {
     console.error("GET /api/trending failed", err)
-    return NextResponse.json({ error: "Failed to load trending." }, { status: 500 })
+    return NextResponse.json({ error: "failed to load trending." }, { status: 500 })
   }
 }
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user || getEffectiveTier(user) !== "PLUS") {
     void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "trending", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "Plus feature — recomputing trending scores requires an active Plus subscription." }, { status: 403 })
+    return NextResponse.json({ error: "plus feature — recomputing trending scores requires an active Plus subscription." }, { status: 403 })
   }
 
   let targetCampus = user.campus

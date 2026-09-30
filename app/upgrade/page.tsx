@@ -33,7 +33,7 @@ export default function UpgradePage() {
       const data = await apiPost<{ data?: { authorization_url?: string } }>(`/api/subscribe/${tier}`, {})
       if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(false)
     }
@@ -46,7 +46,7 @@ export default function UpgradePage() {
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="flex items-center gap-3 pt-5 pb-3">
         <button onClick={() => router.back()} className="text-white/60">←</button>
-        <h1 className="text-xl font-bold">Upgrade</h1>
+        <h1 className="text-xl font-bold">upgrade</h1>
       </div>
 
       {!me ? (
@@ -59,9 +59,9 @@ export default function UpgradePage() {
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-500" />
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">✨</span>
-            <p className="font-bold text-lg text-sky-300">Plus Active</p>
+            <p className="font-bold text-lg text-sky-300">plus active</p>
           </div>
-          <p className="text-white/60 text-sm mb-4">You have all Plus perks — enjoy!</p>
+          <p className="text-white/60 text-sm mb-4">you have all plus perks — enjoy!</p>
           <div className="space-y-2 text-sm text-white/70">
             {plusConfig.perks.map((perk, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -77,9 +77,9 @@ export default function UpgradePage() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-white/10" />
             <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">👻</span>
-              <p className="font-bold text-lg text-white">Free Plan</p>
+              <p className="font-bold text-lg text-white">free plan</p>
             </div>
-            <p className="text-white/50 text-sm mb-4">Upgrade to Plus for edit posts, common/rare avatars, blue checkmark, and more.</p>
+            <p className="text-white/50 text-sm mb-4">upgrade to plus for edit posts, common/rare avatars, blue checkmark, and more.</p>
             <div className="space-y-2 text-sm text-white/70 mb-4">
               {freeConfig.perks.map((perk, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export default function UpgradePage() {
             disabled={loading}
             onClick={() => handleSubscribe("plus")}
           >
-            Upgrade to Plus — GHS 10/month
+            upgrade to plus — ghs 10/month
           </button>
         </div>
       )}

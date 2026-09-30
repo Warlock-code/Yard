@@ -18,7 +18,7 @@ export const voteBurstVariants: Variants = {
 
 export const voteParticleVariants: Variants = {
   hidden: { x: 0, y: 0, scale: 0, opacity: 0 },
-  visible: (i: number) => ({
+  visible: () => ({
     x: (Math.random() - 0.5) * 100,
     y: -Math.random() * 120 - 40,
     scale: [0, 1, 0],
@@ -99,7 +99,7 @@ export const voteCountVariants: Variants = {
 
 export const confettiVariants: Variants = {
   hidden: { y: 0, opacity: 1, rotate: 0, scale: 1 },
-  visible: (i: number) => ({
+  visible: () => ({
     y: -window.innerHeight - 100,
     opacity: [1, 1, 0],
     rotate: Math.random() * 720 - 360,

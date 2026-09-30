@@ -9,7 +9,7 @@ const MAX_LIMIT = 7
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const raw = searchParams.get("q") ?? ""

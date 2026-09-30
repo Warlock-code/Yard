@@ -11,7 +11,7 @@ const BYTES_PER_MB = 1024 * 1024
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const viewer = await getCurrentUser(req)
-  if (!viewer) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!viewer) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { id } = await params
   const post = await prisma.post.findFirst({
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } },
     },
   })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
 
   await attachChampionTrophiesDeep(post)
 
@@ -43,11 +43,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const post = await prisma.post.findUnique({ where: { id }, include: { upload: true } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
-  if (post.userId !== user.id) return NextResponse.json({ error: "Not your post." }, { status: 403 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
+  if (post.userId !== user.id) return NextResponse.json({ error: "not your post." }, { status: 403 })
 
   await prisma.$transaction([
     ...(post.upload
@@ -68,23 +68,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   if (getEffectiveTier(user) === "FREE") {
-    return NextResponse.json({ error: "Editing posts requires Plus or Prime." }, { status: 403 })
+    return NextResponse.json({ error: "editing posts requires Plus or Prime." }, { status: 403 })
   }
 
   const post = await prisma.post.findUnique({ where: { id } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
-  if (post.userId !== user.id) return NextResponse.json({ error: "Not your post." }, { status: 403 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
+  if (post.userId !== user.id) return NextResponse.json({ error: "not your post." }, { status: 403 })
 
   let { text } = await req.json()
   if (typeof text === "string") text = text.toLowerCase()
   if (typeof text !== "string" || !text.trim()) {
-    return NextResponse.json({ error: "Post text can't be empty." }, { status: 400 })
+    return NextResponse.json({ error: "post text can't be empty." }, { status: 400 })
   }
   if (text.length > 2000) {
-    return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
+    return NextResponse.json({ error: "post text must be 2000 characters or fewer." }, { status: 400 })
   }
 
   const updated = await prisma.post.update({ where: { id }, data: { text: text.trim() } })

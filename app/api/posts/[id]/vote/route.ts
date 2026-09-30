@@ -9,26 +9,25 @@ import { emitVoteUpdate } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 
-const PESEWAS_PER_VOTE = 5
 const MILESTONES = [10, 50, 100, 500, 1000]
 const MILESTONE_BONUS_PESEWAS: Record<number, number> = { 10: 50, 50: 200, 100: 500, 500: 2000, 1000: 5000 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const targetPost = await prisma.post.findFirst({ where: { id, AND: [await getReadablePostWhere(user)] } })
-  if (!targetPost) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!targetPost) return NextResponse.json({ error: "post not found." }, { status: 404 })
   if (targetPost.userId === user.id) {
-    return NextResponse.json({ error: "You can't vote on your own post." }, { status: 403 })
+    return NextResponse.json({ error: "you can't vote on your own post." }, { status: 403 })
   }
 
   try {
     await prisma.postVote.create({ data: { postId: id, userId: user.id } })
   } catch (err: unknown) {
     if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
-      return NextResponse.json({ error: "You already voted on this post." }, { status: 400 })
+      return NextResponse.json({ error: "you already voted on this post." }, { status: 400 })
     }
     throw err
   }
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       userId: owner.id,
       pushToken: owner.pushToken,
       type: "like",
-      title: "Your post got a yeah",
+      title: "your post got a yeah",
       body: `${user.ghostId} yeahed your post`,
       href: `/post/${post.id}`,
       actorName: user.ghostId,
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       userId: owner.id,
       pushToken: owner.pushToken,
       type: "vote_milestone",
-      title: "Your post is popping",
+      title: "your post is popping",
       body: `${post.yeahs} yeahs and climbing - check it out.`,
       href: `/post/${post.id}`,
     })

@@ -20,7 +20,7 @@ function flag(v: string | undefined) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
   return NextResponse.json({
     // Source of truth is the server .env (loaded into process.env).

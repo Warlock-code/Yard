@@ -10,7 +10,7 @@ const STORAGE_CREDIT_COST = CREDIT_CONFIG.SPEND.STORAGE_100MB // 200 credits
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
   const useCredits = body.useCredits === true
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (useCredits) {
     try {
       const result = await creditUser(user.id, "STORAGE_PURCHASE", -STORAGE_CREDIT_COST, `storage_${user.id}_${Date.now()}`, { mb: STORAGE_BOOST_MB })
-      return NextResponse.json({ success: true, creditsUsed: STORAGE_CREDIT_COST, newBalance: result.newBalance, message: "Storage purchased with credits" })
+      return NextResponse.json({ success: true, creditsUsed: STORAGE_CREDIT_COST, newBalance: result.newBalance, message: "storage purchased with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
     }

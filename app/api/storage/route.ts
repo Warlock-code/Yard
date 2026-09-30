@@ -8,7 +8,7 @@ const BYTES_PER_MB = 1024 * 1024
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const uploads = await prisma.mediaUpload.findMany({
     where: { userId: user.id, status: "active", postId: null },
@@ -27,19 +27,19 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { url } = await req.json()
   if (typeof url !== "string" || !url) {
-    return NextResponse.json({ error: "Image URL is invalid." }, { status: 400 })
+    return NextResponse.json({ error: "image URL is invalid." }, { status: 400 })
   }
 
   const upload = await prisma.mediaUpload.findUnique({ where: { url } })
   if (!upload || upload.userId !== user.id) {
-    return NextResponse.json({ error: "Image not found." }, { status: 404 })
+    return NextResponse.json({ error: "image not found." }, { status: 404 })
   }
   if (upload.postId) {
-    return NextResponse.json({ error: "Image is attached to a post." }, { status: 400 })
+    return NextResponse.json({ error: "image is attached to a post." }, { status: 400 })
   }
 
   const utapi = new UTApi()

@@ -10,7 +10,7 @@ import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 function SearchBarWrapper({ campus }: { campus: string }) {
-  return <SearchBar placeholder="Search posts, ghosts, hashtags..." campus={campus} />
+  return <SearchBar placeholder="search posts, ghosts, hashtags..." campus={campus} />
 }
 
 type Post = {
@@ -52,15 +52,15 @@ type TrendingData = {
 type SectionKey = "trending" | "hashtags" | "ghosts" | "media"
 
 const WINDOWS = [
-  { key: "24h", label: "Last 24h" },
-  { key: "7d", label: "Last 7d" },
+  { key: "24h", label: "last 24h" },
+  { key: "7d", label: "last 7d" },
 ] as const
 
 const SECTIONS: { key: SectionKey; label: string; icon: string }[] = [
-  { key: "trending", label: "Posts", icon: "🔥" },
-  { key: "hashtags", label: "Hashtags", icon: "#" },
-  { key: "ghosts", label: "Ghosts", icon: "👻" },
-  { key: "media", label: "Media", icon: "🖼️" },
+  { key: "trending", label: "posts", icon: "🔥" },
+  { key: "hashtags", label: "hashtags", icon: "#" },
+  { key: "ghosts", label: "ghosts", icon: "👻" },
+  { key: "media", label: "media", icon: "🖼️" },
 ]
 
 function PostCard({ post }: { post: Post }) {
@@ -68,7 +68,7 @@ function PostCard({ post }: { post: Post }) {
     <article className="px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02] relative">
       <Link
         href={`/post/${post.id}`}
-        aria-label={`Open post by ${post.user.ghostId}`}
+        aria-label={`open post by ${post.user.ghostId}`}
         className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]"
       />
       <div className="flex items-start gap-3 relative z-10">
@@ -80,10 +80,10 @@ function PostCard({ post }: { post: Post }) {
             <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="font-semibold">
               {post.user.ghostId}
             </Link>
-            {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-            {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+            {post.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+            {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             <ChampionTrophies trophies={post.user.championTrophies} className="text-[10px] leading-none" />
-            {post.boosted && <span className="badge badge-boosted">Boosted</span>}
+            {post.boosted && <span className="badge badge-boosted">boosted</span>}
             <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
           </div>
 
@@ -121,7 +121,7 @@ function PostCard({ post }: { post: Post }) {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2">
             <span className="text-orange-200 flex items-center gap-1">🔥 {post.yeahs}</span>
             <span className="text-sky-200 flex items-center gap-1">💬 {post.commentsCount}</span>
-            <span className="text-white/40 text-xs">Tap to open</span>
+            <span className="text-white/40 text-xs">tap to open</span>
           </div>
         </div>
       </div>
@@ -154,7 +154,7 @@ export default function ExplorePage() {
       })
       .catch((err) => {
         console.error(err)
-        if (!cancelled) setFetchError("Couldn't load trending right now.")
+        if (!cancelled) setFetchError("couldn't load trending right now.")
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -231,7 +231,7 @@ export default function ExplorePage() {
             </button>
           ))}
         </div>
-        <div className="space-y-4" aria-busy="true" aria-label="Loading trending">
+        <div className="space-y-4" aria-busy="true" aria-label="loading trending">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="animate-pulse bg-white/5 rounded-xl p-4 border border-white/10">
               <div className="h-4 w-1/4 bg-white/10 rounded mb-3" />
@@ -256,7 +256,7 @@ export default function ExplorePage() {
 
       <div
         role="tablist"
-        aria-label="Trending window"
+        aria-label="trending window"
         className="sticky top-0 bg-black/80 backdrop-blur border-b border-white/10 z-10 mb-4 rounded-xl p-1 flex gap-1"
       >
         {WINDOWS.map((w) => (
@@ -278,7 +278,7 @@ export default function ExplorePage() {
 
       <div
         role="tablist"
-        aria-label="Explore sections"
+        aria-label="explore sections"
         className="sticky top-12 bg-black/80 backdrop-blur border-b border-white/10 z-10 mb-4 rounded-xl p-1 flex gap-1 overflow-x-auto"
       >
         {SECTIONS.map((s) => {
@@ -323,20 +323,20 @@ export default function ExplorePage() {
             onClick={handleRetry}
             className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
           >
-            Retry
+            retry
           </button>
         </div>
       ) : (
         <>
           {activeSection === "trending" && (
-            <section aria-labelledby="trending-heading" aria-label="Trending Posts" role="tabpanel" id="explore-panel-trending">
+            <section aria-labelledby="trending-heading" aria-label="trending posts" role="tabpanel" id="explore-panel-trending">
               <h2 id="trending-heading" className="sr-only">
-                Trending Posts
+                trending posts
               </h2>
               {data?.posts.length === 0 ? (
                 <div className="text-center mt-14 px-8">
                   <p className="text-3xl mb-3">📈</p>
-                  <p className="text-white/50 text-sm">No trending posts yet. Be the first to spark a conversation!</p>
+                  <p className="text-white/50 text-sm">no trending posts yet. be the first to spark a conversation!</p>
                 </div>
               ) : (
                 <div className="border-t border-white/[0.06]">
@@ -351,12 +351,12 @@ export default function ExplorePage() {
           {activeSection === "hashtags" && (
             <section aria-labelledby="hashtags-heading" role="tabpanel" id="explore-panel-hashtags">
               <h2 id="hashtags-heading" className="sr-only">
-                Trending Hashtags
+                trending hashtags
               </h2>
               {data?.hashtags.length === 0 ? (
                 <div className="text-center mt-14 px-8">
                   <p className="text-3xl mb-3">#</p>
-                  <p className="text-white/50 text-sm">No trending hashtags yet.</p>
+                  <p className="text-white/50 text-sm">no trending hashtags yet.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 px-1">
@@ -388,12 +388,12 @@ export default function ExplorePage() {
           {activeSection === "ghosts" && (
             <section aria-labelledby="ghosts-heading" role="tabpanel" id="explore-panel-ghosts">
               <h2 id="ghosts-heading" className="sr-only">
-                Suggested Ghosts
+                suggested ghosts
               </h2>
               {data?.suggestedGhosts.length === 0 ? (
                 <div className="text-center mt-14 px-8">
                   <p className="text-3xl mb-3">👻</p>
-                  <p className="text-white/50 text-sm">No suggestions right now. Check back later!</p>
+                  <p className="text-white/50 text-sm">no suggestions right now. check back later!</p>
                 </div>
               ) : (
                 <div className="border-t border-white/[0.06] divide-y divide-white/[0.06]">
@@ -411,8 +411,8 @@ export default function ExplorePage() {
                         <Link href={`/u/${encodeURIComponent(user.ghostId)}`} className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold truncate">{user.ghostId}</span>
-                            {user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-                            {user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                            {user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+                            {user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                             <ChampionTrophies trophies={user.championTrophies} className="text-[10px] leading-none" />
                           </div>
                           <p className="text-white/40 text-sm mt-0.5">
@@ -431,7 +431,7 @@ export default function ExplorePage() {
                               : "text-white/70 border-white/20 hover:text-primary hover:border-primary/50"
                           }`}
                         >
-                          {isFollowing ? "Following" : "Follow"}
+                          {isFollowing ? "following" : "follow"}
                         </button>
                       </div>
                     )
@@ -444,12 +444,12 @@ export default function ExplorePage() {
           {activeSection === "media" && (
             <section aria-labelledby="media-heading" role="tabpanel" id="explore-panel-media">
               <h2 id="media-heading" className="sr-only">
-                Trending Media
+                trending media
               </h2>
               {mediaPosts.length === 0 ? (
                 <div className="text-center mt-14 px-8">
                   <p className="text-3xl mb-3">🖼️</p>
-                  <p className="text-white/50 text-sm">No trending media yet.</p>
+                  <p className="text-white/50 text-sm">no trending media yet.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-1">
@@ -457,7 +457,7 @@ export default function ExplorePage() {
                     <Link
                       key={post.id}
                       href={`/post/${post.id}`}
-                      aria-label={`Open media post by ${post.user.ghostId}`}
+                      aria-label={`open media post by ${post.user.ghostId}`}
                       className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       {post.imageUrl && (

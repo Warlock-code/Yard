@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
+    return NextResponse.json({ error: "unauthorized." }, { status: 401 })
   }
 
   const now = Date.now()
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
       void createNotification({
         userId: user.id,
         type: "return_reminder",
-        title: "The yard misses you",
-        body: "New gist dropped while you were away — check the feed.",
+        title: "the yard misses you",
+        body: "new gist dropped while you were away — check the feed.",
         href: "/feed",
       }).catch(() => {})
       sent += 1

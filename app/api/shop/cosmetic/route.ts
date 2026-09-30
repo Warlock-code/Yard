@@ -2,21 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser } from "@/lib/credits"
 import { AVATARS } from "@/lib/avatars"
 
 export const COSMETICS = AVATARS
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { cosmeticId } = await req.json()
   const item = COSMETICS.find((c) => c.id === cosmeticId)
-  if (!item) return NextResponse.json({ error: "Invalid item." }, { status: 400 })
+  if (!item) return NextResponse.json({ error: "invalid item." }, { status: 400 })
 
   if (user.ownedCosmetics.includes(cosmeticId)) {
-    return NextResponse.json({ error: "Already owned." }, { status: 400 })
+    return NextResponse.json({ error: "already owned." }, { status: 400 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (useCredits) {
     try {
       const result = await creditUser(user.id, "COSMETIC_BUY", -creditCost, `cosmetic_${cosmeticId}_${user.id}_${Date.now()}`, { cosmeticId, emoji: item.emoji })
-      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "Cosmetic purchased with credits" })
+      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "cosmetic purchased with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
     }

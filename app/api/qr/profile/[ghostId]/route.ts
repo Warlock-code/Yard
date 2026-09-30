@@ -12,6 +12,6 @@ export async function GET(
     return NextResponse.json({ qrCode })
   } catch (err) {
     console.error("QR code generation failed:", err)
-    return NextResponse.json({ error: "Failed to generate QR code" }, { status: 500 })
+    return NextResponse.json({ error: "failed to generate QR code" }, { status: 500 })
   }
 }

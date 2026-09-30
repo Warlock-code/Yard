@@ -37,7 +37,6 @@ export async function generateQRCodeSVG(
 }
 
 export async function generateProfileQRCode(ghostId: string): Promise<string> {
-  const deepLink = `yard://user/${ghostId}`
   const webUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://yardapp.me"}/u/${encodeURIComponent(ghostId)}`
   return generateQRCodeDataURL(webUrl)
 }

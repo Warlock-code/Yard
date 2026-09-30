@@ -30,7 +30,7 @@ const defaultIcon = "\u{1F514}"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const requestedLimit = Number(req.nextUrl.searchParams.get("limit") || 30)
   const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 50) : 30
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
   if (body.all === true) {
@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
       data: { readAt: new Date() },
     })
   } else {
-    return NextResponse.json({ error: "Notification id or all is required." }, { status: 400 })
+    return NextResponse.json({ error: "notification id or all is required." }, { status: 400 })
   }
 
   return NextResponse.json({ success: true })

@@ -5,19 +5,19 @@ import { createNotification } from "@/lib/notifications"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { targetUserId } = await req.json()
   if (targetUserId === user.id) {
-    return NextResponse.json({ error: "Can't follow yourself." }, { status: 400 })
+    return NextResponse.json({ error: "can't follow yourself." }, { status: 400 })
   }
   if (typeof targetUserId !== "string" || !targetUserId) {
-    return NextResponse.json({ error: "Invalid user." }, { status: 400 })
+    return NextResponse.json({ error: "invalid user." }, { status: 400 })
   }
 
   const target = await prisma.user.findUnique({ where: { id: targetUserId } })
   if (!target || target.campus !== user.campus) {
-    return NextResponse.json({ error: "Ghost not found." }, { status: 404 })
+    return NextResponse.json({ error: "ghost not found." }, { status: 404 })
   }
 
   try {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     userId: target.id,
     pushToken: target.pushToken,
     type: "follow",
-    title: "New follower",
+    title: "new follower",
     body: `${user.ghostId} followed you`,
     href: "/feed",
     actorName: user.ghostId,

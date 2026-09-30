@@ -48,23 +48,23 @@ async function checkImage(imageUrl: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { text: rawText, imageUrl, type, visibility } = await req.json()
   const text = typeof rawText === "string" ? rawText.toLowerCase() : rawText
 
   if (typeof text !== "undefined" && text !== null && (typeof text !== "string" || text.length > 2000)) {
-    return NextResponse.json({ error: "Post text must be 2000 characters or fewer." }, { status: 400 })
+    return NextResponse.json({ error: "post text must be 2000 characters or fewer." }, { status: 400 })
   }
   if (imageUrl && (typeof imageUrl !== "string" || imageUrl.length > 2048)) {
-    return NextResponse.json({ error: "Image URL is invalid." }, { status: 400 })
+    return NextResponse.json({ error: "image URL is invalid." }, { status: 400 })
   }
 
   if (!text && !imageUrl) {
-    return NextResponse.json({ error: "Post needs text or an image." }, { status: 400 })
+    return NextResponse.json({ error: "post needs text or an image." }, { status: 400 })
   }
   if (visibility === "program" && !user.programKey) {
-    return NextResponse.json({ error: "Choose your program before posting to Class." }, { status: 400 })
+    return NextResponse.json({ error: "choose your program before posting to Class." }, { status: 400 })
   }
 
   const recentPost = await prisma.post.findFirst({
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const secondsSinceLast = (Date.now() - recentPost.createdAt.getTime()) / 1000
     if (secondsSinceLast < POST_COOLDOWN_SECONDS) {
       return NextResponse.json(
-        { error: `Slow down — wait ${Math.ceil(POST_COOLDOWN_SECONDS - secondsSinceLast)}s before posting again.` },
+        { error: `slow down — wait ${Math.ceil(POST_COOLDOWN_SECONDS - secondsSinceLast)}s before posting again.` },
         { status: 429 }
       )
     }
@@ -84,13 +84,13 @@ export async function POST(req: NextRequest) {
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
   const postsThisHour = await prisma.post.count({ where: { userId: user.id, createdAt: { gte: hourAgo } } })
   if (postsThisHour >= MAX_POSTS_PER_HOUR) {
-    return NextResponse.json({ error: "You've hit the hourly posting limit. Try again later." }, { status: 429 })
+    return NextResponse.json({ error: "you've hit the hourly posting limit. Try again later." }, { status: 429 })
   }
 
   if (imageUrl) {
     const safe = await checkImage(imageUrl)
     if (!safe) {
-      return NextResponse.json({ error: "That image can't be posted." }, { status: 400 })
+      return NextResponse.json({ error: "that image can't be posted." }, { status: 400 })
     }
   }
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     : null
 
   if (imageUrl && (!upload || upload.userId !== user.id)) {
-    return NextResponse.json({ error: "Image not found in your storage." }, { status: 400 })
+    return NextResponse.json({ error: "image not found in your storage." }, { status: 400 })
   }
 
   const post = await prisma.post.create({
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const mode = searchParams.get("mode") || "campus"
@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
 
   const cursorIndex = cursor ? combinedPosts.findIndex((post) => post.id === cursor) : -1
   if (cursor && cursorIndex === -1) {
-    return NextResponse.json({ error: "Invalid feed cursor." }, { status: 400 })
+    return NextResponse.json({ error: "invalid feed cursor." }, { status: 400 })
   }
 
   const startIndex = cursor ? cursorIndex + 1 : 0

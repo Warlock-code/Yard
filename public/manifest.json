@@ -1,7 +1,7 @@
 {
-  "name": "Yard",
-  "short_name": "Yard",
-  "description": "Your campus whisper network",
+  "name": "yard",
+  "short_name": "yard",
+  "description": "your campus whisper network",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050505",

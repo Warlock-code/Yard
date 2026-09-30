@@ -4,7 +4,7 @@ import { getUserCredits, getCreditTransactions, getCreditPayouts, getAllPacks } 
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const [credits, { transactions }, payouts, packs] = await Promise.all([
     getUserCredits(user.id),

@@ -32,23 +32,23 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-screen flex items-center justify-center p-4 bg-[#050505]">
           <div className="max-w-md w-full text-center">
             <div className="text-6xl mb-4">😵</div>
-            <h1 className="text-xl font-bold text-white mb-2">Something went wrong</h1>
+            <h1 className="text-xl font-bold text-white mb-2">something went wrong</h1>
             <p className="text-white/50 text-sm mb-6">
-              {this.state.error?.message || "An unexpected error occurred"}
+              {this.state.error?.message || "an unexpected error occurred"}
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => window.location.reload()}
                 className="btn-primary px-4 py-2"
               >
-                Refresh Page
+                refresh page
               </button>
               <Link href="/feed" className="btn-ghost px-4 py-2">
-                Go to Feed
+                go to feed
               </Link>
             </div>
             <details className="mt-6 text-left text-xs text-white/30">
-              <summary className="cursor-pointer mb-2">Error Details</summary>
+              <summary className="cursor-pointer mb-2">error details</summary>
               <pre className="bg-black/50 p-3 rounded overflow-auto text-left">
                 {this.state.error?.stack}
               </pre>

@@ -45,14 +45,14 @@ export function getNudgeCopy(
   switch (type) {
     case "nudge_boost_popping":
       return {
-        title: "Your post is popping 🚀",
-        body: `Your post is popping with ${opts.count ?? "lots of"} heat — boost it for 24h for GHS 3.`,
+        title: "your post is popping 🚀",
+        body: `your post is popping with ${opts.count ?? "lots of"} heat — boost it for 24h for GHS 3.`,
         href: opts.postId ? `/post/${opts.postId}?nudge=boost` : "/feed?nudge=boost",
         icon: "🚀",
       }
     case "nudge_avatar":
       return {
-        title: "People are checking you 👀",
+        title: "people are checking you 👀",
         body:
           opts.count && opts.count > 1
             ? `${opts.count} ghosts checked your profile — you're still 👻. Upgrade your avatar to stand out.`
@@ -62,43 +62,43 @@ export function getNudgeCopy(
       }
     case "nudge_streak_freeze":
       return {
-        title: "Streak about to break 🔥",
-        body: `Your ${opts.count ?? ""} day streak goes cold soon. Freeze it for 200 credits.`.trim(),
+        title: "streak about to break 🔥",
+        body: `your ${opts.count ?? ""} day streak goes cold soon. Freeze it for 200 credits.`.trim(),
         href: "/shop?nudge=freeze",
         icon: "🧊",
       }
     case "nudge_plus":
       return {
-        title: "Unlock Plus ✨",
-        body: "You keep hitting Plus-only perks — edit posts, blue tick + 1 free boost weekly for GHS 10/mo.",
+        title: "unlock Plus ✨",
+        body: "you keep hitting Plus-only perks — edit posts, blue tick + 1 free boost weekly for GHS 10/mo.",
         href: "/upgrade?nudge=plus",
         icon: "✨",
       }
     case "nudge_custom_name":
       return {
-        title: "Your name is forgettable ✏️",
-        body: `${opts.name ?? "Your ghost name"} won't stick. Custom ghost name for GHS 3 — make the yard know you.`,
+        title: "your name is forgettable ✏️",
+        body: `${opts.name ?? "your ghost name"} won't stick. Custom ghost name for GHS 3 — make the yard know you.`,
         href: "/lair?nudge=name",
         icon: "✏️",
       }
     case "nudge_first_buy":
       return {
-        title: "First buy discount 🎁",
-        body: "You've never bought anything — first purchase is 20% off tonight only. Boost, avatar, freeze.",
+        title: "first buy discount 🎁",
+        body: "you've never bought anything — first purchase is 20% off tonight only. Boost, avatar, freeze.",
         href: "/shop?nudge=firstbuy",
         icon: "🎁",
       }
     case "nudge_storage":
       return {
-        title: "Storage almost full 💾",
-        body: "You're almost out of media space. +100MB for 200 credits so your next post doesn't fail.",
+        title: "storage almost full 💾",
+        body: "you're almost out of media space. +100MB for 200 credits so your next post doesn't fail.",
         href: "/shop?nudge=storage",
         icon: "💾",
       }
     case "nudge_comeback":
       return {
-        title: "The yard misses you 👻",
-        body: "You haven't posted in days — drop one gist and watch the heat come back.",
+        title: "the yard misses you 👻",
+        body: "you haven't posted in days — drop one gist and watch the heat come back.",
         href: "/compose?nudge=comeback",
         icon: "👻",
       }

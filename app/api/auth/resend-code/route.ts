@@ -23,21 +23,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (!userId) {
-      return NextResponse.json({ error: "User ID or email required." }, { status: 400 })
+      return NextResponse.json({ error: "user ID or email required." }, { status: 400 })
     }
 
     const rl = await rateLimitWithInfo(`resend:${userId}`, 3, 10 * 60 * 1000)
     if (!rl.allowed) {
       const secs = Math.ceil((rl.resetAt - Date.now()) / 1000)
-      return NextResponse.json({ error: `Too many resend attempts. Try again in ${secs}s.` }, { status: 429 })
+      return NextResponse.json({ error: `too many resend attempts. Try again in ${secs}s.` }, { status: 429 })
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 })
+      return NextResponse.json({ error: "user not found." }, { status: 404 })
     }
     if (user.emailVerified) {
-      return NextResponse.json({ error: "Email already verified.", alreadyVerified: true }, { status: 400 })
+      return NextResponse.json({ error: "email already verified.", alreadyVerified: true }, { status: 400 })
     }
 
     const newCode = makeVerifyCode()
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to send email. Try again." }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: "Verification code sent." })
+    return NextResponse.json({ success: true, message: "verification code sent." })
   } catch (err) {
     console.error("[resend-code] unexpected", err)
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong." }, { status: 500 })

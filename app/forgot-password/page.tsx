@@ -20,14 +20,14 @@ export default function ForgotPasswordPage() {
 
     try {
       const data = await apiPost<{ message?: string; emailFailed?: boolean }>("/api/auth/forgot-password", { email })
-      setMessage(data.message || "If the email exists, a reset link has been sent.")
+      setMessage(data.message || "if the email exists, a reset link has been sent.")
       if (data.emailFailed) {
-        setError("Could not send email. Please try again or contact support.")
+        setError("could not send email. please try again or contact support.")
       } else {
         setTimeout(() => router.push("/login"), 3000)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
+      setError(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(false)
     }
@@ -35,14 +35,14 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
-      <h1 className="text-4xl font-black mb-2">Reset password</h1>
-      <p className="text-white/60 mb-8">Enter your school email to get a reset link.</p>
+      <h1 className="text-4xl font-black mb-2">reset password</h1>
+      <p className="text-white/60 mb-8">enter your school email to get a reset link.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           className="input"
           type="email"
-          placeholder="School email"
+          placeholder="school email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -52,14 +52,14 @@ export default function ForgotPasswordPage() {
         {message && !error && <p className="text-[#baff39] text-sm">{message}</p>}
 
         <button className="btn-primary w-full" type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Send reset link"}
+          {loading ? "sending..." : "send reset link"}
         </button>
       </form>
 
       <p className="text-center text-white/40 text-sm mt-5">
-        Remember your password?{" "}
+        remember your password?{" "}
         <Link href="/login" className="text-white font-semibold">
-          Log in
+          log in
         </Link>
       </p>
     </main>

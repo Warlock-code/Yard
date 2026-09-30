@@ -7,11 +7,11 @@ import { getEffectiveTier } from "@/lib/tier"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { entryId } = await req.json()
   if (typeof entryId !== "string" || !entryId) {
-    return NextResponse.json({ error: "Entry required." }, { status: 400 })
+    return NextResponse.json({ error: "entry required." }, { status: 400 })
   }
 
   let updatedVotes: number
@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: unknown) {
     if (err instanceof Error && err.message === "INVALID_BATTLE_VOTE") {
-      return NextResponse.json({ error: "You cannot vote on this battle entry." }, { status: 400 })
+      return NextResponse.json({ error: "you cannot vote on this battle entry." }, { status: 400 })
     }
     if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
-      return NextResponse.json({ error: "You already voted on this entry." }, { status: 400 })
+      return NextResponse.json({ error: "you already voted on this entry." }, { status: 400 })
     }
     throw err
   }

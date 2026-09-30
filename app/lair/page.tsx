@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiGet, apiPost } from "@/lib/useApi"
+import { apiGet } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -35,8 +35,6 @@ type Me = {
 }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
-
-type Bank = { name: string; code: string }
 
 type ReferralStats = {
   code: string
@@ -102,7 +100,7 @@ type WalletData = {
 }
 
 function ghs(pesewas: number) {
-  return `GHS ${(pesewas / 100).toFixed(2)}`
+  return `ghs ${(pesewas / 100).toFixed(2)}`
 }
 
 export default function LairPage() {
@@ -178,14 +176,7 @@ export default function LairPage() {
       description: string
     }>
   } | null>(null)
-  const [walletLoading, setWalletLoading] = useState(true)
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
-  const [withdrawAmount, setWithdrawAmount] = useState("")
-  const [withdrawBankCode, setWithdrawBankCode] = useState("")
-  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("")
-  const [withdrawAccountName, setWithdrawAccountName] = useState("")
-  const [banks, setBanks] = useState<Bank[]>([])
-  const [withdrawing, setWithdrawing] = useState(false)
+
 
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
@@ -195,7 +186,7 @@ export default function LairPage() {
         setStorageError("")
       })
       .catch((err: unknown) => {
-        if (isCurrent()) setStorageError(err instanceof Error ? err.message : "Could not load pending images.")
+        if (isCurrent()) setStorageError(err instanceof Error ? err.message : "could not load pending images.")
       })
       .finally(() => {
         if (isCurrent()) setStorageLoading(false)
@@ -215,12 +206,12 @@ export default function LairPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "Could not discard image.")
+        throw new Error(data.error || "could not discard image.")
       }
       setUploads((current) => current.filter((item) => item.id !== upload.id))
       const data = await apiGet<{ user: Pick<Me, "storageUsed" | "storageLimit" | "storageRemaining"> | null }>("/api/auth/me")
       const refreshed = data.user
-      if (!refreshed) throw new Error("Could not refresh storage. Reload to try again.")
+      if (!refreshed) throw new Error("could not refresh storage. reload to try again.")
       setMe((current) => current ? {
         ...current,
         storageUsed: refreshed.storageUsed,
@@ -228,7 +219,7 @@ export default function LairPage() {
         storageRemaining: refreshed.storageRemaining,
       } : current)
     } catch (err: unknown) {
-      setStorageError(err instanceof Error ? err.message : "Could not update storage.")
+      setStorageError(err instanceof Error ? err.message : "could not update storage.")
     } finally {
       setDiscarding(null)
     }
@@ -266,9 +257,6 @@ export default function LairPage() {
         setWalletData(data)
       })
       .catch(console.error)
-      .finally(() => {
-        if (isCurrent()) setWalletLoading(false)
-      })
   }, [])
 
   useEffect(() => {
@@ -280,51 +268,6 @@ export default function LairPage() {
     return () => { active = false }
   }, [load, loadStorage, loadReferral, loadWallet])
 
-  async function openWithdrawModal() {
-    if (banks.length === 0) {
-      try {
-        const data = await apiGet<{ banks: Bank[] }>("/api/banks")
-        setBanks(data.banks || [])
-      } catch {
-        setBanks([])
-      }
-    }
-    setShowWithdrawModal(true)
-  }
-
-  async function handleWithdraw() {
-    if (!withdrawAmount || !withdrawBankCode || !withdrawAccountNumber || !withdrawAccountName) {
-      alert("Fill in all withdrawal details.")
-      return
-    }
-    const credits = parseInt(withdrawAmount)
-    if (isNaN(credits) || credits < 2000) {
-      alert("Minimum withdrawal is 2,000 credits (GHS 20).")
-      return
-    }
-    setWithdrawing(true)
-    try {
-      await apiPost("/api/credits/withdraw", {
-        creditsAmount: credits,
-        bankCode: withdrawBankCode,
-        accountNumber: withdrawAccountNumber,
-        accountName: withdrawAccountName,
-      })
-      alert("Withdrawal requested — pending admin approval (20% fee deducted).")
-      setShowWithdrawModal(false)
-      setWithdrawAmount("")
-      setWithdrawBankCode("")
-      setWithdrawAccountNumber("")
-      setWithdrawAccountName("")
-      loadWallet()
-      load()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Withdrawal failed.")
-    } finally {
-      setWithdrawing(false)
-    }
-  }
-
   async function handleLogout() {
     document.cookie = "yard_token=; Max-Age=0; path=/"
     router.push("/login")
@@ -332,7 +275,7 @@ export default function LairPage() {
 
   async function handleDeleteAccount() {
     if (!deletePassword.trim()) {
-      alert("Enter your password to confirm.")
+      alert("enter your password to confirm.")
       return
     }
     setDeleting(true)
@@ -345,11 +288,11 @@ export default function LairPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "Could not delete account.")
+        throw new Error(data.error || "could not delete account.")
       }
       router.push("/signup")
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setDeleting(false)
       setShowDeleteModal(false)
@@ -357,7 +300,7 @@ export default function LairPage() {
     }
   }
 
-  if (loading || !me) return <p className="text-center text-white/40 mt-10">Entering the den...</p>
+  if (loading || !me) return <p className="text-center text-white/40 mt-10">entering the den...</p>
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 relative overflow-hidden">
@@ -370,23 +313,23 @@ export default function LairPage() {
         <div className="relative w-24 h-24 mb-3" style={{ boxShadow: "0 0 40px rgba(186,255,57,0.2)" }}>
           <Avatar emoji={me.avatarEmoji} size={96} />
         </div>
-        <p className="text-xs text-white/30 uppercase tracking-widest mb-1">The Den</p>
+        <p className="text-xs text-white/30 uppercase tracking-widest mb-1">the den</p>
         <h1 className="text-xl font-bold">{me.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{me.campus}</span>
-          {me.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-          {me.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+          {me.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+          {me.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
           <ChampionTrophies trophies={me.championTrophies} />
         </div>
 
         <div className="flex gap-5 mt-3 text-sm">
           <button onClick={() => router.push("/lair/activity")} className="text-center">
             <span className="font-bold block">{me.followingCount}</span>
-            <span className="text-white/40 text-xs">Following</span>
+            <span className="text-white/40 text-xs">following</span>
           </button>
           <button onClick={() => router.push("/lair/activity")} className="text-center">
             <span className="font-bold block">{me.followersCount}</span>
-            <span className="text-white/40 text-xs">Followers</span>
+            <span className="text-white/40 text-xs">followers</span>
           </button>
         </div>
       </div>
@@ -394,42 +337,42 @@ export default function LairPage() {
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">🔥 {me.streakCount}</p>
-          <p className="text-xs text-white/40">Streak</p>
+          <p className="text-xs text-white/40">streak</p>
         </div>
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">{me.postCount}</p>
-          <p className="text-xs text-white/40">Posts</p>
+          <p className="text-xs text-white/40">posts</p>
         </div>
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">{me.ghostCoins}</p>
-          <p className="text-xs text-white/40">Coins</p>
+          <p className="text-xs text-white/40">coins</p>
         </div>
       </div>
 
       {referralStats && (
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold">👥 Referrals</p>
+            <p className="font-semibold">👥 referrals</p>
             <span className="text-xs text-white/40">{referralStats.stats.verifiedReferrals}/{referralStats.stats.totalReferrals} verified</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{referralStats.stats.totalReferrals}</p>
-              <p className="text-xs text-white/40">Total</p>
+              <p className="text-xs text-white/40">total</p>
             </div>
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{referralStats.stats.verifiedReferrals}</p>
-              <p className="text-xs text-white/40">Verified</p>
+              <p className="text-xs text-white/40">verified</p>
             </div>
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{referralStats.stats.coinsEarned}</p>
-              <p className="text-xs text-white/40">Coins Earned</p>
+              <p className="text-xs text-white/40">coins earned</p>
             </div>
           </div>
 
           <div className="mb-3">
-            <p className="text-xs text-white/50 mb-1">Your referral link</p>
+            <p className="text-xs text-white/50 mb-1">your referral link</p>
             <div className="flex gap-2">
               <input
                 className="input flex-1 text-sm"
@@ -444,19 +387,19 @@ export default function LairPage() {
                   setTimeout(() => setCopied(false), 1500)
                 }}
               >
-                {copied ? "✓ Copied" : "Copy"}
+                {copied ? "✓ copied" : "copy"}
               </button>
             </div>
             <p className="text-xs text-white/40 mt-1">
-              Share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} coins for you, {referralStats.stats.refereeReward} for them on verification
+              share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} coins for you, {referralStats.stats.refereeReward} for them on verification
             </p>
-            <p className="text-xs text-white/40 mt-1">Daily cap: {referralStats.stats.dailyCap} rewarded referrals/day</p>
+            <p className="text-xs text-white/40 mt-1">daily cap: {referralStats.stats.dailyCap} rewarded referrals/day</p>
           </div>
 
           {referralStats.referrals.length > 0 && (
             <details className="group">
               <summary className="flex items-center justify-between cursor-pointer select-none">
-                <span className="text-sm font-medium">Recent referrals</span>
+                <span className="text-sm font-medium">recent referrals</span>
                 <span className="text-xs text-white/40">{referralStats.referrals.length} total</span>
               </summary>
               <ul className="space-y-2 mt-3 pt-3 border-t border-white/10">
@@ -467,7 +410,7 @@ export default function LairPage() {
                       <p className="font-medium truncate">{r.ghostId}</p>
                       <p className="text-xs text-white/40">
                         {new Date(r.joinedAt).toLocaleDateString()} •
-                        {r.emailVerified ? " ✓ Verified" : " Pending verification"}
+                        {r.emailVerified ? " ✓ verified" : " pending verification"}
                       </p>
                     </div>
                     <span className={`badge badge-xs ${
@@ -476,8 +419,8 @@ export default function LairPage() {
                       r.status === "pending" ? "badge-ghost" : "badge-ghost"
                     }`}>
                       {r.rewardStatus === "completed" ? `+${r.rewardAmount} 🔥` :
-                       r.rewardStatus === "flagged" ? "⚠ Flagged" :
-                       r.status === "pending" ? "Pending" : "No reward"}
+                       r.rewardStatus === "flagged" ? "⚠ flagged" :
+                       r.status === "pending" ? "pending" : "no reward"}
                     </span>
                   </li>
                 ))}
@@ -489,45 +432,45 @@ export default function LairPage() {
 
       {walletData && (me.tier !== "FREE" && (
         <div className="card p-4 mb-4">
-          <p className="font-semibold mb-3">💳 Wallet</p>
+          <p className="font-semibold mb-3">💳 wallet</p>
 
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{walletData.balance.toLocaleString()}</p>
-              <p className="text-xs text-white/40">Credits</p>
-              <p className="text-xs text-primary mt-0.5">≈ GHS {(walletData.balance / 100).toFixed(2)}</p>
+              <p className="text-xs text-white/40">credits</p>
+              <p className="text-xs text-primary mt-0.5">≈ ghs {(walletData.balance / 100).toFixed(2)}</p>
             </div>
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{walletData.earned.toLocaleString()}</p>
-              <p className="text-xs text-white/40">Lifetime Earned</p>
-              <p className="text-xs text-white/40 mt-0.5">≈ GHS {(walletData.earned / 100).toFixed(2)}</p>
+              <p className="text-xs text-white/40">lifetime earned</p>
+              <p className="text-xs text-white/40 mt-0.5">≈ ghs {(walletData.earned / 100).toFixed(2)}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{walletData.purchased.toLocaleString()}</p>
-              <p className="text-xs text-white/40">Purchased</p>
+              <p className="text-xs text-white/40">purchased</p>
             </div>
             <div className="card p-3 text-center bg-white/[0.03]">
               <p className="text-lg font-bold text-primary">{walletData.withdrawn.toLocaleString()}</p>
-              <p className="text-xs text-white/40">Withdrawn</p>
-              <p className="text-xs text-white/40 mt-0.5">≈ GHS {(walletData.withdrawn / 100).toFixed(2)}</p>
+              <p className="text-xs text-white/40">withdrawn</p>
+              <p className="text-xs text-white/40 mt-0.5">≈ ghs {(walletData.withdrawn / 100).toFixed(2)}</p>
             </div>
           </div>
 
           <div className="flex gap-2 mb-3">
             <button className="btn-primary flex-1" disabled>
-              Withdrawals disabled
+              withdrawals disabled
             </button>
             <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
-              Buy Credits
+              buy credits
             </button>
           </div>
 
           <details className="group mt-3">
             <summary className="flex items-center justify-between cursor-pointer select-none">
-              <span className="text-sm font-medium">Recent transactions</span>
+              <span className="text-sm font-medium">recent transactions</span>
               <span className="text-xs text-white/40">{walletData.transactions.length} total</span>
             </summary>
             <ul className="space-y-2 mt-3 pt-3 border-t border-white/10 max-h-64 overflow-y-auto">
@@ -542,7 +485,7 @@ export default function LairPage() {
                     <span className="text-white/70 capitalize">{tx.type.toLowerCase().replace(/_/g, " ")}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-white/50 text-xs">Bal: {tx.balanceAfter.toLocaleString()}</p>
+                    <p className="text-white/50 text-xs">bal: {tx.balanceAfter.toLocaleString()}</p>
                     <p className="text-white/40 text-xs">{new Date(tx.createdAt).toLocaleDateString()}</p>
                   </div>
                 </li>
@@ -558,7 +501,7 @@ export default function LairPage() {
         className="card w-full p-4 mb-3 flex items-center justify-between"
         onClick={() => router.push("/lair/activity")}
       >
-        <span className="font-semibold text-sm">📜 My Posts & Liked Posts</span>
+        <span className="font-semibold text-sm">📜 my posts & liked posts</span>
         <span className="text-white/40">→</span>
       </button>
 
@@ -566,31 +509,31 @@ export default function LairPage() {
         className="card w-full p-4 mb-3 flex items-center justify-between"
         onClick={() => router.push("/owned")}
       >
-        <span className="font-semibold text-sm">🎭 Owned — Avatars & Themes</span>
+        <span className="font-semibold text-sm">🎭 owned — avatars & themes</span>
         <span className="text-white/40">→</span>
       </button>
 
       <div className="card p-4 mb-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-semibold">Image storage</p>
-          <Link href="/shop" className="text-sm text-primary">Get more storage</Link>
+          <p className="font-semibold">image storage</p>
+          <Link href="/shop" className="text-sm text-primary">get more storage</Link>
         </div>
         <p className="text-sm text-white/50">
-          {me.storageUsed.toFixed(2)} MB used / {me.storageLimit.toFixed(2)} MB
+          {me.storageUsed.toFixed(2)} mb used / {me.storageLimit.toFixed(2)} mb
         </p>
-        <p className="text-xs text-white/40 mt-1">{me.storageRemaining.toFixed(2)} MB remaining</p>
-        <p className="font-semibold text-sm mt-4 mb-1">Pending images</p>
-        <p className="text-xs text-white/40 mb-3">Discard unposted images to reclaim storage.</p>
+        <p className="text-xs text-white/40 mt-1">{me.storageRemaining.toFixed(2)} mb remaining</p>
+        <p className="font-semibold text-sm mt-4 mb-1">pending images</p>
+        <p className="text-xs text-white/40 mb-3">discard unposted images to reclaim storage.</p>
         {storageError && (
           <p className="text-xs text-white/50 mb-3" role="alert">
             {storageError}{" "}
-            <button className="text-primary" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>Refresh</button>
+            <button className="text-primary" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>refresh</button>
           </p>
         )}
         {storageLoading ? (
-          <p className="text-xs text-white/40">Loading pending images...</p>
+          <p className="text-xs text-white/40">loading pending images...</p>
         ) : uploads.length === 0 ? (
-          !storageError && <p className="text-xs text-white/40">No pending images.</p>
+          !storageError && <p className="text-xs text-white/40">no pending images.</p>
         ) : (
           <ul className="space-y-3">
             {uploads.map((upload) => (
@@ -598,20 +541,20 @@ export default function LairPage() {
                 <div className="relative w-16 h-16 flex-shrink-0">
                   <OptimizedImage
                     src={upload.url}
-                    alt="Unposted upload"
+                    alt="unposted upload"
                     fill
                     sizes="64px"
                     rounded
                     unoptimized
                   />
                 </div>
-                <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} MB</span>
+                <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} mb</span>
                 <button
                   className="btn-ghost text-xs disabled:opacity-40"
                   disabled={!!discarding}
                   onClick={() => discardUpload(upload)}
                 >
-                  {discarding === upload.id ? "Discarding..." : "Discard"}
+                  {discarding === upload.id ? "discarding..." : "discard"}
                 </button>
               </li>
             ))}
@@ -621,85 +564,62 @@ export default function LairPage() {
 
       {me.tier === "FREE" && (
         <div className="card p-4 mb-3">
-          <p className="font-semibold mb-1">Deeper in the shadows</p>
-          <p className="text-sm text-white/50 mb-3">Plus gets perks. Prime gets perks + real earnings.</p>
+          <p className="font-semibold mb-1">deeper in the shadows</p>
+          <p className="text-sm text-white/50 mb-3">plus gets perks. prime gets perks + real earnings.</p>
           <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
-            See plans
+            see plans
           </button>
         </div>
       )}
 
       {me.tier === "PLUS" && (
         <div className="card p-4 mb-3">
-          <p className="font-semibold mb-1">Go all the way</p>
-          <p className="text-sm text-white/50 mb-3">Unlock real earnings from your posts and battles.</p>
+          <p className="font-semibold mb-1">go all the way</p>
+          <p className="text-sm text-white/50 mb-3">unlock real earnings from your posts and battles.</p>
           <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
-            See Prime
+            see prime
           </button>
         </div>
       )}
 
       {me.tier === "PRIME" && (
         <div className="card p-4 mb-3">
-          <p className="font-semibold mb-2">💰 The Vault</p>
+          <p className="font-semibold mb-2">💰 the vault</p>
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-white/50">Total earned</span>
+            <span className="text-white/50">total earned</span>
             <span>{ghs(me.totalEarnedPesewas)}</span>
           </div>
           <div className="flex justify-between text-sm mb-3">
-            <span className="text-white/50">Available balance</span>
+            <span className="text-white/50">available balance</span>
             <span className="font-semibold">{ghs(me.availableBalancePesewas)}</span>
           </div>
         </div>
       )}
 
       <button className="btn-ghost w-full mt-2" onClick={handleLogout}>
-        Log out
+        log out
       </button>
 
       <button className="btn-ghost w-full mt-2 text-red-400" onClick={() => setShowDeleteModal(true)}>
-        Delete Account
+        delete account
       </button>
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">Delete Account</h3>
-            <p className="text-white/50 text-sm mb-4">This action is irreversible. All your posts, votes, earnings, and data will be permanently deleted.</p>
-            <input className="input mb-3" type="password" placeholder="Password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
+            <h3 className="font-bold text-lg mb-1">delete account</h3>
+            <p className="text-white/50 text-sm mb-4">this action is irreversible. all your posts, votes, earnings, and data will be permanently deleted.</p>
+            <input className="input mb-3" type="password" placeholder="password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
             <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>Cancel</button>
+              <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>cancel</button>
               <button className="btn-primary flex-1" onClick={handleDeleteAccount} disabled={deleting}>
-                {deleting ? "Deleting..." : "Delete Account"}
+                {deleting ? "deleting..." : "delete account"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">Withdraw Credits</h3>
-            <p className="text-white/50 text-xs mb-3">Minimum 2,000 credits (GHS 20). 20% platform fee deducted. Account must be 14+ days old with 1,000+ earned credits.</p>
-            <input className="input mb-2" type="number" placeholder="Credits to withdraw (min 2000)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
-            <select className="input mb-2" value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)}>
-              <option value="">Select your bank or MoMo network</option>
-              {banks.map((b) => (
-                <option key={b.code} value={b.code}>{b.name}</option>
-              ))}
-            </select>
-            <input className="input mb-2" placeholder="Account number" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} />
-            <input className="input mb-3" placeholder="Account name" value={withdrawAccountName} onChange={(e) => setWithdrawAccountName(e.target.value)} />
-            <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowWithdrawModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1" onClick={handleWithdraw} disabled={withdrawing}>
-                {withdrawing ? "Processing..." : "Submit"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

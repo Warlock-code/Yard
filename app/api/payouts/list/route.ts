@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-export async function GET(req: NextRequest) {
-  return NextResponse.json({ error: "Payouts are not available in current tier system." }, { status: 403 })
+export async function GET() {
+  return NextResponse.json({ error: "payouts are not available in current tier system." }, { status: 403 })
 }

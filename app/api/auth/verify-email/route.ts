@@ -34,19 +34,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (!userId) {
-    return NextResponse.json({ error: "Missing account. Please sign up again or log in." }, { status: 400 })
+    return NextResponse.json({ error: "missing account. Please sign up again or log in." }, { status: 400 })
   }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown"
   const verifyRl = await rateLimitWithInfo(`verify-code:${userId}`, 5, 15 * 60 * 1000)
   if (!verifyRl.allowed) {
     await auditLog("user.verify_email", null, null, { success: false, reason: "Rate limited", userId, ipAddress: ip })
-    return NextResponse.json({ error: "Too many verification attempts. Try again later." }, { status: 429 })
+    return NextResponse.json({ error: "too many verification attempts. Try again later." }, { status: 429 })
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 })
+    return NextResponse.json({ error: "user not found." }, { status: 404 })
   }
 
   // Already verified — idempotent success
@@ -69,14 +69,14 @@ export async function POST(req: NextRequest) {
 
   if (!user.verifyCode) {
     await auditLog("user.verify_email", userId, userId, { success: false, reason: "No code", ipAddress: ip })
-    return NextResponse.json({ error: "No verification code found. Please request a new code." }, { status: 400 })
+    return NextResponse.json({ error: "no verification code found. Please request a new code." }, { status: 400 })
   }
 
   // Normalize code — strip spaces and non-digits just in case user pasted with formatting
   const cleanCode = code.trim().replace(/\s+/g, "")
   if (user.verifyCode !== cleanCode) {
     await auditLog("user.verify_email", userId, userId, { success: false, reason: "Invalid code", ipAddress: ip, attemptedCode: cleanCode })
-    return NextResponse.json({ error: "Invalid code. Check your email or request a new code." }, { status: 400 })
+    return NextResponse.json({ error: "invalid code. Check your email or request a new code." }, { status: 400 })
   }
 
   await prisma.user.update({
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[verify-email] unexpected", err)
     if (err instanceof Error && err.message.includes("JWT_SECRET")) {
-      return NextResponse.json({ error: "Service temporarily unavailable. Please try again later." }, { status: 500 })
+      return NextResponse.json({ error: "service temporarily unavailable. Please try again later." }, { status: 500 })
     }
     return NextResponse.json({ error: err instanceof Error ? err.message : "Something went wrong. Please try again." }, { status: 500 })
   }

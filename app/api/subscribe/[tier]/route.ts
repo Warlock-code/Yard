@@ -14,18 +14,18 @@ const PLAN_PRICE_PESEWAS: Record<string, number> = {
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
   const { tier: tierParam } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const tier = tierParam.toLowerCase()
   const planCode = PLANS[tier]
-  if (!planCode) return NextResponse.json({ error: "Invalid tier. Only 'plus' is available." }, { status: 400 })
+  if (!planCode) return NextResponse.json({ error: "invalid tier. Only 'plus' is available." }, { status: 400 })
 
   // Server guard — frontend also blocks but we enforce here
-  if (tier === "plus" && user.tier === "PLUS") return NextResponse.json({ error: "Already on Plus." }, { status: 400 })
+  if (tier === "plus" && user.tier === "PLUS") return NextResponse.json({ error: "already on Plus." }, { status: 400 })
 
   const reference = `sub_${tier}_${user.id}_${Date.now()}`
   const amount = PLAN_PRICE_PESEWAS[tier]
-  if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: "Plan price not configured." }, { status: 500 })
+  if (!Number.isSafeInteger(amount) || amount <= 0) return NextResponse.json({ error: "plan price not configured." }, { status: 500 })
 
   await prisma.transaction.create({
     data: {

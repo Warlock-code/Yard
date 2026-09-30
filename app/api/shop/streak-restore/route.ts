@@ -9,13 +9,13 @@ const RESTORE_CREDIT_COST = CREDIT_CONFIG.SPEND.STREAK_RESTORE // 500 credits
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const withinGrace =
     user.streakBrokenAt && new Date(user.streakBrokenAt).getTime() > Date.now() - 48 * 60 * 60 * 1000
 
   if (!user.lastStreakCount || !withinGrace) {
-    return NextResponse.json({ error: "No recently broken streak to restore." }, { status: 400 })
+    return NextResponse.json({ error: "no recently broken streak to restore." }, { status: 400 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (useCredits) {
     try {
       const result = await creditUser(user.id, "STREAK_RESTORE", -RESTORE_CREDIT_COST, `restore_${user.id}_${Date.now()}`, {})
-      return NextResponse.json({ success: true, creditsUsed: RESTORE_CREDIT_COST, newBalance: result.newBalance, message: "Streak restored with credits" })
+      return NextResponse.json({ success: true, creditsUsed: RESTORE_CREDIT_COST, newBalance: result.newBalance, message: "streak restored with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
     }

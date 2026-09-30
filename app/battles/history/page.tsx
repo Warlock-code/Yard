@@ -65,12 +65,12 @@ export default function BattleHistoryPage() {
     return true
   })
 
-  if (loading) return <p className="text-center text-white/40 mt-10">Loading history...</p>
+  if (loading) return <p className="text-center text-white/40 mt-10">loading history...</p>
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-24 px-4">
       <div className="flex items-center justify-between mt-4 mb-4">
-        <h1 className="text-2xl font-black">⚔️ Battle History</h1>
+        <h1 className="text-2xl font-black">⚔️ battle history</h1>
       </div>
 
       <div className="flex gap-2 mb-4" role="tablist">
@@ -86,7 +86,7 @@ export default function BattleHistoryPage() {
                 : "bg-white/5 text-white/60 hover:text-white"
             }`}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            {f}
           </button>
         ))}
       </div>
@@ -94,7 +94,7 @@ export default function BattleHistoryPage() {
       {filteredBattles.length === 0 ? (
         <div className="text-center mt-14 px-8">
           <p className="text-3xl mb-3">📜</p>
-          <p className="text-white/50 text-sm">No past battles yet. Enter a battle to make history!</p>
+          <p className="text-white/50 text-sm">no past battles yet. enter a battle to make history!</p>
         </div>
       ) : (
         <motion.ul
@@ -103,7 +103,7 @@ export default function BattleHistoryPage() {
           initial="hidden"
           animate="visible"
         >
-          {filteredBattles.map((battle, index) => (
+          {filteredBattles.map((battle) => (
             <motion.li
               key={battle.id}
               variants={entryRevealVariants}
@@ -119,9 +119,9 @@ export default function BattleHistoryPage() {
                   <div>
                     <p className="post-mono font-semibold text-white truncate max-w-[200px]">{battle.text}</p>
                     <p className="text-xs text-white/40">
-                      {new Date(battle.startsAt).toLocaleDateString()} · Round {battle.roundNumber} of {battle.totalRounds}
-                      {battle.isPrimeOnly && <span className="ml-2 badge badge-prime">Prime Only</span>}
-                      {battle.earlyAccessForPrime && <span className="ml-2 badge badge-prime">Early Access</span>}
+                      {new Date(battle.startsAt).toLocaleDateString()} · round {battle.roundNumber} of {battle.totalRounds}
+                      {battle.isPrimeOnly && <span className="ml-2 badge badge-prime">prime only</span>}
+                      {battle.earlyAccessForPrime && <span className="ml-2 badge badge-prime">early access</span>}
                     </p>
                   </div>
                 </div>
@@ -141,22 +141,22 @@ export default function BattleHistoryPage() {
                   <div className="p-4 space-y-3">
                     {battle.winnerEntry && (
                       <div className="card p-3 relative" style={{ borderColor: "rgba(186,255,57,0.5)", background: "rgba(186,255,57,0.05)" }}>
-                        <span className="absolute -top-2 left-3 badge badge-prime text-xs">🏆 Winner</span>
+                        <span className="absolute -top-2 left-3 badge badge-prime text-xs">🏆 winner</span>
                         <div className="flex items-center gap-2 mt-2">
                           <span className="text-lg">{battle.winnerEntry.user.avatarEmoji}</span>
                           <span className="font-semibold">{battle.winnerEntry.user.ghostId}</span>
-                          {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-                          {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                          {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+                          {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                           <ChampionTrophies trophies={battle.winnerEntry.user.championTrophies} />
                         </div>
                         <p className="text-white/80 text-sm mt-2">
-                          {battle.winnerEntry.text || battle.winnerEntry.imageUrl ? "📷 Image entry" : battle.winnerEntry.voiceUrl ? "🎤 Voice entry" : ""}
+                          {battle.winnerEntry.text || battle.winnerEntry.imageUrl ? "📷 image entry" : battle.winnerEntry.voiceUrl ? "🎤 voice entry" : ""}
                         </p>
                         <p className="text-xs text-white/40 mt-1">🔥 {battle.winnerEntry.votes} votes</p>
                       </div>
                     )}
 
-                    <p className="text-xs text-white/40 mb-2">All Entries ({battle.entries.length})</p>
+                    <p className="text-xs text-white/40 mb-2">all entries ({battle.entries.length})</p>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {battle.entries.map((entry, i) => (
                         <div
@@ -170,16 +170,16 @@ export default function BattleHistoryPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-sm truncate min-w-0">{entry.user.ghostId}</p>
-                              {entry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px] flex-shrink-0">✓ Plus</span>}
+                              {entry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px] flex-shrink-0">✓ plus</span>}
                               <ChampionTrophies trophies={entry.user.championTrophies} className="text-[10px] leading-none" />
                             </div>
                             <p className="text-white/60 text-xs truncate">
-                              {entry.text || entry.imageUrl ? "📷 Image" : entry.voiceUrl ? "🎤 Voice" : ""}
+                              {entry.text || entry.imageUrl ? "📷 image" : entry.voiceUrl ? "🎤 voice" : ""}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-primary">🔥 {entry.votes}</p>
-                            {entry.wonRound && <span className="badge badge-prime text-xs">Advanced</span>}
+                            {entry.wonRound && <span className="badge badge-prime text-xs">advanced</span>}
                           </div>
                         </div>
                       ))}
@@ -187,7 +187,7 @@ export default function BattleHistoryPage() {
 
                     {battle.childPrompts.length > 0 && (
                       <div className="pt-3 border-t border-white/10">
-                        <p className="text-xs text-white/40 mb-2">Subsequent Rounds</p>
+                        <p className="text-xs text-white/40 mb-2">subsequent rounds</p>
                         <div className="space-y-2">
                           {battle.childPrompts.map((round) => (
                             <Link
@@ -196,14 +196,14 @@ export default function BattleHistoryPage() {
                               className="card p-3 flex items-center justify-between hover:bg-white/5 transition-colors"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="badge badge-prime text-xs">Round {round.roundNumber}</span>
+                                <span className="badge badge-prime text-xs">round {round.roundNumber}</span>
                                 <p className="post-mono text-white/80 text-sm truncate max-w-[180px]">{round.text}</p>
                               </div>
                               {round.winnerEntry && (
                                 <div className="flex items-center gap-2 text-right">
                                   <span className="text-lg">{round.winnerEntry.user.avatarEmoji}</span>
                                   <span className="text-white/60 text-sm">{round.winnerEntry.user.ghostId}</span>
-                                  {round.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                                  {round.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
                                   <ChampionTrophies trophies={round.winnerEntry.user.championTrophies} className="text-[10px] leading-none" />
                                   <span className="font-bold text-primary">🔥 {round.winnerEntry.votes}</span>
                                 </div>

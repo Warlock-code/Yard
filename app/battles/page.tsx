@@ -14,8 +14,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (!prompt) {
     return {
-      title: "Battles | Yard",
-      description: "No active battle right now. Check back soon!",
+      title: "battles | yard",
+      description: "no active battle right now. check back soon!",
     }
   }
 
@@ -23,32 +23,32 @@ export async function generateMetadata(): Promise<Metadata> {
   const truncatedText = prompt.text.length > 100 ? prompt.text.slice(0, 100) + "..." : prompt.text
 
   return {
-    title: "Today's Battle | Yard",
-    description: `Battle: ${truncatedText}`,
+    title: "today's battle | yard",
+    description: `battle: ${truncatedText}`,
     openGraph: {
       type: "article",
       url: battleUrl,
-      title: "Today's Battle | Yard",
-      description: `Battle: ${truncatedText}`,
+      title: "today's battle | yard",
+      description: `battle: ${truncatedText}`,
       images: [
         {
           url: "/og-image.svg",
           width: 1200,
           height: 630,
-          alt: "Yard Battle",
+          alt: "yard battle",
         },
       ],
       publishedTime: new Date().toISOString(),
     },
     twitter: {
       card: "summary_large_image",
-      title: "Today's Battle | Yard",
-      description: `Battle: ${truncatedText}`,
+      title: "today's battle | yard",
+      description: `battle: ${truncatedText}`,
       images: ["/og-image.svg"],
     },
   }
   } catch {
-    return { title: "Battles | Yard", description: "Campus battles on Yard" }
+    return { title: "battles | yard", description: "campus battles on yard" }
   }
 }
 

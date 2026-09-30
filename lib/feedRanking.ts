@@ -69,11 +69,11 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
 
     // Tier boost (ranking only): effective tier at snapshot time, mirroring
     // getEffectiveTier() but against snapshotTime (not Date.now()) so ranking
-    // stays deterministic within a refreshSeed session. PRIME = 3, PLUS = 2,
+    // stays deterministic within a refreshSeed session. PLUS = 2,
     // FREE/expired = 1. Applied as a PRIMARY sort key below (not a score
     // multiplier): tier decides the bucket, the engagement/boost score decides
     // order inside the bucket. Jitter therefore only rotates within a tier and
-    // can never push a FREE post above a PLUS/PRIME one.
+    // can never push a FREE post above a PLUS one.
     const tierWeight = getCandidateTierWeight(candidate, snapshotTime)
 
     return { candidate, createdTime, score: score + tieJitter, tierWeight }

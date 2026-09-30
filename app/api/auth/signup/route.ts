@@ -24,18 +24,18 @@ export async function POST(req: NextRequest) {
 
   const campus = getCampusFromEmail(normalizedEmail)
   if (!campus) {
-    return NextResponse.json({ error: "Use a valid school email." }, { status: 400 })
+    return NextResponse.json({ error: "use a valid school email." }, { status: 400 })
   }
 
   const rl = await rateLimit(`signup:${normalizedEmail}`, 3, 60 * 60 * 1000)
   if (!rl) {
     await auditLog("user.signup", null, null, { success: false, reason: "Rate limited", email: normalizedEmail, ipAddress: ip })
-    return NextResponse.json({ error: "Too many signup attempts. Try again later." }, { status: 429 })
+    return NextResponse.json({ error: "too many signup attempts. Try again later." }, { status: 429 })
   }
 
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
   if (existing) {
-    return NextResponse.json({ error: "Account already exists." }, { status: 400 })
+    return NextResponse.json({ error: "account already exists." }, { status: 400 })
   }
 
   const passwordHash = await hashPassword(password)
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     ghostId = makeGhostId()
     ghostAttempts++
     if (ghostAttempts > 10) {
-      return NextResponse.json({ error: "Failed to generate ghost ID. Please try again." }, { status: 500 })
+      return NextResponse.json({ error: "failed to generate ghost ID. Please try again." }, { status: 500 })
     }
   } while (await prisma.user.findUnique({ where: { ghostId } }))
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     inviteCode = generateInviteCode()
     attempts++
     if (attempts > 10) {
-      return NextResponse.json({ error: "Failed to generate invite code." }, { status: 500 })
+      return NextResponse.json({ error: "failed to generate invite code." }, { status: 500 })
     }
   } while (await prisma.user.findUnique({ where: { inviteCode } }))
 
@@ -89,10 +89,10 @@ export async function POST(req: NextRequest) {
     if (createErr instanceof Error && (createErr as any).code === "P2002") {
       const target = (createErr as any).meta?.target as string[] | undefined
       if (target?.includes("email")) {
-        return NextResponse.json({ error: "Account already exists." }, { status: 400 })
+        return NextResponse.json({ error: "account already exists." }, { status: 400 })
       }
       // Ghost/invite collision: ask to retry
-      return NextResponse.json({ error: "Something went wrong creating your ghost. Please try again." }, { status: 500 })
+      return NextResponse.json({ error: "something went wrong creating your ghost. Please try again." }, { status: 500 })
     }
     throw createErr
   }
@@ -137,9 +137,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[signup] unexpected error", err)
     // Don't leak internal error details (Prisma, etc.) to client
-    if (err instanceof Error && err.message.includes("Account already exists")) {
+    if (err instanceof Error && err.message.includes("account already exists")) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "something went wrong. Please try again." }, { status: 500 })
   }
 }

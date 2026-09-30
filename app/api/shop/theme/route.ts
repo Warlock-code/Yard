@@ -2,24 +2,24 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser } from "@/lib/credits"
 import { THEME_MAP, isThemeId, themeCosmeticId } from "@/lib/themes"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { themeId } = await req.json()
-  if (!isThemeId(themeId)) return NextResponse.json({ error: "Invalid theme." }, { status: 400 })
+  if (!isThemeId(themeId)) return NextResponse.json({ error: "invalid theme." }, { status: 400 })
 
   const theme = THEME_MAP[themeId]
   if (theme.pricePesewas <= 0) {
-    return NextResponse.json({ error: "This theme isn't purchasable." }, { status: 400 })
+    return NextResponse.json({ error: "this theme isn't purchasable." }, { status: 400 })
   }
 
   const cosmeticId = themeCosmeticId(theme.id)
   if (user.ownedCosmetics.includes(cosmeticId)) {
-    return NextResponse.json({ error: "Already owned." }, { status: 400 })
+    return NextResponse.json({ error: "already owned." }, { status: 400 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (useCredits) {
     try {
       const result = await creditUser(user.id, "THEME_BUY", -creditCost, `theme_${theme.id}_${user.id}_${Date.now()}`, { cosmeticId, themeId: theme.id })
-      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "Theme purchased with credits" })
+      return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "theme purchased with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
     }

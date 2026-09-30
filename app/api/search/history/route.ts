@@ -4,7 +4,7 @@ import { getRecentSearches } from "@/lib/search"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const limit = parseInt(searchParams.get("limit") || "10")
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const searchId = searchParams.get("id")

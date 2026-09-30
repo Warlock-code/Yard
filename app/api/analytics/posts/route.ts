@@ -37,11 +37,11 @@ function parseDateRange(searchParams: URLSearchParams) {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   if (user.tier !== "PLUS") {
     void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "analytics", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "Plus subscription required." }, { status: 403 })
+    return NextResponse.json({ error: "plus subscription required." }, { status: 403 })
   }
 
   const { startDate, endDate, range } = parseDateRange(new URL(req.url).searchParams)

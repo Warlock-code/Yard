@@ -52,7 +52,7 @@ export default function ComposePage() {
   const refreshQuota = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ user: StorageQuota | null }>("/api/auth/me")
       .then((data) => {
-        if (!data.user) throw new Error("Sign in to check your storage.")
+        if (!data.user) throw new Error("sign in to check your storage.")
         if (!isCurrent()) return
         setQuota(data.user)
         setQuotaError("")
@@ -60,7 +60,7 @@ export default function ComposePage() {
       .catch((err: unknown) => {
         if (!isCurrent()) return
         setQuota(null)
-        setQuotaError(err instanceof Error ? err.message : "Could not load storage.")
+        setQuotaError(err instanceof Error ? err.message : "could not load storage.")
       })
   }, [])
 
@@ -115,10 +115,10 @@ export default function ComposePage() {
       const r = res?.[0] as { serverData?: { url?: string }; ufsUrl?: string; url?: string } | undefined
       const url = r?.serverData?.url || r?.ufsUrl || r?.url
       if (url) setImage(url)
-      else alert("Upload completed without an image URL. Check pending images in your lair.")
+      else alert("upload completed without an image url. check pending images in your lair.")
       await refreshQuota()
     },
-    onUploadError: (err) => alert(`Upload failed: ${err.message}`),
+    onUploadError: (err) => alert(`upload failed: ${err.message}`),
   })
 
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -126,7 +126,7 @@ export default function ComposePage() {
     e.target.value = ""
     if (!file || image || isUploading || removing || posting || !quota) return
     if (file.size > quota.storageRemaining * 1024 * 1024) {
-      alert("Not enough storage for this image. Free up space in your lair or visit the shop.")
+      alert("not enough storage for this image. free up space in your lair or visit the shop.")
       return
     }
     startUpload([file])
@@ -144,12 +144,12 @@ export default function ComposePage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || "Could not remove image.")
+        throw new Error(data.error || "could not remove image.")
       }
       setImage(null)
       await refreshQuota()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Could not remove image.")
+      alert(err instanceof Error ? err.message : "could not remove image.")
     } finally {
       setRemoving(false)
     }
@@ -165,7 +165,7 @@ export default function ComposePage() {
       if (newId) router.push(`/post/${newId}`)
       else router.push("/feed")
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setPosting(false)
     }
@@ -182,7 +182,7 @@ export default function ComposePage() {
           onClick={handlePost}
           disabled={posting || isUploading || removing || (visibility === "program" && !hasProgram) || (!text.trim() && !image)}
         >
-          {posting ? "Posting..." : "Post"}
+          {posting ? "posting..." : "post"}
         </button>
       </div>
 
@@ -191,18 +191,18 @@ export default function ComposePage() {
           ref={textareaRef}
           autoFocus
           className="w-full bg-transparent outline-none text-lg placeholder-white/30 resize-none"
-          placeholder="What's the gist?"
+          placeholder="what's the gist?"
           rows={8}
           value={text}
           onChange={(e) => setText(e.target.value.toLowerCase())}
         />
 
         <p className="mt-2 text-xs text-white/35">
-          Use #hashtag to tag your post — e.g. #gist #confession #X
+          use #hashtag to tag your post — e.g. #gist #confession #x
         </p>
 
         {liveHashtags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Detected hashtags">
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="detected hashtags">
             {liveHashtags.map((tag) => (
               <span
                 key={tag}
@@ -214,8 +214,8 @@ export default function ComposePage() {
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Suggested hashtags">
-          <span className="text-xs text-white/25 mr-0.5">Try:</span>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="suggested hashtags">
+          <span className="text-xs text-white/25 mr-0.5">try:</span>
           {suggestedTags.map((tag) => {
             const lower = tag.toLowerCase()
             const isActive = liveHashtags.includes(lower)
@@ -225,8 +225,8 @@ export default function ComposePage() {
                 type="button"
                 onClick={() => insertHashtag(tag)}
                 disabled={isActive}
-                title={isActive ? `${tag} already added` : `Insert ${tag}`}
-                aria-label={`Insert ${tag}`}
+                title={isActive ? `${tag} already added` : `insert ${tag}`}
+                aria-label={`insert ${tag}`}
                 className={`rounded-full border px-2.5 py-1 text-xs transition ${
                   isActive
                     ? "border-[#baff39]/20 bg-[#baff39]/10 text-[#baff39] opacity-60 cursor-default"
@@ -252,7 +252,7 @@ export default function ComposePage() {
             <button
               onClick={handleRemoveImage}
               disabled={removing || posting || isUploading}
-              aria-label={removing ? "Removing image" : "Remove image"}
+              aria-label={removing ? "removing image" : "remove image"}
               className="absolute top-2 right-2 z-10 bg-black/80 border border-white/20 rounded-full w-7 h-7 text-sm disabled:opacity-40 grid place-items-center"
             >
               ✕
@@ -262,19 +262,19 @@ export default function ComposePage() {
 
         {(text.trim() || image) && (
           <div className="mt-6">
-            <p className="text-xs font-semibold tracking-widest text-white/30 uppercase mb-2">Preview — how others will see it</p>
+            <p className="text-xs font-semibold tracking-widest text-white/30 uppercase mb-2">preview — how others will see it</p>
             <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
               <div className="flex items-start gap-3">
                 <Avatar emoji={quota?.avatarEmoji || "👻"} size={36} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="font-semibold">{quota?.ghostId || "YourGhost"}</span>
-                    {quota?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}
-                    {quota?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                    <span className="font-semibold">{quota?.ghostId || "yourghost"}</span>
+                    {quota?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">prime</span>}
+                    {quota?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
                     <ChampionTrophies trophies={quota?.championTrophies} className="text-[10px] leading-none" />
                     <span className="text-white/30">· now</span>
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-white/30">
-                      {visibility === "program" ? "🎓 Program" : "🏫 School"} • {quota?.campus || "Campus"}
+                      {visibility === "program" ? "🎓 program" : "🏫 school"} • {quota?.campus || "campus"}
                     </span>
                   </div>
                   {text.trim() ? (
@@ -282,7 +282,7 @@ export default function ComposePage() {
                       <RichText text={text} />
                     </p>
                   ) : (
-                    <p className="text-white/30 mt-1 text-sm italic">No text — image only</p>
+                    <p className="text-white/30 mt-1 text-sm italic">no text — image only</p>
                   )}
                   {image && (
                     <div className="mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
@@ -294,12 +294,12 @@ export default function ComposePage() {
                   <div className="flex items-center gap-5 text-xs text-white/40 mt-2 pt-2 border-t border-white/5">
                     <span>🔥 0</span>
                     <span>💬 0</span>
-                    <span className="ml-auto text-[11px] text-white/25">Preview • not posted yet</span>
+                    <span className="ml-auto text-[11px] text-white/25">preview • not posted yet</span>
                   </div>
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-white/25 mt-1.5">This is exactly how it will look in feed. Tap Post to share.</p>
+            <p className="text-[11px] text-white/25 mt-1.5">this is exactly how it will look in feed. tap post to share.</p>
           </div>
         )}
       </div>
@@ -312,31 +312,31 @@ export default function ComposePage() {
               visibility === "school" ? "border-[#baff39] text-[#baff39]" : "border-white/15 text-white/40"
             }`}
           >
-            🏫 My School
+            🏫 my school
           </button>
           <button
             onClick={() => setVisibility("program")}
             disabled={!hasProgram}
-            title={!hasProgram ? "A program is required for program-only posts." : undefined}
+            title={!hasProgram ? "a program is required for program-only posts." : undefined}
             className={`flex-1 text-xs py-2 rounded-full border disabled:opacity-40 disabled:cursor-not-allowed ${
               visibility === "program" ? "border-[#baff39] text-[#baff39]" : "border-white/15 text-white/40"
             }`}
           >
-            🎓 My Program only
+            🎓 my program only
           </button>
         </div>
 
         <div className="text-xs text-white/40" role="status">
           {quota ? (
-            <p>{quota.storageUsed.toFixed(2)} MB used · {quota.storageRemaining.toFixed(2)} MB remaining</p>
+            <p>{quota.storageUsed.toFixed(2)} mb used · {quota.storageRemaining.toFixed(2)} mb remaining</p>
           ) : quotaError ? (
-            <p>{quotaError} <button className="text-[#baff39]" onClick={() => refreshQuota()}>Retry</button></p>
+            <p>{quotaError} <button className="text-[#baff39]" onClick={() => refreshQuota()}>retry</button></p>
           ) : (
-            <p>Loading storage...</p>
+            <p>loading storage...</p>
           )}
         </div>
         <label className={`btn-ghost inline-block ${image || isUploading || removing || posting || !quota || quota.storageRemaining <= 0 ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}>
-          {isUploading ? "Uploading..." : removing ? "Removing..." : image ? "Remove photo to add another" : "Add photo"}
+          {isUploading ? "uploading..." : removing ? "removing..." : image ? "remove photo to add another" : "add photo"}
           <input
             type="file"
             accept="image/*"

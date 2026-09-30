@@ -12,28 +12,28 @@ import { attachChampionTrophiesDeep } from "@/lib/champions"
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const post = await prisma.post.findFirst({
     where: { id, AND: [await getReadablePostWhere(user)] },
     include: { user: true },
   })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
 
   const { text: rawText, parentId } = await req.json()
   const text = typeof rawText === "string" ? rawText.toLowerCase() : rawText
-  if (typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "Comment can't be empty." }, { status: 400 })
+  if (typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "comment can't be empty." }, { status: 400 })
   if (typeof text !== "string" || text.length > 500) {
-    return NextResponse.json({ error: "Comment must be 500 characters or fewer." }, { status: 400 })
+    return NextResponse.json({ error: "comment must be 500 characters or fewer." }, { status: 400 })
   }
   if (!(await rateLimit(`comment:${user.id}`, 20, 60 * 60 * 1000))) {
-    return NextResponse.json({ error: "Too many comments. Try again later." }, { status: 429 })
+    return NextResponse.json({ error: "too many comments. Try again later." }, { status: 429 })
   }
 
   if (parentId) {
-    if (typeof parentId !== "string") return NextResponse.json({ error: "Invalid reply." }, { status: 400 })
+    if (typeof parentId !== "string") return NextResponse.json({ error: "invalid reply." }, { status: 400 })
     const parent = await prisma.comment.findFirst({ where: { id: parentId, postId: id }, select: { id: true } })
-    if (!parent) return NextResponse.json({ error: "Comment not found." }, { status: 404 })
+    if (!parent) return NextResponse.json({ error: "comment not found." }, { status: 404 })
   }
 
   const comment = await prisma.comment.create({
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         userId: post.userId,
         pushToken: post.user.pushToken,
         type: "comment",
-        title: "New comment",
+        title: "new comment",
         body: `${user.ghostId} replied to your post`,
         href: `/post/${post.id}`,
         actorName: user.ghostId,
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           userId: parentComment.userId,
           pushToken: parentComment.user.pushToken,
           type: "reply",
-          title: "New reply",
+          title: "new reply",
           body: `${user.ghostId} replied to your comment`,
           href: `/post/${id}`,
           actorName: user.ghostId,
@@ -116,9 +116,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
   const post = await prisma.post.findFirst({ where: { id, AND: [await getReadablePostWhere(user)] }, select: { id: true } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
 
   const sort = new URL(req.url).searchParams.get("sort") === "latest" ? "latest" : "top"
 

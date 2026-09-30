@@ -11,16 +11,16 @@ export const BOOST_PRICE_PESEWAS = 300 // GHS 3.00 for 24h
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const post = await prisma.post.findUnique({ where: { id } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
   if (post.userId !== user.id) {
-    return NextResponse.json({ error: "You can only boost your own posts." }, { status: 403 })
+    return NextResponse.json({ error: "you can only boost your own posts." }, { status: 403 })
   }
 
   if (isBoostActive(post)) {
-    return NextResponse.json({ success: true, alreadyBoosted: true, message: "Already boosted." })
+    return NextResponse.json({ success: true, alreadyBoosted: true, message: "already boosted." })
   }
 
   if (user.freeBoosts > 0) {

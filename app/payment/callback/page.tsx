@@ -41,8 +41,8 @@ function CallbackContent() {
       {status === "checking" && (
         <>
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#baff39] border-t-transparent mb-3" />
-          <p className="text-white/60">Confirming your payment...</p>
-          <p className="text-white/30 text-xs mt-2">One moment while we verify with Paystack.</p>
+          <p className="text-white/60">confirming your payment...</p>
+          <p className="text-white/30 text-xs mt-2">one moment while we verify with paystack.</p>
         </>
       )}
       {status === "success" && (
@@ -59,12 +59,12 @@ function CallbackContent() {
             </button>
             {copy.secondaryHref && (
               <button className="btn-ghost px-6" onClick={() => router.push(copy.secondaryHref!)}>
-                {copy.secondaryHref === "/feed" ? "Back to Feed" : "Continue"}
+                {copy.secondaryHref === "/feed" ? "back to feed" : "continue"}
               </button>
             )}
             {fromApp && (
               <a className="btn-ghost text-center text-sm" href={intentLink}>
-                Open in Yard app →
+                open in yard app →
               </a>
             )}
           </div>
@@ -73,18 +73,18 @@ function CallbackContent() {
       {status === "failed" && (
         <>
           <p className="text-2xl mb-2">❌</p>
-          <p className="font-semibold mb-2">We couldn&apos;t confirm that payment.</p>
-          <p className="text-white/40 text-sm mb-4">Webhook may still be processing — check /lair in 30s. If charged but not upgraded, contact support with ref: {reference}</p>
+          <p className="font-semibold mb-2">we couldn&apos;t confirm that payment.</p>
+          <p className="text-white/40 text-sm mb-4">webhook may still be processing — check /lair in 30s. if charged but not upgraded, contact support with ref: {reference}</p>
           <div className="flex flex-col gap-2 w-full max-w-xs">
             <button className="btn-primary px-6" onClick={() => router.push("/lair")}>
-              Check Lair
+              check lair
             </button>
             <button className="btn-ghost px-6" onClick={() => router.push("/feed")}>
-              Back to Feed
+              back to feed
             </button>
             {fromApp && (
               <a className="text-xs text-white/30 mt-2" href={appLink}>
-                Continue in browser
+                continue in browser
               </a>
             )}
           </div>

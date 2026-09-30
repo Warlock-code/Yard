@@ -5,14 +5,14 @@ import { generateInviteCode } from "@/lib/share"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: { inviteCode: true, referralCount: true, ghostCoins: true, streakFreezeUntil: true },
   })
 
-  if (!dbUser) return NextResponse.json({ error: "User not found." }, { status: 404 })
+  if (!dbUser) return NextResponse.json({ error: "user not found." }, { status: 404 })
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://yardapp.me"
   const inviteUrl = `${baseUrl}/signup?ref=${dbUser.inviteCode}`
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
   const { action } = body
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       newCode = generateInviteCode()
       attempts++
       if (attempts > 10) {
-        return NextResponse.json({ error: "Failed to generate unique code." }, { status: 500 })
+        return NextResponse.json({ error: "failed to generate unique code." }, { status: 500 })
       }
     } while (await prisma.user.findUnique({ where: { inviteCode: newCode } }))
 
@@ -58,5 +58,5 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ error: "Invalid action." }, { status: 400 })
+  return NextResponse.json({ error: "invalid action." }, { status: 400 })
 }

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 })
+    return NextResponse.json({ error: "invalid JSON." }, { status: 400 })
   }
 
   const feature =
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       : undefined
 
   if (typeof feature !== "string" || !ALLOWED_FEATURES.has(feature)) {
-    return NextResponse.json({ error: "Invalid feature." }, { status: 400 })
+    return NextResponse.json({ error: "invalid feature." }, { status: 400 })
   }
 
   let userId: string | null = null

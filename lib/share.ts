@@ -68,7 +68,6 @@ function getTwitterUrl(options: ShareOptions): string {
 
 export async function shareContent(options: ShareOptions, target: ShareTarget = "native"): Promise<boolean> {
   const webUrl = buildWebUrl(options.type, options.id)
-  const deepLink = buildDeepLink(options.type, options.id)
   const shareText = getShareText(options)
 
   switch (target) {

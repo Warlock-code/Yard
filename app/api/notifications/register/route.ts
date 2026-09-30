@@ -4,11 +4,11 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { token } = await req.json()
   if (typeof token !== "string" || !token.trim()) {
-    return NextResponse.json({ error: "A push token is required." }, { status: 400 })
+    return NextResponse.json({ error: "a push token is required." }, { status: 400 })
   }
 
   await prisma.deviceToken.upsert({

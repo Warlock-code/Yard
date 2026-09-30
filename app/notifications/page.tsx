@@ -97,18 +97,18 @@ export default function NotificationsPage() {
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="flex items-center justify-between pt-5 pb-4">
-        <h1 className="text-2xl font-black">Notifications</h1>
+        <h1 className="text-2xl font-black">notifications</h1>
         {notifications.some((notification) => !notification.readAt) && (
-          <button className="text-xs text-[#baff39]" onClick={markAllRead}>Mark all read</button>
+          <button className="text-xs text-[#baff39]" onClick={markAllRead}>mark all read</button>
         )}
       </div>
 
       {loading ? (
-        <p className="text-center text-white/40 mt-10">Loading notifications...</p>
+        <p className="text-center text-white/40 mt-10">loading notifications...</p>
       ) : notifications.length === 0 ? (
         <div className="text-center mt-16 px-8">
           <p className="text-3xl mb-3">🔔</p>
-          <p className="text-white/50 text-sm">Your notifications will appear here.</p>
+          <p className="text-white/50 text-sm">your notifications will appear here.</p>
         </div>
       ) : (
         <div className="space-y-2">

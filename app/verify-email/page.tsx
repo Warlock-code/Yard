@@ -21,11 +21,11 @@ function VerifyContent() {
     e.preventDefault()
     const clean = code.trim().replace(/\s+/g, "")
     if (!userId) {
-      setError("Missing account. Please sign up again.")
+      setError("missing account. please sign up again.")
       return
     }
     if (clean.length !== 6 || !/^\d{6}$/.test(clean)) {
-      setError("Enter the 6-digit code from your email.")
+      setError("enter the 6-digit code from your email.")
       return
     }
     setLoading(true)
@@ -37,7 +37,7 @@ function VerifyContent() {
       router.push("/feed")
       router.refresh()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
+      setError(err instanceof Error ? err.message : "something went wrong. please try again.")
     } finally {
       setLoading(false)
     }
@@ -45,7 +45,7 @@ function VerifyContent() {
 
   async function handleResend() {
     if (!userId) {
-      setError("No account found to resend to. Please sign up again.")
+      setError("no account found to resend to. please sign up again.")
       return
     }
     if (cooldown > 0) return
@@ -54,7 +54,7 @@ function VerifyContent() {
     setInfo("")
     try {
       await apiPost("/api/auth/resend-code", { userId })
-      setInfo("New code sent - check your inbox (and spam).")
+      setInfo("new code sent - check your inbox (and spam).")
       setCooldown(60)
       const interval = setInterval(() => {
         setCooldown((c) => {
@@ -66,9 +66,9 @@ function VerifyContent() {
         })
       }, 1000)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to resend. Try again."
+      const msg = err instanceof Error ? err.message : "failed to resend. try again."
       if (msg.toLowerCase().includes("already verified")) {
-        setInfo("Email already verified — you can log in.")
+        setInfo("email already verified — you can log in.")
         setError("")
       } else {
         setError(msg)
@@ -80,20 +80,20 @@ function VerifyContent() {
 
   return (
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
-      <h1 className="text-4xl font-black mb-2">Check your email</h1>
-      <p className="text-white/60 mb-2">Enter the 6-digit code we sent you.</p>
+      <h1 className="text-4xl font-black mb-2">check your email</h1>
+      <p className="text-white/60 mb-2">enter the 6-digit code we sent you.</p>
       {emailFailed && (
         <p className="text-amber-400 text-sm mb-4 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
-          We could not send the first email automatically. Tap <span className="font-semibold">Resend code</span> below to get a fresh code.
+          we could not send the first email automatically. tap <span className="font-semibold">resend code</span> below to get a fresh code.
         </p>
       )}
       {!userId && (
         <p className="text-amber-400 text-sm mb-4 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
-          No account ID found. <a href="/signup" className="underline font-semibold">Sign up again</a> or check your email link.
+          no account id found. <a href="/signup" className="underline font-semibold">sign up again</a> or check your email link.
         </p>
       )}
       <p className="text-white/30 text-xs text-center mb-6">
-        Check your school inbox - GCTU students, log into your Outlook mailbox. Also check spam/junk.
+        check your school inbox - gctu students, log into your outlook mailbox. also check spam/junk.
       </p>
 
       <form onSubmit={handleVerify} className="space-y-4">
@@ -113,7 +113,7 @@ function VerifyContent() {
         {info && <p className="text-emerald-400 text-sm bg-emerald-400/10 border border-emerald-400/20 rounded-lg px-3 py-2">{info}</p>}
 
         <button className="btn-primary w-full" type="submit" disabled={loading || !userId}>
-          {loading ? "Verifying..." : "Verify"}
+          {loading ? "verifying..." : "verify"}
         </button>
       </form>
 
@@ -124,15 +124,15 @@ function VerifyContent() {
           disabled={resending || cooldown > 0 || !userId}
           className="w-full py-2.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-[#baff39]/30 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          {resending ? "Sending..." : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+          {resending ? "sending..." : cooldown > 0 ? `resend in ${cooldown}s` : "resend code"}
         </button>
         <p className="text-center text-white/30 text-xs">
-          Didn&apos;t get it? Wait 1-2 minutes, check spam, then tap Resend.
+          didn&apos;t get it? wait 1-2 minutes, check spam, then tap resend.
         </p>
       </div>
 
       <p className="text-center text-white/30 text-xs mt-6">
-        <a href="/signup" className="underline hover:text-white/60">Back to signup</a> | <a href="/login" className="underline hover:text-white/60">Log in</a>
+        <a href="/signup" className="underline hover:text-white/60">back to signup</a> | <a href="/login" className="underline hover:text-white/60">log in</a>
       </p>
     </main>
   )

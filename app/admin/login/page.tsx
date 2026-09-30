@@ -22,10 +22,10 @@ export default function AdminLoginPage() {
         credentials: "include",
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || "Invalid credentials.")
+      if (!res.ok) throw new Error(data.error || "invalid credentials.")
       router.push("/admin")
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
+      setError(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(false)
     }
@@ -33,14 +33,14 @@ export default function AdminLoginPage() {
 
   return (
     <main className="min-h-screen flex flex-col justify-center px-6 max-w-md mx-auto">
-      <h1 className="text-2xl font-black mb-1">Admin</h1>
-      <p className="text-white/40 text-sm mb-6">Restricted access.</p>
+      <h1 className="text-2xl font-black mb-1">admin</h1>
+      <p className="text-white/40 text-sm mb-6">restricted access.</p>
       <form onSubmit={handleLogin} className="space-y-3">
-        <input className="input" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-        <input className="input" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input className="input" placeholder="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <input className="input" type="password" placeholder="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {error && <p className="text-red-400 text-sm">{error}</p>}
         <button className="btn-primary w-full" type="submit" disabled={loading}>
-          {loading ? "Checking..." : "Enter"}
+          {loading ? "checking..." : "enter"}
         </button>
       </form>
     </main>

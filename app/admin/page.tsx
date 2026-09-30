@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
-import { api } from "@/lib/useApi"
 
 type Stats = {
   userCount: number
@@ -40,30 +39,30 @@ type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Settings"
 
 const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: string }[] = [
-  { key: "Overview", label: "Overview", icon: "▦", desc: "Revenue & health", group: "General" },
-  { key: "Insights", label: "Insights", icon: "◊", desc: "Growth & money", group: "General" },
-  { key: "Users", label: "Users", icon: "○", desc: "Search & manage", group: "Manage" },
-  { key: "Posts", label: "Posts", icon: "▤", desc: "Search & delete", group: "Manage" },
-  { key: "Reports", label: "Reports", icon: "⚑", desc: "Flagged posts", group: "Moderation" },
-  { key: "Battles", label: "Battles", icon: "⚔", desc: "Create prompts", group: "Moderation" },
-  { key: "Payouts", label: "Payouts", icon: "₵", desc: "Creator payments", group: "Finance" },
-  { key: "Settings", label: "Settings", icon: "⚙", desc: "Keys & config", group: "System" },
+  { key: "Overview", label: "overview", icon: "▦", desc: "revenue & health", group: "general" },
+  { key: "Insights", label: "insights", icon: "◊", desc: "growth & money", group: "general" },
+  { key: "Users", label: "users", icon: "○", desc: "search & manage", group: "manage" },
+  { key: "Posts", label: "posts", icon: "▤", desc: "search & delete", group: "manage" },
+  { key: "Reports", label: "reports", icon: "⚑", desc: "flagged posts", group: "moderation" },
+  { key: "Battles", label: "battles", icon: "⚔", desc: "create prompts", group: "moderation" },
+  { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
+  { key: "Settings", label: "settings", icon: "⚙", desc: "keys & config", group: "system" },
 ]
 
-const GROUPS = ["General", "Manage", "Moderation", "Finance", "System"]
+const GROUPS = ["general", "manage", "moderation", "finance", "system"]
 
 const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
 function ghs(pesewas: number) {
-  return `GH₵${(pesewas / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `gh₵${(pesewas / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 async function adminFetch(url: string, opts: RequestInit = {}) {
   const res = await fetch(url, { ...opts, credentials: "include" })
   const text = await res.text()
   let data: Record<string, unknown> = {}
-  try { data = text ? (JSON.parse(text) as Record<string, unknown>) : {} } catch { data = { error: text || "Request failed." } }
-  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `Request failed (${res.status})`)
+  try { data = text ? (JSON.parse(text) as Record<string, unknown>) : {} } catch { data = { error: text || "request failed." } }
+  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `request failed (${res.status})`)
   return data as unknown as { reports?: Report[]; payouts?: Payout[]; users?: AdminUser[]; posts?: AdminPost[] } & Stats
 }
 
@@ -76,8 +75,8 @@ function errMsg(e: unknown, fallback: string) {
 function TierBadge({ tier }: { tier: string }) {
   const t = tier?.toUpperCase() || "FREE"
   if (t === "PLUS")
-    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300">★ PLUS</span>
-  return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-white/50">FREE</span>
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300">★ plus</span>
+  return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-white/50">free</span>
 }
 
 function StatCard({ label, value, sub, icon, accent, trend }: { label: string; value: string; sub: string; icon: string; accent: string; trend?: string }) {
@@ -189,7 +188,7 @@ export default function AdminPage() {
         setPayouts(p.payouts || [])
       })
       .catch((err: unknown) => {
-        if (isCurrent() && err instanceof Error && (err.message.includes("Not authorized") || err.message.includes("403"))) setNotAllowed(true)
+        if (isCurrent() && err instanceof Error && (err.message.includes("not authorized") || err.message.includes("403"))) setNotAllowed(true)
       })
       .finally(() => { if (isCurrent()) setLoading(false) })
   }, [])
@@ -258,8 +257,8 @@ export default function AdminPage() {
       .catch((e: unknown) => {
         if (!active) return
         setMetrics(null)
-        const msg = errMsg(e, "Failed to load metrics.")
-        setMetricsError(msg.includes("404") ? "Metrics API not deployed yet" : msg)
+        const msg = errMsg(e, "failed to load metrics.")
+        setMetricsError(msg.includes("404") ? "metrics api not deployed yet" : msg)
       })
       .finally(() => { if (active) setMetricsLoading(false) })
     return () => { active = false }
@@ -285,35 +284,35 @@ export default function AdminPage() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision }),
       })
       await loadAll()
-    } catch (e: unknown) { alert(errMsg(e, "Failed to update report")) }
+    } catch (e: unknown) { alert(errMsg(e, "failed to update report")) }
     finally { setBusyId(null) }
   }
 
   async function handleApprovePayout(id: string) {
     if (busyId) return
-    if (!confirm("Approve this payout via Paystack? This sends REAL money.")) return
+    if (!confirm("approve this payout via paystack? this sends real money.")) return
     setBusyId(id)
     try {
       await adminFetch(`/api/admin/payouts/${id}/approve`, { method: "POST" })
-      alert("Payout approved — transfer initiated.")
+      alert("payout approved — transfer initiated.")
       await loadAll()
-    } catch (e: unknown) { alert(errMsg(e, "Transfer failed. Check Paystack balance / keys.")) }
+    } catch (e: unknown) { alert(errMsg(e, "transfer failed. check paystack balance / keys.")) }
     finally { setBusyId(null) }
   }
 
   async function handleUserAction(id: string, action: "suspend" | "ban" | "delete") {
     if (busyId) return
     if (action === "delete") {
-      if (!confirm("Hard delete user permanently? Only works if user has no posts.")) return
+      if (!confirm("hard delete user permanently? only works if user has no posts.")) return
       try {
         setBusyId(id)
         await adminFetch(`/api/admin/users/${id}`, { method: "DELETE" })
         setUsers((prev) => prev.filter((u) => u.id !== id))
-      } catch (e: unknown) { alert(errMsg(e, "Delete failed — user has posts. Suspend/ban instead.")) }
+      } catch (e: unknown) { alert(errMsg(e, "delete failed — user has posts. suspend/ban instead.")) }
       finally { setBusyId(null) }
       return
     }
-    if (!confirm(`${action === "ban" ? "BAN" : "Suspend"} this user?`)) return
+    if (!confirm(`${action === "ban" ? "ban" : "suspend"} this user?`)) return
     try {
       setBusyId(id)
       await adminFetch(`/api/admin/users/${id}`, {
@@ -321,23 +320,23 @@ export default function AdminPage() {
       })
       const d = await adminFetch(`/api/admin/users?search=${encodeURIComponent(userSearch)}`)
       setUsers(d.users || [])
-    } catch (e: unknown) { alert(errMsg(e, "Action failed.")) }
+    } catch (e: unknown) { alert(errMsg(e, "action failed.")) }
     finally { setBusyId(null) }
   }
 
   async function handleDeletePost(id: string) {
-    if (!confirm("Delete this post?")) return
+    if (!confirm("delete this post?")) return
     try {
       setBusyId(id)
       await adminFetch(`/api/admin/posts/${id}`, { method: "DELETE" })
       setPosts((prev) => prev.filter((p) => p.id !== id))
       loadAll()
-    } catch (e: unknown) { alert(errMsg(e, "Delete failed.")) }
+    } catch (e: unknown) { alert(errMsg(e, "delete failed.")) }
     finally { setBusyId(null) }
   }
 
   async function handleCreateBattle() {
-    if (!promptText.trim() || !campus.trim()) { alert("Prompt and campus required"); return }
+    if (!promptText.trim() || !campus.trim()) { alert("prompt and campus required"); return }
     if (busyId) return
     setBusyId("battle")
     try {
@@ -345,9 +344,9 @@ export default function AdminPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: promptText, campus, durationHours: 24 }),
       })
-      alert("Battle created.")
+      alert("battle created.")
       setPromptText(""); setCampus("")
-    } catch (e: unknown) { alert(errMsg(e, "Failed to create battle.")) }
+    } catch (e: unknown) { alert(errMsg(e, "failed to create battle.")) }
     finally { setBusyId(null) }
   }
 
@@ -355,8 +354,8 @@ export default function AdminPage() {
   const total = Math.max(1, stats?.userCount || 1)
   const paidTotal = stats?.plusCount || 0
   const tierData = useMemo(() => ([
-    { name: "Plus", value: stats?.plusCount || 0, color: "#38bdf8" },
-    { name: "Free", value: freeCount, color: "#baff39" },
+    { name: "plus", value: stats?.plusCount || 0, color: "#38bdf8" },
+    { name: "free", value: freeCount, color: "#baff39" },
   ]), [stats, freeCount])
 
   const filteredUsers = useMemo(() => {
@@ -378,7 +377,7 @@ export default function AdminPage() {
             <div className="lg:col-span-2 h-[280px] rounded-2xl skeleton-shimmer" />
             <div className="h-[280px] rounded-2xl skeleton-shimmer" />
           </div>
-          <p className="text-center text-white/30 text-sm pt-6">Loading admin…</p>
+          <p className="text-center text-white/30 text-sm pt-6">loading admin…</p>
         </div>
       </div>
     )
@@ -438,11 +437,11 @@ export default function AdminPage() {
         <div className="px-5 pt-6 pb-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2.5">
             <span className="font-black text-xl tracking-tight">YARD<span className="text-[#baff39]">.</span></span>
-            <span className="text-[10px] font-black tracking-[0.14em] text-black bg-[#baff39] rounded-full px-2 py-0.5">ADMIN</span>
+            <span className="text-[10px] font-black tracking-[0.14em] text-black bg-[#baff39] rounded-full px-2 py-0.5">admin</span>
           </div>
           <p className="text-xs text-white/30 mt-2 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#baff39] animate-pulse" />
-            Control Center · {stats?.userCount?.toLocaleString() || 0} users
+            control center · {stats?.userCount?.toLocaleString() || 0} users
           </p>
         </div>
 
@@ -456,7 +455,7 @@ export default function AdminPage() {
             </button>
           )}
           <button onClick={() => router.push("/feed")} className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white transition-colors">
-            ← Back to Yard
+            ← back to yard
           </button>
         </div>
       </aside>
@@ -468,12 +467,12 @@ export default function AdminPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/70" onClick={() => setDrawer(false)} />
             <motion.div initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#0a0a0a] border-r border-white/10 flex flex-col">
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <span className="font-black">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] bg-[#baff39] text-black rounded-full px-2 py-0.5 ml-1 font-black">ADMIN</span></span>
+                <span className="font-black">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] bg-[#baff39] text-black rounded-full px-2 py-0.5 ml-1 font-black">admin</span></span>
                 <button onClick={() => setDrawer(false)} className="w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60">✕</button>
               </div>
               <div className="flex-1 overflow-y-auto">{sidebarNav}</div>
               <div className="p-3 border-t border-white/10">
-                <button onClick={() => { router.push("/feed"); setDrawer(false) }} className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-white/70">← Back to Yard</button>
+                <button onClick={() => { router.push("/feed"); setDrawer(false) }} className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-white/70">← back to yard</button>
               </div>
             </motion.div>
           </div>
@@ -485,12 +484,12 @@ export default function AdminPage() {
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-[#050505]/90 backdrop-blur-xl border-b border-white/[0.06]">
           <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-3">
-            <button onClick={() => setDrawer(true)} aria-label="Open navigation" className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 grid place-items-center shrink-0">☰</button>
+            <button onClick={() => setDrawer(true)} aria-label="open navigation" className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 grid place-items-center shrink-0">☰</button>
             <span className="lg:hidden font-black">YARD<span className="text-[#baff39]">.</span></span>
             <div className="hidden lg:flex items-center gap-3 min-w-0">
               <span className="w-9 h-9 rounded-xl grid place-items-center text-lg bg-white/5 border border-white/10 shrink-0">{activeMeta.icon}</span>
               <div className="min-w-0">
-                <h1 className="text-lg font-black tracking-tight leading-none">{section}</h1>
+                <h1 className="text-lg font-black tracking-tight leading-none">{section.toLowerCase()}</h1>
                 <p className="text-xs text-white/35 mt-1 truncate">{activeMeta.desc}</p>
               </div>
             </div>
@@ -503,9 +502,9 @@ export default function AdminPage() {
             {section === "Payouts" && payouts.length > 0 && (
               <span className="hidden sm:inline-flex text-xs font-bold px-3 py-1.5 rounded-full bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25">{payouts.length} pending</span>
             )}
-            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-white/30"><span className="w-1.5 h-1.5 rounded-full bg-[#baff39]" />Live</span>
+            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-white/30"><span className="w-1.5 h-1.5 rounded-full bg-[#baff39]" />live</span>
             <button onClick={refresh} disabled={refreshing} className="rounded-xl border border-white/10 px-3.5 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-50 transition-colors">
-              {refreshing ? "Refreshing…" : "↻ Refresh"}
+              {refreshing ? "refreshing…" : "↻ refresh"}
             </button>
           </div>
           {/* mobile tab rail */}
@@ -527,16 +526,16 @@ export default function AdminPage() {
               {section === "Overview" && stats && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                    <StatCard label="Total Users" value={stats.userCount.toLocaleString()} sub="registered" icon="👥" accent="#baff39" />
-                    <StatCard label="Active 7d" value={stats.activeUsers.toLocaleString()} sub="post · comment · vote" icon="⚡" accent="#38bdf8" trend={`${total ? Math.round(stats.activeUsers / total * 100) : 0}%`} />
-                    <StatCard label="Posts" value={stats.postCount.toLocaleString()} sub="total" icon="📝" accent="#facc15" />
-                    <StatCard label="Revenue" value={ghs(stats.revenuePesewas)} sub="Paystack success" icon="💰" accent="#baff39" />
-                    <StatCard label="Paid Tiers" value={paidTotal.toLocaleString()} sub={`${stats.plusCount} Plus`} icon="💎" accent="#a855f7" trend={`${total ? Math.round(paidTotal / total * 100) : 0}% paid`} />
+                    <StatCard label="total users" value={stats.userCount.toLocaleString()} sub="registered" icon="👥" accent="#baff39" />
+                    <StatCard label="active 7d" value={stats.activeUsers.toLocaleString()} sub="post · comment · vote" icon="⚡" accent="#38bdf8" trend={`${total ? Math.round(stats.activeUsers / total * 100) : 0}%`} />
+                    <StatCard label="posts" value={stats.postCount.toLocaleString()} sub="total" icon="📝" accent="#facc15" />
+                    <StatCard label="revenue" value={ghs(stats.revenuePesewas)} sub="paystack success" icon="💰" accent="#baff39" />
+                    <StatCard label="paid tiers" value={paidTotal.toLocaleString()} sub={`${stats.plusCount} plus`} icon="💎" accent="#a855f7" trend={`${total ? Math.round(paidTotal / total * 100) : 0}% paid`} />
                   </div>
 
                   <div className="grid lg:grid-cols-3 gap-4">
                     <Card className="lg:col-span-2">
-                      <CardHeader title="Tier distribution" sub="Who pays — push Free → Plus" right={
+                      <CardHeader title="tier distribution" sub="who pays — push free → plus" right={
                         <div className="flex gap-3 text-[11px] text-white/40">
                           {tierData.map((d) => <span key={d.name} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: d.color }} />{d.name} {d.value}</span>)}
                         </div>
@@ -556,8 +555,8 @@ export default function AdminPage() {
                         </div>
                         <div className="grid sm:grid-cols-3 gap-2 mt-4">
                           {[
-                            { n: "Plus", c: stats.plusCount, color: "#38bdf8", note: "GH₵10/mo" },
-                            { n: "Free", c: freeCount, color: "#baff39", note: "upsell pool" },
+                            { n: "plus", c: stats.plusCount, color: "#38bdf8", note: "gh₵10/mo" },
+                            { n: "free", c: freeCount, color: "#baff39", note: "upsell pool" },
                           ].map((r) => (
                             <div key={r.n} className="rounded-xl border border-white/[0.07] bg-black/30 p-3">
                               <div className="flex items-center justify-between">
@@ -576,25 +575,25 @@ export default function AdminPage() {
 
                     <div className="space-y-4">
                       <Card>
-                        <CardHeader title="Payouts" sub="Money in flight" />
+                        <CardHeader title="payouts" sub="money in flight" />
                         <div className="p-4 space-y-2.5">
                           <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3.5 flex items-center justify-between">
-                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-amber-300/80">Pending</p><p className="text-xl font-black text-amber-300 mt-0.5">{ghs(stats.pendingPayoutPesewas)}</p></div>
+                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-amber-300/80">pending</p><p className="text-xl font-black text-amber-300 mt-0.5">{ghs(stats.pendingPayoutPesewas)}</p></div>
                             <span className="text-2xl opacity-40">⏳</span>
                           </div>
                           <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3.5 flex items-center justify-between">
-                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-emerald-300/80">Paid out</p><p className="text-xl font-black text-emerald-300 mt-0.5">{ghs(stats.paidOutPesewas)}</p></div>
+                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-emerald-300/80">paid out</p><p className="text-xl font-black text-emerald-300 mt-0.5">{ghs(stats.paidOutPesewas)}</p></div>
                             <span className="text-2xl opacity-40">✅</span>
                           </div>
-                          <button onClick={() => go("Payouts")} className="w-full rounded-xl bg-[#baff39] text-black text-sm font-bold py-2.5 hover:bg-[#d4ff70] transition-colors">Review payouts →</button>
+                          <button onClick={() => go("Payouts")} className="w-full rounded-xl bg-[#baff39] text-black text-sm font-bold py-2.5 hover:bg-[#d4ff70] transition-colors">review payouts →</button>
                         </div>
                       </Card>
                       <Card>
-                        <CardHeader title="Quick actions" sub="Jump to work queues" />
+                        <CardHeader title="quick actions" sub="jump to work queues" />
                         <div className="p-4 grid grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
-                          <button onClick={() => go("Reports")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">⚑ Reports{reports.length > 0 ? ` (${reports.length})` : ""}</button>
-                          <button onClick={() => go("Users")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">○ Users</button>
-                          <button onClick={() => go("Battles")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">⚔ Battle</button>
+                          <button onClick={() => go("Reports")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">⚑ reports{reports.length > 0 ? ` (${reports.length})` : ""}</button>
+                          <button onClick={() => go("Users")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">○ users</button>
+                          <button onClick={() => go("Battles")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">⚔ battle</button>
                         </div>
                       </Card>
                     </div>
@@ -602,20 +601,20 @@ export default function AdminPage() {
 
                   <div className="grid lg:grid-cols-2 gap-4">
                     <Card>
-                      <CardHeader title="Open reports" sub={`${reports.length} waiting`} right={<button onClick={() => go("Reports")} className="text-xs font-bold text-[#baff39] hover:underline">View all →</button>} />
+                      <CardHeader title="open reports" sub={`${reports.length} waiting`} right={<button onClick={() => go("Reports")} className="text-xs font-bold text-[#baff39] hover:underline">view all →</button>} />
                       <div className="divide-y divide-white/[0.05]">
                         {reports.slice(0, 3).map((r) => (
                           <div key={r.id} className="px-5 py-3 flex items-center gap-3">
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${r.aiVerdict === "VIOLATION" ? "bg-red-500/15 text-red-400" : "bg-[#baff39]/10 text-[#baff39]"}`}>{r.aiVerdict || "NO AI"}</span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${r.aiVerdict === "VIOLATION" ? "bg-red-500/15 text-red-400" : "bg-[#baff39]/10 text-[#baff39]"}`}>{r.aiVerdict || "no ai"}</span>
                             <p className="text-[13px] text-white/70 truncate flex-1">{r.reason} — <span className="text-white/35">{r.post?.text?.slice(0, 60) || "no text"}</span></p>
                             <span className="text-[11px] text-white/25 font-mono shrink-0">{r.id.slice(0, 6)}</span>
                           </div>
                         ))}
-                        {reports.length === 0 && <p className="px-5 py-6 text-sm text-white/30 text-center">✅ All clear — no open reports.</p>}
+                        {reports.length === 0 && <p className="px-5 py-6 text-sm text-white/30 text-center">✅ all clear — no open reports.</p>}
                       </div>
                     </Card>
                     <Card>
-                      <CardHeader title="Pending payouts" sub={`${payouts.length} awaiting approval`} right={<button onClick={() => go("Payouts")} className="text-xs font-bold text-[#baff39] hover:underline">View all →</button>} />
+                      <CardHeader title="pending payouts" sub={`${payouts.length} awaiting approval`} right={<button onClick={() => go("Payouts")} className="text-xs font-bold text-[#baff39] hover:underline">view all →</button>} />
                       <div className="divide-y divide-white/[0.05]">
                         {payouts.slice(0, 3).map((p) => (
                           <div key={p.id} className="px-5 py-3 flex items-center gap-3">
@@ -623,7 +622,7 @@ export default function AdminPage() {
                             <span className="text-[13px] font-black text-[#baff39] shrink-0">{ghs(p.amount)}</span>
                           </div>
                         ))}
-                        {payouts.length === 0 && <p className="px-5 py-6 text-sm text-white/30 text-center">💸 No pending payouts.</p>}
+                        {payouts.length === 0 && <p className="px-5 py-6 text-sm text-white/30 text-center">💸 no pending payouts.</p>}
                       </div>
                     </Card>
                   </div>
@@ -634,10 +633,10 @@ export default function AdminPage() {
               {section === "Insights" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-3">
-                    <p className="text-sm text-white/40"><span className="text-white font-black">Growth &amp; money</span> · last {range} days</p>
+                    <p className="text-sm text-white/40"><span className="text-white font-black">growth &amp; money</span> · last {range} days</p>
                     <div className="flex gap-1.5 bg-black/40 border border-white/10 rounded-xl p-1 w-fit">
                       {([7, 30] as const).map((r) => (
-                        <button key={r} onClick={() => { setMetricsLoading(true); setRange(r) }} className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${range === r ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{r}D</button>
+                        <button key={r} onClick={() => { setMetricsLoading(true); setRange(r) }} className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${range === r ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{r}d</button>
                       ))}
                     </div>
                   </div>
@@ -647,9 +646,9 @@ export default function AdminPage() {
                       {[...Array(7)].map((_, i) => <div key={i} className="h-[128px] rounded-2xl skeleton-shimmer" />)}
                     </div>
                   ) : metricsError ? (
-                    <EmptyState icon="◊" title={metricsError === "Metrics API not deployed yet" ? "Metrics API not deployed yet" : "Could not load insights"} sub={metricsError === "Metrics API not deployed yet" ? "Deploy /api/admin/metrics to see growth and money." : metricsError} />
+                    <EmptyState icon="◊" title={metricsError === "metrics api not deployed yet" ? "metrics api not deployed yet" : "could not load insights"} sub={metricsError === "metrics api not deployed yet" ? "deploy /api/admin/metrics to see growth and money." : metricsError} />
                   ) : !metrics ? (
-                    <EmptyState icon="◊" title="No insights yet" sub="Waiting for metrics data." />
+                    <EmptyState icon="◊" title="no insights yet" sub="waiting for metrics data." />
                   ) : (
                     <div className="space-y-4">
                       {(() => {
@@ -665,14 +664,14 @@ export default function AdminPage() {
                         const over = ratio > 1
                         return (
                           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                            <StatCard label="DAU today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
-                            <StatCard label="Posts/day avg" value={postsAvg.toFixed(1)} sub="posts per day" icon="📝" accent="#facc15" />
-                            <StatCard label="Paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / DAU`} icon="◊" accent="#38bdf8" />
-                            <StatCard label="Plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} Plus`} icon="★" accent="#38bdf8" />
-                            <StatCard label="ARPPU" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev`} icon="💰" accent="#baff39" />
+                            <StatCard label="dau today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
+                            <StatCard label="posts/day avg" value={postsAvg.toFixed(1)} sub="posts per day" icon="📝" accent="#facc15" />
+                            <StatCard label="paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / dau`} icon="◊" accent="#38bdf8" />
+                            <StatCard label="plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} plus`} icon="★" accent="#38bdf8" />
+                            <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev`} icon="💰" accent="#baff39" />
                             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between min-h-[128px] hover:border-white/20 transition-colors">
                               <div className="flex items-center justify-between">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/40">Payout ratio</p>
+                                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/40">payout ratio</p>
                                 <span className="w-7 h-7 rounded-lg grid place-items-center text-sm border" style={{ background: `${over ? "#f87171" : "#34d399"}14`, borderColor: `${over ? "#f87171" : "#34d399"}30` }}>₵</span>
                               </div>
                               <div className="mt-3">
@@ -691,7 +690,7 @@ export default function AdminPage() {
 
                       <div className="grid lg:grid-cols-2 gap-4">
                         <Card>
-                          <CardHeader title="DAU" sub={`Daily active · last ${metrics.range || range}d`} />
+                          <CardHeader title="dau" sub={`daily active · last ${metrics.range || range}d`} />
                           <div className="p-5">
                             <div className="h-[190px]">
                               <ResponsiveContainer width="100%" height="100%">
@@ -706,7 +705,7 @@ export default function AdminPage() {
                           </div>
                         </Card>
                         <Card>
-                          <CardHeader title="Posts / day" sub={`Volume · last ${metrics.range || range}d`} />
+                          <CardHeader title="posts / day" sub={`volume · last ${metrics.range || range}d`} />
                           <div className="p-5">
                             <div className="h-[190px]">
                               <ResponsiveContainer width="100%" height="100%">
@@ -724,7 +723,7 @@ export default function AdminPage() {
 
 <div className="grid lg:grid-cols-3 gap-4">
                         <Card className="lg:col-span-2">
-                          <CardHeader title="Paywall funnel" sub={`Hits → checkout → paid · last ${metrics.range || range}d`} />
+                          <CardHeader title="paywall funnel" sub={`hits → checkout → paid · last ${metrics.range || range}d`} />
                           <div className="p-5 space-y-4">
                             {(() => {
                                 const hits = metrics.funnel?.hits || 0
@@ -734,9 +733,9 @@ export default function AdminPage() {
                                 const s2 = started > 0 ? (paid / started) * 100 : 0
                                 const overall = hits > 0 ? (paid / hits) * 100 : 0
                                 const rows = [
-                                  { n: "Paywall hits", c: hits, pct: 100, color: "#baff39", note: "entry" },
-                                  { n: "Checkout started", c: started, pct: s1, color: "#38bdf8", note: `${s1.toFixed(1)}% of hits` },
-                                  { n: "Paid", c: paid, pct: overall, color: "#facc15", note: `${s2.toFixed(1)}% of checkout · ${overall.toFixed(1)}% overall` },
+                                  { n: "paywall hits", c: hits, pct: 100, color: "#baff39", note: "entry" },
+                                  { n: "checkout started", c: started, pct: s1, color: "#38bdf8", note: `${s1.toFixed(1)}% of hits` },
+                                  { n: "paid", c: paid, pct: overall, color: "#facc15", note: `${s2.toFixed(1)}% of checkout · ${overall.toFixed(1)}% overall` },
                                 ]
                                 return rows.map((r) => (
                                   <div key={r.n}>
@@ -753,12 +752,12 @@ export default function AdminPage() {
                           </div>
                         </Card>
                         <Card>
-                          <CardHeader title="Paywall logging" sub="Why zeros happen" />
+                          <CardHeader title="paywall logging" sub="why zeros happen" />
                           <div className="p-5">
-                            <p className="text-xs text-white/40 leading-relaxed">Funnel and paywall-hit % need the paywall-hit instrumentation. If hits stay at 0, the client is not logging paywall views and checkout events to <span className="text-white/70 font-mono">/api/admin/metrics</span> yet — wire that up to unlock growth and money reads.</p>
+                            <p className="text-xs text-white/40 leading-relaxed">funnel and paywall-hit % need the paywall-hit instrumentation. if hits stay at 0, the client is not logging paywall views and checkout events to <span className="text-white/70 font-mono">/api/admin/metrics</span> yet — wire that up to unlock growth and money reads.</p>
                             <div className="mt-4 rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.06] p-3">
-                              <p className="text-[11px] font-bold text-[#baff39]">ARPPU = revenue / paid users</p>
-                              <p className="text-[11px] text-white/40 mt-1">Payout ratio over 1x means paying out more than revenue.</p>
+                              <p className="text-[11px] font-bold text-[#baff39]">arppu = revenue / paid users</p>
+                              <p className="text-[11px] text-white/40 mt-1">payout ratio over 1x means paying out more than revenue.</p>
                             </div>
                           </div>
                         </Card>
@@ -766,7 +765,7 @@ export default function AdminPage() {
 
                       <div className="grid lg:grid-cols-2 gap-4">
                         <Card>
-                          <CardHeader title="Retention" sub={`D1 / D7 cohorts · last ${metrics.range || range}d`} />
+                          <CardHeader title="retention" sub={`d1 / d7 cohorts · last ${metrics.range || range}d`} />
                           <div className="p-5 space-y-4">
                             {(() => {
                               const d1 = metrics.retentionD1 || []
@@ -777,11 +776,11 @@ export default function AdminPage() {
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-2">
                                     <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
-                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">D1 Retention</p>
+                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">d1 retention</p>
                                       <p className="text-2xl font-black text-[#baff39] mt-1">{avgD1.toFixed(1)}%</p>
                                     </div>
                                     <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
-                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">D7 Retention</p>
+                                      <p className="text-[11px] text-white/40 uppercase tracking-wide">d7 retention</p>
                                       <p className="text-2xl font-black text-sky-300 mt-1">{avgD7.toFixed(1)}%</p>
                                     </div>
                                   </div>
@@ -791,8 +790,8 @@ export default function AdminPage() {
                                         <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
                                         <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, "dataMax"]} />
                                         <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                                        <Bar dataKey="d1" radius={[4, 4, 0, 0]} fill="#baff39" name="D1" />
-                                        <Bar dataKey="d7" radius={[4, 4, 0, 0]} fill="#38bdf8" name="D7" />
+                                        <Bar dataKey="d1" radius={[4, 4, 0, 0]} fill="#baff39" name="d1" />
+                                        <Bar dataKey="d7" radius={[4, 4, 0, 0]} fill="#38bdf8" name="d7" />
                                       </BarChart>
                                     </ResponsiveContainer>
                                   </div>
@@ -802,7 +801,7 @@ export default function AdminPage() {
                           </div>
                         </Card>
                         <Card>
-                          <CardHeader title="Posts per user / day" sub={`Engagement depth · last ${metrics.range || range}d`} />
+                          <CardHeader title="posts per user / day" sub={`engagement depth · last ${metrics.range || range}d`} />
                           <div className="p-5">
                             <div className="h-[190px]">
                               <ResponsiveContainer width="100%" height="100%">
@@ -817,7 +816,7 @@ export default function AdminPage() {
                           </div>
                         </Card>
                         <Card>
-                          <CardHeader title="Pay conversion / day" sub={`% of signups that paid · last ${metrics.range || range}d`} />
+                          <CardHeader title="pay conversion / day" sub={`% of signups that paid · last ${metrics.range || range}d`} />
                           <div className="p-5">
                             <div className="h-[190px]">
                               <ResponsiveContainer width="100%" height="100%">
@@ -835,26 +834,26 @@ export default function AdminPage() {
 
                       <div className="grid lg:grid-cols-2 gap-4">
                         <Card className="lg:col-span-2">
-                          <CardHeader title="Signup cohort posting" sub={`% of new users who post on Day 0 (signup) vs Day 1 (next day) · last ${metrics.range || range}d`} />
+                          <CardHeader title="signup cohort posting" sub={`% of new users who post on day 0 (signup) vs day 1 (next day) · last ${metrics.range || range}d`} />
                           <div className="p-5">
                             <div className="h-[190px]">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={(metrics.signupPostDay0 || []).map((d: any) => ({ 
                                   day: d.day.slice(5), 
-                                  "Day 0": d.rate, 
-                                  "Day 1": (metrics.signupPostDay1?.find((x: any) => x.day === d.day) || {}).rate || 0 
+                                  "day 0": d.rate, 
+                                  "day 1": (metrics.signupPostDay1?.find((x: any) => x.day === d.day) || {}).rate || 0 
                                 }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
                                   <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
                                   <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, "dataMax"]} />
                                   <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-                                  <Bar dataKey="Day 0" radius={[4, 4, 0, 0]} fill="#baff39" name="Day 0 (signup day)" />
-                                  <Bar dataKey="Day 1" radius={[4, 4, 0, 0]} fill="#38bdf8" name="Day 1 (next day)" />
+                                  <Bar dataKey="day 0" radius={[4, 4, 0, 0]} fill="#baff39" name="day 0 (signup day)" />
+                                  <Bar dataKey="day 1" radius={[4, 4, 0, 0]} fill="#38bdf8" name="day 1 (next day)" />
                                 </BarChart>
                               </ResponsiveContainer>
                             </div>
                             <div className="grid grid-cols-2 gap-2 mt-3">
                               <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
-                                <p className="text-[11px] text-white/40 uppercase tracking-wide">Avg Day 0 Post Rate</p>
+                                <p className="text-[11px] text-white/40 uppercase tracking-wide">avg day 0 post rate</p>
                                 <p className="text-2xl font-black text-[#baff39] mt-1">
                                   {(() => {
                                     const d0 = metrics.signupPostDay0 || []
@@ -864,7 +863,7 @@ export default function AdminPage() {
                                 </p>
                               </div>
                               <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
-                                <p className="text-[11px] text-white/40 uppercase tracking-wide">Avg Day 1 Post Rate</p>
+                                <p className="text-[11px] text-white/40 uppercase tracking-wide">avg day 1 post rate</p>
                                 <p className="text-2xl font-black text-sky-300 mt-1">
                                   {(() => {
                                     const d1 = metrics.signupPostDay1 || []
@@ -889,24 +888,24 @@ export default function AdminPage() {
                     <div className="p-4 flex flex-col md:flex-row gap-3 md:items-center">
                       <div className="relative flex-1">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-sm">⌕</span>
-                        <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Search ghost name or email…" className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                        <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="search ghost name or email…" className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       </div>
                       <div className="flex gap-1.5">
-                        {["ALL", "FREE", "PLUS"].map((t) => (
-                          <button key={t} onClick={() => setTierFilter(t)} className={`text-xs font-bold px-3.5 py-2 rounded-full border transition-colors ${tierFilter === t ? "bg-[#baff39] text-black border-[#baff39]" : "border-white/10 text-white/50 hover:text-white"}`}>{t === "ALL" ? "All" : t}</button>
+                        {(["ALL", "FREE", "PLUS"] as const).map((t) => (
+                          <button key={t} onClick={() => setTierFilter(t)} className={`text-xs font-bold px-3.5 py-2 rounded-full border transition-colors ${tierFilter === t ? "bg-[#baff39] text-black border-[#baff39]" : "border-white/10 text-white/50 hover:text-white"}`}>{t.toLowerCase()}</button>
                         ))}
                       </div>
                     </div>
                   </Card>
 
                   <Card>
-                    <CardHeader title={`Users · ${filteredUsers.length}`} sub="Suspend is reversible · Ban is hard · Delete only works with zero posts" />
+                    <CardHeader title={`users · ${filteredUsers.length}`} sub="suspend is reversible · ban is hard · delete only works with zero posts" />
                     {filteredUsers.length === 0 ? (
-                      <div className="p-6"><EmptyState icon="👻" title={userSearch ? "No ghosts match" : "Type to search users"} sub="Results limited to 30 most recent" /></div>
+                      <div className="p-6"><EmptyState icon="👻" title={userSearch ? "no ghosts match" : "type to search users"} sub="results limited to 30 most recent" /></div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[720px]">
-                          <thead><tr className="border-b border-white/[0.06]">{["Ghost", "Contact", "Campus", "Tier", "Actions"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+                          <thead><tr className="border-b border-white/[0.06]">{["ghost", "contact", "campus", "tier", "actions"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
                           <tbody>
                             {filteredUsers.map((u, i) => (
                               <tr key={u.id} className={`border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors ${i % 2 === 1 ? "bg-white/[0.012]" : ""}`}>
@@ -916,9 +915,9 @@ export default function AdminPage() {
                                 <td className={td}><TierBadge tier={u.tier} /></td>
                                 <td className={td}>
                                   <div className="flex gap-1.5 justify-end">
-                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "suspend")} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:bg-white/5 disabled:opacity-40">Suspend</button>
-                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "ban")} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-40">Ban</button>
-                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "delete")} className="text-xs font-bold px-3 py-1.5 rounded-lg text-red-500/70 hover:bg-red-500/10 disabled:opacity-40">Delete</button>
+                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "suspend")} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:bg-white/5 disabled:opacity-40">suspend</button>
+                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "ban")} className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-40">ban</button>
+                                    <button disabled={!!busyId} onClick={() => handleUserAction(u.id, "delete")} className="text-xs font-bold px-3 py-1.5 rounded-lg text-red-500/70 hover:bg-red-500/10 disabled:opacity-40">delete</button>
                                   </div>
                                 </td>
                               </tr>
@@ -938,25 +937,25 @@ export default function AdminPage() {
                     <div className="p-4">
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-sm">⌕</span>
-                        <input value={postSearch} onChange={(e) => setPostSearch(e.target.value)} placeholder="Search post text…" className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                        <input value={postSearch} onChange={(e) => setPostSearch(e.target.value)} placeholder="search post text…" className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       </div>
                     </div>
                   </Card>
                   <Card>
-                    <CardHeader title={`Posts · ${posts.length}`} sub="Debounced · 30 max" />
+                    <CardHeader title={`posts · ${posts.length}`} sub="debounced · 30 max" />
                     {posts.length === 0 ? (
-                      <div className="p-6"><EmptyState icon="📝" title={postSearch ? "No posts match" : "Type to search posts"} sub="Results limited to 30 most recent" /></div>
+                      <div className="p-6"><EmptyState icon="📝" title={postSearch ? "no posts match" : "type to search posts"} sub="results limited to 30 most recent" /></div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[640px]">
-                          <thead><tr className="border-b border-white/[0.06]">{["Post", "Author", "ID", "Action"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+                          <thead><tr className="border-b border-white/[0.06]">{["post", "author", "id", "action"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
                           <tbody>
                             {posts.map((p, i) => (
                               <tr key={p.id} className={`border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors ${i % 2 === 1 ? "bg-white/[0.012]" : ""}`}>
                                 <td className={`${td} max-w-[420px]`}><span className="text-white/85 line-clamp-2">{p.text || "(image / voice post)"}</span></td>
                                 <td className={`${td} font-semibold whitespace-nowrap`}>{p.user.ghostId}</td>
                                 <td className={`${td} font-mono text-[11px] text-white/25`}>{p.id.slice(0, 8)}…</td>
-                                <td className={td}><div className="flex justify-end"><button disabled={!!busyId} onClick={() => handleDeletePost(p.id)} className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-40">Delete</button></div></td>
+                                <td className={td}><div className="flex justify-end"><button disabled={!!busyId} onClick={() => handleDeletePost(p.id)} className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-40">delete</button></div></td>
                               </tr>
                             ))}
                           </tbody>
@@ -971,24 +970,24 @@ export default function AdminPage() {
               {section === "Reports" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-white/40"><span className="text-white font-black">{reports.length}</span> open · AI verdict speeds triage</p>
+                    <p className="text-sm text-white/40"><span className="text-white font-black">{reports.length}</span> open · ai verdict speeds triage</p>
                   </div>
                   {reports.length === 0 ? (
-                    <EmptyState icon="✅" title="No open reports" sub="All clear. Community is healthy." />
+                    <EmptyState icon="✅" title="no open reports" sub="all clear. community is healthy." />
                   ) : (
                     <div className="grid xl:grid-cols-2 gap-3">
                       {reports.map((r) => (
                         <Card key={r.id}>
                           <div className="p-4 sm:p-5">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs text-white/40">By <span className="text-white font-bold">{r.reporter.ghostId}</span> · <span className="font-mono">{r.id.slice(0, 8)}…</span></p>
-                              {r.aiVerdict && <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wide ${r.aiVerdict === "VIOLATION" ? "bg-red-500/15 text-red-400 border border-red-500/25" : "bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25"}`}>AI: {r.aiVerdict}</span>}
+                              <p className="text-xs text-white/40">by <span className="text-white font-bold">{r.reporter.ghostId}</span> · <span className="font-mono">{r.id.slice(0, 8)}…</span></p>
+                              {r.aiVerdict && <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-wide ${r.aiVerdict === "VIOLATION" ? "bg-red-500/15 text-red-400 border border-red-500/25" : "bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25"}`}>ai: {r.aiVerdict}</span>}
                             </div>
-                            <p className="text-[13px] mt-2.5"><span className="text-white/35">Reason: </span><span className="font-semibold text-white">{r.reason}</span></p>
+                            <p className="text-[13px] mt-2.5"><span className="text-white/35">reason: </span><span className="font-semibold text-white">{r.reason}</span></p>
                             <p className="text-[13px] text-white/80 mt-2.5 p-3 rounded-xl bg-black/40 border border-white/[0.07] whitespace-pre-wrap line-clamp-4">{r.post?.text || "(no text / image post)"}</p>
                             <div className="flex gap-2 mt-3.5">
-                              <button disabled={!!busyId} onClick={() => handleReportAction(r.id, "dismissed")} className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm font-bold text-white/60 hover:bg-white/5 disabled:opacity-40">Dismiss</button>
-                              <button disabled={!!busyId} onClick={() => handleReportAction(r.id, "actioned")} className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-40">{busyId === r.id ? "Working…" : "Remove post"}</button>
+                              <button disabled={!!busyId} onClick={() => handleReportAction(r.id, "dismissed")} className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm font-bold text-white/60 hover:bg-white/5 disabled:opacity-40">dismiss</button>
+                              <button disabled={!!busyId} onClick={() => handleReportAction(r.id, "actioned")} className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-40">{busyId === r.id ? "working…" : "remove post"}</button>
                             </div>
                           </div>
                         </Card>
@@ -1002,8 +1001,8 @@ export default function AdminPage() {
               {section === "Payouts" && (
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-4">
-                    <p className="text-xs font-black text-amber-300 uppercase tracking-wider">⚠️ Real money — check before approving</p>
-                    <p className="text-xs text-white/50 mt-1.5 leading-relaxed">Verify earnings + readable bank/MoMo details. Approve → Paystack transfer (needs balance). Status flows <span className="text-white/80 font-semibold">pending → approved → paid / rejected</span>. Failed transfers revert to pending.</p>
+                    <p className="text-xs font-black text-amber-300 uppercase tracking-wider">⚠️ real money — check before approving</p>
+                    <p className="text-xs text-white/50 mt-1.5 leading-relaxed">verify earnings + readable bank/momo details. approve → paystack transfer (needs balance). status flows <span className="text-white/80 font-semibold">pending → approved → paid / rejected</span>. failed transfers revert to pending.</p>
                   </div>
 
                   <Card>
@@ -1013,17 +1012,17 @@ export default function AdminPage() {
                           <button key={t} onClick={() => setPayoutTab(t)} className={`text-xs font-bold px-4 py-2 rounded-lg capitalize transition-colors ${payoutTab === t ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{t}</button>
                         ))}
                       </div>
-                      <p className="text-xs text-white/35 sm:ml-auto">{payouts.length} result{payouts.length !== 1 ? "s" : ""} · Total <span className="text-white font-bold">{ghs(payouts.reduce((a, p) => a + p.amount, 0))}</span></p>
+                      <p className="text-xs text-white/35 sm:ml-auto">{payouts.length} result{payouts.length !== 1 ? "s" : ""} · total <span className="text-white font-bold">{ghs(payouts.reduce((a, p) => a + p.amount, 0))}</span></p>
                     </div>
                   </Card>
 
                   {payouts.length === 0 ? (
-                    <EmptyState icon="💸" title={`No ${payoutTab} payouts`} sub={payoutTab === "pending" ? "Approved / paid and failed are hidden under other tabs." : "Nothing here yet."} />
+                    <EmptyState icon="💸" title={`no ${payoutTab} payouts`} sub={payoutTab === "pending" ? "approved / paid and failed are hidden under other tabs." : "nothing here yet."} />
                   ) : (
                     <Card>
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[760px]">
-                          <thead><tr className="border-b border-white/[0.06]">{["User", "Amount", "Recipient", "Status", "Action"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+                          <thead><tr className="border-b border-white/[0.06]">{["user", "amount", "recipient", "status", "action"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
                           <tbody>
                             {payouts.map((p, i) => (
                               <tr key={p.id} className={`border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] ${i % 2 === 1 ? "bg-white/[0.012]" : ""}`}>
@@ -1033,7 +1032,7 @@ export default function AdminPage() {
                                 <td className={td}><span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/60 uppercase">{p.status || payoutTab}</span></td>
                                 <td className={td}>
                                   {(!p.status || p.status === "pending") ? (
-                                    <button disabled={!!busyId} onClick={() => handleApprovePayout(p.id)} className="whitespace-nowrap text-xs font-black px-4 py-2 rounded-xl bg-[#baff39] text-black hover:bg-[#d4ff70] disabled:opacity-40 shadow-[0_0_20px_rgba(186,255,57,0.25)]">{busyId === p.id ? "Paying…" : "Approve & Pay"}</button>
+                                    <button disabled={!!busyId} onClick={() => handleApprovePayout(p.id)} className="whitespace-nowrap text-xs font-black px-4 py-2 rounded-xl bg-[#baff39] text-black hover:bg-[#d4ff70] disabled:opacity-40 shadow-[0_0_20px_rgba(186,255,57,0.25)]">{busyId === p.id ? "paying…" : "approve & pay"}</button>
                                   ) : <span className="text-xs text-white/25">—</span>}
                                 </td>
                               </tr>
@@ -1050,22 +1049,22 @@ export default function AdminPage() {
               {section === "Battles" && (
                 <div className="grid lg:grid-cols-5 gap-4">
                   <Card className="lg:col-span-3">
-                    <CardHeader title="Create battle prompt" sub="Campus + prompt → ACTIVE for 7 days" />
+                    <CardHeader title="create battle prompt" sub="campus + prompt → active for 7 days" />
                     <div className="p-5 space-y-3">
-                      <input value={promptText} onChange={(e) => setPromptText(e.target.value)} placeholder="Prompt — e.g. Best jollof on campus?" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={promptText} onChange={(e) => setPromptText(e.target.value)} placeholder="prompt — e.g. best jollof on campus?" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <select value={campus} onChange={(e) => setCampus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#baff39]/60">
-                        <option value="">Select school</option>
+                        <option value="">select school</option>
                         {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <button disabled={busyId === "battle"} onClick={handleCreateBattle} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "battle" ? "Creating…" : "Create battle (7 days)"}</button>
+                      <button disabled={busyId === "battle"} onClick={handleCreateBattle} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "battle" ? "creating…" : "create battle (7 days)"}</button>
                     </div>
                   </Card>
                   <Card className="lg:col-span-2">
-                    <CardHeader title="API options" sub="Power fields" />
+                    <CardHeader title="api options" sub="power fields" />
                     <div className="p-5">
                       <p className="text-xs text-white/40 leading-relaxed"><span className="text-white/70 font-mono">POST /api/admin/battles/create</span> accepts <span className="text-white/70 font-mono">type: SINGLE | BRACKET, totalRounds, entryType: TEXT | IMAGE | VOICE, schedule, seasonId</span>.</p>
                       <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-                        {[["⚔", "Single"], ["🏆", "Bracket"], ["🖼", "Image"], ["🎙", "Voice"]].map(([i, l]) => (
+                        {[["⚔", "single"], ["🏆", "bracket"], ["🖼", "image"], ["🎙", "voice"]].map(([i, l]) => (
                           <div key={l} className="rounded-xl border border-white/[0.07] bg-black/30 py-3"><p>{i}</p><p className="text-[11px] font-bold text-white/50 mt-1">{l}</p></div>
                         ))}
                       </div>
@@ -1083,8 +1082,8 @@ export default function AdminPage() {
 
         <footer className="border-t border-white/[0.05] mt-auto">
           <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-1.5">
-            <p className="text-[11px] text-white/25">Yard Admin · Be careful with money actions</p>
-            <p className="text-[11px] text-white/25 font-mono">AuditLog · {stats?.userCount || 0} users · {stats?.postCount || 0} posts</p>
+            <p className="text-[11px] text-white/25">yard admin · be careful with money actions</p>
+            <p className="text-[11px] text-white/25 font-mono">auditlog · {stats?.userCount || 0} users · {stats?.postCount || 0} posts</p>
           </div>
         </footer>
       </div>
@@ -1124,10 +1123,10 @@ function SettingsPanel() {
   useEffect(() => {
     adminFetch("/api/admin/env-status")
       .then((d) => setEnv(d as unknown as EnvStatus))
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : "Failed to load settings"))
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : "failed to load settings"))
   }, [])
 
-  if (err) return <EmptyState icon="⚙" title="Settings unavailable" sub={err} />
+  if (err) return <EmptyState icon="⚙" title="settings unavailable" sub={err} />
   if (!env) {
     return (
       <div className="grid md:grid-cols-3 gap-4">
@@ -1141,32 +1140,32 @@ function SettingsPanel() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-white/35">Source: <span className="text-white/70 font-mono font-bold">{env.source}</span> · secrets masked — full values never leave the server.</p>
+      <p className="text-xs text-white/35">source: <span className="text-white/70 font-mono font-bold">{env.source}</span> · secrets masked — full values never leave the server.</p>
       <div className="grid md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader title="Paystack" sub="Real money keys" right={
+          <CardHeader title="paystack" sub="real money keys" right={
             env.paystack.secretKey.mode
               ? <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${env.paystack.secretKey.mode === "test" ? "bg-amber-500/15 text-amber-300 border border-amber-500/25" : "bg-red-500/15 text-red-400 border border-red-500/25"}`}>{env.paystack.secretKey.mode}</span>
               : <SetPill ok={false} />
           } />
           <div className="p-4 space-y-2">
-            {[["Public key", keyVal(env.paystack.publicKey), env.paystack.publicKey.set],
-              ["Secret key", keyVal(env.paystack.secretKey), env.paystack.secretKey.set],
-              ["Webhook secret", env.paystack.webhookSecret.set ? `set (${env.paystack.webhookSecret.chars} chars)` : "not set", env.paystack.webhookSecret.set],
-              ["Plus plan", env.paystack.plusPlan || "not set", !!env.paystack.plusPlan],
-              ["Plus price", ghs(env.paystack.plusPricePesewas), true],
+            {[["public key", keyVal(env.paystack.publicKey), env.paystack.publicKey.set],
+              ["secret key", keyVal(env.paystack.secretKey), env.paystack.secretKey.set],
+              ["webhook secret", env.paystack.webhookSecret.set ? `set (${env.paystack.webhookSecret.chars} chars)` : "not set", env.paystack.webhookSecret.set],
+              ["plus plan", env.paystack.plusPlan || "not set", !!env.paystack.plusPlan],
+              ["plus price", ghs(env.paystack.plusPricePesewas), true],
             ].map(([k, v, ok]) => (
               <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
                 <span className="flex items-center gap-2"><span className="text-xs font-mono text-white/70">{v}</span><SetPill ok={!!ok} /></span>
               </div>
             ))}
-            <p className="text-[11px] text-amber-300/70 pt-1">Keys move real money. Rotate quarterly.</p>
+            <p className="text-[11px] text-amber-300/70 pt-1">keys move real money. rotate quarterly.</p>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Security" sub="Auth & encryption" />
+          <CardHeader title="security" sub="auth & encryption" />
           <div className="p-4 space-y-2">
             {[["PAYOUT_ENCRYPTION_KEY", env.security.payoutEncryption.set],
               ["JWT_SECRET", env.security.jwt.set],
@@ -1179,22 +1178,22 @@ function SettingsPanel() {
               </div>
             ))}
             <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">Algorithm</span>
-              <span className="text-xs font-mono text-white/70">AES-256-GCM</span>
+              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">algorithm</span>
+              <span className="text-xs font-mono text-white/70">aes-256-gcm</span>
             </div>
-            <p className="text-[11px] text-amber-300/70 pt-1">Encrypts bank / MoMo details at rest.</p>
+            <p className="text-[11px] text-amber-300/70 pt-1">encrypts bank / momo details at rest.</p>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Services & env" sub="Integrations" />
+          <CardHeader title="services & env" sub="integrations" />
           <div className="p-4 space-y-2">
-            {[["Resend (email)", env.services.resend.set],
-              ["UploadThing", env.services.uploadthing.set],
-              ["OpenRouter (AI)", env.services.openrouter.set],
-              ["Firebase (push)", env.services.firebase.set],
-              ["VAPID (web push)", env.services.vapid.set],
-              ["Database", env.services.database.set],
+            {[["resend (email)", env.services.resend.set],
+              ["uploadthing", env.services.uploadthing.set],
+              ["openrouter (ai)", env.services.openrouter.set],
+              ["firebase (push)", env.services.firebase.set],
+              ["vapid (web push)", env.services.vapid.set],
+              ["database", env.services.database.set],
             ].map(([k, ok]) => (
               <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>

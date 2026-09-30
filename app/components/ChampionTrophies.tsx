@@ -11,8 +11,8 @@ export default function ChampionTrophies({ trophies, className }: Props) {
   return (
     <span
       className={className ?? "text-xs leading-none tracking-tight"}
-      title={`Battle champion x${trophies}`}
-      aria-label={`Battle champion, ${trophies} wins`}
+      title={`battle champion x${trophies}`}
+      aria-label={`battle champion, ${trophies} wins`}
       role="img"
     >
       {"🏆".repeat(count)}

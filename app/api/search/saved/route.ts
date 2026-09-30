@@ -4,10 +4,10 @@ import { getSavedSearches, saveSearch, deleteSavedSearch } from "@/lib/search"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   if (user.tier !== "PLUS") {
-    return NextResponse.json({ error: "Plus feature. Upgrade to save searches." }, { status: 403 })
+    return NextResponse.json({ error: "plus feature. Upgrade to save searches." }, { status: 403 })
   }
 
   const searches = await getSavedSearches(user.id)
@@ -16,16 +16,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   if (user.tier !== "PLUS") {
-    return NextResponse.json({ error: "Plus feature. Upgrade to save searches." }, { status: 403 })
+    return NextResponse.json({ error: "plus feature. Upgrade to save searches." }, { status: 403 })
   }
 
   const { name, query, filters, alertEnabled } = await req.json()
 
   if (!name || !query) {
-    return NextResponse.json({ error: "Name and query are required." }, { status: 400 })
+    return NextResponse.json({ error: "name and query are required." }, { status: 400 })
   }
 
   try {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ search: saved })
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("Unique constraint")) {
-      return NextResponse.json({ error: "A saved search with this name already exists." }, { status: 400 })
+      return NextResponse.json({ error: "a saved search with this name already exists." }, { status: 400 })
     }
     throw err
   }
@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const searchId = searchParams.get("id")
 
   if (!searchId) {
-    return NextResponse.json({ error: "Search ID required." }, { status: 400 })
+    return NextResponse.json({ error: "search ID required." }, { status: 400 })
   }
 
   await deleteSavedSearch(user.id, searchId)

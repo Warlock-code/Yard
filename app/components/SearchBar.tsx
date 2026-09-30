@@ -28,7 +28,7 @@ const TRENDING_YARD = [
 type Selectable = { kind: "suggestion" | "recent" | "trending"; value: string }
 
 export default function SearchBar({
-  placeholder = "Search the yard, ghosts, #tags…",
+  placeholder = "search the yard, ghosts, #tags…",
   showFilters = false,
   initialQuery = "",
   campus,
@@ -247,7 +247,7 @@ export default function SearchBar({
           placeholder={placeholder}
           className="w-full pl-11 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-full text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#baff39]/50 focus:bg-white/10 transition-all"
           autoComplete="off"
-          aria-label="Search the yard"
+          aria-label="search the yard"
           role="combobox"
           aria-expanded={showDropdown}
           aria-controls="search-suggestions"
@@ -265,7 +265,7 @@ export default function SearchBar({
               inputRef.current?.focus()
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors"
-            aria-label="Clear search"
+            aria-label="clear search"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
               <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
@@ -278,23 +278,23 @@ export default function SearchBar({
         <div
           id="search-suggestions"
           role="listbox"
-          aria-label="Search suggestions"
+          aria-label="search suggestions"
           className="search-dropdown absolute top-full left-0 right-0 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0b]/95 shadow-[0_16px_50px_rgba(0,0,0,0.5)] backdrop-blur-md z-50"
         >
           {hasQuery ? (
             loadingSuggestions ? (
               <div className="px-4 py-3" aria-hidden="true">
-                <p className="text-xs font-medium text-white/40 mb-2">Summoning ghosts…</p>
+                <p className="text-xs font-medium text-white/40 mb-2">summoning ghosts…</p>
                 <div className="space-y-2">
                   <div className="skeleton-shimmer h-9 rounded-xl" />
                   <div className="skeleton-shimmer h-9 rounded-xl" />
                   <div className="skeleton-shimmer h-9 rounded-xl" />
                 </div>
-                <span className="sr-only">Loading suggestions</span>
+                <span className="sr-only">loading suggestions</span>
               </div>
             ) : suggestions.length > 0 ? (
               <ul className="max-h-72 overflow-y-auto py-1.5">
-                {suggestions.map((suggestion, i) => {
+                {suggestions.map((suggestion) => {
                   flatCursor += 1
                   const idx = flatCursor
                   const isActive = idx === activeIndex
@@ -332,10 +332,10 @@ export default function SearchBar({
               <div className="px-4 py-5 text-center">
                 <p className="text-2xl" aria-hidden="true">👻</p>
                 <p className="mt-1 text-sm font-semibold text-white/90">
-                  No ghosts haunting &ldquo;{trimmed}&rdquo; yet
+                  no ghosts haunting &ldquo;{trimmed}&rdquo; yet
                 </p>
                 <p className="mt-0.5 text-xs text-white/40">
-                  Be the first to yap about it in the yard — press Enter to post the search.
+                  be the first to yap about it in the yard — press enter to post the search.
                 </p>
               </div>
             )
@@ -345,7 +345,7 @@ export default function SearchBar({
                 <div>
                   <div className="flex items-center justify-between px-4 pt-1 pb-1">
                     <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-white/40">
-                      Recent haunts
+                      recent haunts
                     </p>
                     <button
                       type="button"
@@ -353,7 +353,7 @@ export default function SearchBar({
                       onClick={clearRecents}
                       className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white/40 hover:text-[#baff39] hover:bg-[#baff39]/10 transition-colors"
                     >
-                      Clear
+                      clear
                     </button>
                   </div>
                   <ul>
@@ -398,7 +398,7 @@ export default function SearchBar({
 
               <div className={recent.length > 0 ? "mt-1 border-t border-white/5 pt-2" : ""}>
                 <p className="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white/40">
-                  <span aria-hidden="true">📈</span> Hot in the yard
+                  <span aria-hidden="true">📈</span> hot in the yard
                 </p>
                 <ul>
                   {TRENDING_YARD.filter((t) => !recent.includes(t)).map((t) => {
@@ -428,7 +428,7 @@ export default function SearchBar({
                 </ul>
                 {recent.length === 0 && (
                   <p className="px-4 pb-3 pt-1 text-xs text-white/35">
-                    The yard is quiet… tap something hot or start haunting your own keyword. 👻
+                    the yard is quiet… tap something hot or start haunting your own keyword. 👻
                   </p>
                 )}
               </div>
@@ -436,7 +436,7 @@ export default function SearchBar({
           )}
 
           <p className="border-t border-white/5 px-4 py-2 text-[11px] text-white/30">
-            ↑↓ to drift through ghosts · Enter to haunt · Esc to vanish
+            ↑↓ to drift through ghosts · enter to haunt · esc to vanish
           </p>
         </div>
       )}
@@ -446,7 +446,7 @@ export default function SearchBar({
           href="/search"
           className="absolute right-0 top-1/2 -translate-y-1/2 mr-10 text-white/50 hover:text-white/80 text-sm font-medium"
         >
-          Filters
+          filters
         </Link>
       )}
     </div>

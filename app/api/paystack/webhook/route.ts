@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET
   if (!webhookSecret) {
     console.error("PAYSTACK_WEBHOOK_SECRET not configured")
-    return addCorsHeaders(NextResponse.json({ error: "Webhook not configured" }, { status: 500 }), req.headers.get("origin"))
+    return addCorsHeaders(NextResponse.json({ error: "webhook not configured" }, { status: 500 }), req.headers.get("origin"))
   }
 
   const hash = crypto
@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
     .digest("hex")
 
   if (hash !== signature) {
-    return addCorsHeaders(NextResponse.json({ error: "Invalid signature." }, { status: 401 }), req.headers.get("origin"))
+    return addCorsHeaders(NextResponse.json({ error: "invalid signature." }, { status: 401 }), req.headers.get("origin"))
   }
 
   let event: any
-  try { event = JSON.parse(body) } catch { return addCorsHeaders(NextResponse.json({ error: "Invalid JSON" }, { status: 400 }), req.headers.get("origin")) }
+  try { event = JSON.parse(body) } catch { return addCorsHeaders(NextResponse.json({ error: "invalid JSON" }, { status: 400 }), req.headers.get("origin")) }
 
   if (event.event === "charge.success") {
     const reference = event.data.reference

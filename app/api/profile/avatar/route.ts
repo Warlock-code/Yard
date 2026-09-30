@@ -28,11 +28,11 @@ function unlockedSet(user: { tier: AccountTier; tierExpiresAt: Date | null; owne
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { emoji } = await req.json()
   if (!unlockedSet(user).has(emoji)) {
-    return NextResponse.json({ error: "Not unlocked yet." }, { status: 403 })
+    return NextResponse.json({ error: "not unlocked yet." }, { status: 403 })
   }
 
   await prisma.user.update({ where: { id: user.id }, data: { avatarEmoji: emoji } })
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   return NextResponse.json({ available: Array.from(unlockedSet(user)) })
 }

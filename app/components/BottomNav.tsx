@@ -6,22 +6,20 @@ import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
 import type { MeResponse } from "@/lib/api-types"
 import { useHoverPrefetch } from "@/lib/prefetch"
-import { useTierTheme } from "@/app/components/ThemeProvider"
 
 const TABS = [
-  { href: "/feed", icon: "🏠", label: "Feed" },
-  { href: "/lair", icon: "👻", label: "Lair", alsoActiveOn: ["/lair/activity"] },
-  { href: "/battles", icon: "⚔️", label: "Battles" },
-  { href: "/leaderboard", icon: "🏆", label: "Boards" },
-  { href: "/shop", icon: "🛍️", label: "Market" },
-  { href: "/notifications", icon: "🔔", label: "Notifications" },
+  { href: "/feed", icon: "🏠", label: "feed" },
+  { href: "/lair", icon: "👻", label: "lair", alsoActiveOn: ["/lair/activity"] },
+  { href: "/battles", icon: "⚔️", label: "battles" },
+  { href: "/leaderboard", icon: "🏆", label: "boards" },
+  { href: "/shop", icon: "🛍️", label: "market" },
+  { href: "/notifications", icon: "🔔", label: "notifications" },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
-  const { tier } = useTierTheme()
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin", "/download"]
   const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
 
@@ -76,7 +74,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      aria-label="Primary"
+      aria-label="primary"
       className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-4"
     >
       <div className="flex gap-0.5 bg-[#0a0a0a]/20 backdrop-blur-sm border border-white/10 rounded-full px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.2)]">

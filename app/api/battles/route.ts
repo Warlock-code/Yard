@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { getEffectiveTier } from "@/lib/tier"
 import { attachChampionTrophiesDeep } from "@/lib/champions"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
-  const effectiveTier = getEffectiveTier(user)
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const promptId = searchParams.get("promptId")
@@ -77,7 +75,7 @@ export async function GET(req: NextRequest) {
     })
 
     if (!prompt || prompt.campus !== user.campus) {
-      return NextResponse.json({ error: "Battle not found." }, { status: 404 })
+      return NextResponse.json({ error: "battle not found." }, { status: 404 })
     }
 
     const userVote = await prisma.vote.findFirst({

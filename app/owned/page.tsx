@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import Avatar from "@/app/components/Avatar"
 import { useTierTheme } from "@/app/components/ThemeProvider"
-import { AVATARS, AVATAR_MAP, isAvatarUnlockedForTier, getRarityColor, getRarityGlow, type AvatarItem } from "@/lib/avatars"
+import { AVATARS, isAvatarUnlockedForTier, getRarityColor, getRarityGlow, type AvatarItem } from "@/lib/avatars"
 import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 
 type Tier = "FREE" | "PLUS" | "PRIME"
@@ -17,11 +17,11 @@ type Me = {
 }
 
 const CATEGORIES = [
-  { key: "avatars", label: "Avatars" },
-  { key: "themes", label: "Themes" },
+  { key: "avatars", label: "avatars" },
+  { key: "themes", label: "themes" },
 ]
 
-const DEFAULT_AVATAR = { id: "default", name: "Classic Ghost", emoji: "👻", rarity: "common" as const }
+const DEFAULT_AVATAR = { id: "default", name: "classic ghost", emoji: "👻", rarity: "common" as const }
 
 export default function OwnedPage() {
   const router = useRouter()
@@ -51,7 +51,7 @@ export default function OwnedPage() {
       const data = await apiPost<{ avatarEmoji: string }>("/api/profile/avatar", { emoji })
       setMe((current) => (current ? { ...current, avatarEmoji: data.avatarEmoji } : current))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Could not equip avatar.")
+      alert(err instanceof Error ? err.message : "could not equip avatar.")
     } finally {
       setEquipping(null)
     }
@@ -79,8 +79,8 @@ export default function OwnedPage() {
     return (
       <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
         <div className="pt-5 pb-3">
-          <h1 className="text-2xl font-black">Owned</h1>
-          <p className="text-white/40 text-sm">Everything you've unlocked.</p>
+          <h1 className="text-2xl font-black">owned</h1>
+          <p className="text-white/40 text-sm">everything you've unlocked.</p>
         </div>
         <div className="card p-5 mt-2 animate-pulse">
           <div className="h-4 w-24 bg-white/10 rounded mb-2" />
@@ -103,8 +103,8 @@ export default function OwnedPage() {
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="pt-5 pb-3">
-        <h1 className="text-2xl font-black">Owned</h1>
-        <p className="text-white/40 text-sm">Everything you've unlocked — tap to use.</p>
+        <h1 className="text-2xl font-black">owned</h1>
+        <p className="text-white/40 text-sm">everything you've unlocked — tap to use.</p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
@@ -140,7 +140,7 @@ export default function OwnedPage() {
                 <p className={`text-xs uppercase mb-3 ${rarityClass}`}>{a.rarity}</p>
                 {isActive ? (
                   <button className="w-full text-sm btn-ghost" disabled>
-                    ✓ Active
+                    ✓ active
                   </button>
                 ) : (
                   <button
@@ -148,7 +148,7 @@ export default function OwnedPage() {
                     disabled={equipping !== null}
                     onClick={() => equipAvatar(a.emoji)}
                   >
-                    {isBusy ? "..." : "Use"}
+                    {isBusy ? "..." : "use"}
                   </button>
                 )}
               </div>
@@ -160,10 +160,10 @@ export default function OwnedPage() {
       {category === "themes" && (
         <div className="mt-2">
           <p className="text-white/40 text-xs mb-3 px-1">
-            These are all the themes you own or have unlocked with your tier.
+            these are all the themes you own or have unlocked with your tier.
           </p>
           {ownedThemes.length === 0 ? (
-            <p className="text-white/40 text-sm px-1">You don't own any themes yet — check the Shop.</p>
+            <p className="text-white/40 text-sm px-1">you don't own any themes yet — check the shop.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {ownedThemes.map((theme) => {
@@ -179,15 +179,15 @@ export default function OwnedPage() {
                     />
                     <p className="font-semibold text-sm">{theme.name}</p>
                     <p className={`text-xs mb-3 ${isActive ? theme.activeTextClass : "text-white/40"}`}>
-                      {isActive ? "✓ Active" : theme.description}
+                      {isActive ? "✓ active" : theme.description}
                     </p>
                     {isActive ? (
                       <button className="w-full text-sm btn-ghost" disabled>
-                        ✓ Active
+                        ✓ active
                       </button>
                     ) : (
                       <button className="w-full text-sm btn-primary" onClick={() => equipTheme(theme.id)}>
-                        Use
+                        use
                       </button>
                     )}
                   </div>

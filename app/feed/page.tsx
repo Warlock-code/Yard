@@ -95,17 +95,17 @@ type Me = {  id: string
 }
 
 const TABS = [
-  { key: "campus", label: "For You", description: "Posts from your school/program" },
-  { key: "following", label: "Following", description: "Posts from ghosts you follow" },
-  { key: "all", label: "All", description: "Posts from every school" },
-  { key: "program", label: "Class", description: "Posts from your program only" },
+  { key: "campus", label: "for you", description: "posts from your school/program" },
+  { key: "following", label: "following", description: "posts from ghosts you follow" },
+  { key: "all", label: "all", description: "posts from every school" },
+  { key: "program", label: "class", description: "posts from your program only" },
 ]
 
 const EMPTY_MESSAGES: Record<string, string> = {
-  campus: "No posts from your school/program yet",
-  following: "No posts from your school/program yet",
-  all: "No posts from any school yet",
-  program: "No posts from your program yet — be first in Class",
+  campus: "no posts from your school/program yet",
+  following: "no posts from ghosts you follow yet — tap + on posts to follow ghosts",
+  all: "no posts from any school yet",
+  program: "no posts from your program yet — be first in class",
 }
 
 export default function FeedPage() {
@@ -147,7 +147,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const [poppingId, setPoppingId] = useState<string | null>(null)
   const pendingVotes = useRef(new Set<string>())
 
-  const { connected, on, joinCampus, leaveCampus } = useSocket()
+  const { connected, on } = useSocket()
 
   const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ user: Me | null }>("/api/auth/me")
@@ -210,7 +210,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       })
       .catch((err: unknown) => {
         if (!active) return
-        if (err instanceof Error && err.message === "Not authenticated.") {
+        if (err instanceof Error && err.message === "not authenticated.") {
           router.push("/login")
           return
         }
@@ -332,7 +332,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         n.delete(postId)
         return n
       })
-      const msg = err instanceof Error ? err.message : "Something went wrong."
+      const msg = err instanceof Error ? err.message : "something went wrong."
       if (!msg.includes("already voted")) alert(msg)
     } finally {
       pendingVotes.current.delete(postId)
@@ -385,7 +385,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       setInlineComments((s) => ({ ...s, [postId]: (s[postId] || []).filter((c) => c.id !== tempId) }))
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, commentsCount: Math.max(0, p.commentsCount - 1) } : p)))
       setInlineDraft((s) => ({ ...s, [postId]: text }))
-      alert(err instanceof Error ? err.message : "Failed to comment")
+      alert(err instanceof Error ? err.message : "failed to comment")
     } finally {
       setInlineSubmitting((s) => ({ ...s, [postId]: false }))
     }
@@ -400,10 +400,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         await openPaystackCheckout(url)
         return
       }
-      alert("Boosted for 24h!")
+      alert("boosted for 24h!")
       loadFeed()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -417,7 +417,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       setPosts((prev) => prev.map((post) => post.user.id === targetUserId ? { ...post, isFollowing: data.following } : post))
       loadMe()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       pendingFollowRequests.current.delete(targetUserId)
       setPendingFollows(new Set(pendingFollowRequests.current))
@@ -425,17 +425,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }
 
   async function handleReport(postId: string) {
-    const reason = prompt("Why are you reporting this post?")
+    const reason = prompt("why are you reporting this post?")
     if (!reason?.trim()) return
     try {
       await apiPost("/api/reports", { postId, reason })
       // Server archives the post immediately pending admin review —
       // drop it locally so it vanishes instantly, then refresh.
       setPosts((prev) => prev.filter((p) => p.id !== postId))
-      alert("Reported — this post is now hidden pending review.")
+      alert("reported — this post is now hidden pending review.")
       loadFeed()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -461,24 +461,24 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }
 
   async function handleDelete(postId: string) {
-    if (!confirm("Delete this post?")) return
+    if (!confirm("delete this post?")) return
     try {
       await apiDelete(`/api/posts/${postId}`)
       setPosts((prev) => prev.filter((p) => p.id !== postId))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
   async function handleEdit(postId: string, currentText: string | null) {
-    const rawEdit = prompt("Edit your post:", currentText || "")
+    const rawEdit = prompt("edit your post:", currentText || "")
     if (rawEdit === null || !rawEdit.trim()) return
     const newText = rawEdit.toLowerCase()
     try {
       await apiPatch(`/api/posts/${postId}`, { text: newText })
       setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, text: newText } : p)))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -488,7 +488,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       const data = await apiPost<{ data?: { authorization_url?: string } }>("/api/shop/custom-name", { newName })
       if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -499,7 +499,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       setShowDrawer(false)
       setShowAvatarModal(true)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -509,7 +509,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       setShowAvatarModal(false)
       loadMe()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -537,7 +537,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         <span className="font-black text-lg tracking-tight">
           YARD<span className="text-primary">.</span>
         </span>
-        <Link href="/explore" aria-label="Search" className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-lg text-white/60 hover:text-white">
+        <Link href="/explore" aria-label="search" className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-lg text-white/60 hover:text-white">
           <span aria-hidden="true">🔍</span>
         </Link>
       </div>
@@ -558,7 +558,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       {pullToRefresh && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
           <div className="bg-black/80 backdrop-blur border border-white/10 rounded-full px-4 py-2 text-sm text-primary font-medium animate-pulse">
-            Release to refresh
+            release to refresh
           </div>
         </div>
       )}
@@ -608,7 +608,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <div className="flex items-start gap-3">
                   <Link
                     href={`/u/${encodeURIComponent(post.user.ghostId)}`}
-                    aria-label={`View ${post.user.ghostId}'s profile`}
+                    aria-label={`view ${post.user.ghostId}'s profile`}
                     onClick={(e) => e.stopPropagation()}
                     className="flex-shrink-0 focus-visible:outline-[#baff39]"
                   >
@@ -618,16 +618,16 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                     <div className="flex items-center gap-2 flex-wrap text-sm">
                       <Link
                         href={`/u/${encodeURIComponent(post.user.ghostId)}`}
-                        aria-label={`View ${post.user.ghostId}'s profile`}
+                        aria-label={`view ${post.user.ghostId}'s profile`}
                         onClick={(e) => e.stopPropagation()}
                         className="font-semibold focus-visible:outline-[#baff39]"
                       >
                         {post.user.ghostId}
                       </Link>
-                      {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ Prime</span>}
-                      {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+                      {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ prime</span>}
+                      {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                       <ChampionTrophies trophies={post.user.championTrophies} />
-                      {post.boosted && <span className="badge badge-boosted">Boosted</span>}
+                      {post.boosted && <span className="badge badge-boosted">boosted</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
 
@@ -644,7 +644,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         >
                           <RichText text={post.text} />
                         </p>
-                        {!expanded && isLong && <span className="text-xs text-white/40">… Show more</span>}
+                        {!expanded && isLong && <span className="text-xs text-white/40">… show more</span>}
                       </motion.div>
                     )}
 
@@ -687,7 +687,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                           }}
                           disabled={pendingVotes.current.has(post.id) || votedIds.has(post.id)}
                           aria-pressed={votedIds.has(post.id)}
-                          aria-label={`Add heat, ${post.yeahs} heat`}
+                          aria-label={`add heat, ${post.yeahs} heat`}
                           className={`gap-1 touch-manipulation transition-transform will-change-transform ${poppingId === post.id ? "animate-fire-pop text-orange-100" : "text-orange-200 hover:text-orange-100"} disabled:opacity-60 active:scale-95`}
                         >
                           <span className={`${poppingId === post.id ? "inline-block animate-fire-pop" : "inline-block"}`}>🔥</span>
@@ -700,7 +700,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                           toggleExpand(post.id)
                         }}
                         aria-expanded={expanded}
-                        aria-label={`View comments, ${post.commentsCount} comments`}
+                        aria-label={`view comments, ${post.commentsCount} comments`}
                         className="text-sky-200 hover:text-sky-100 gap-1 touch-manipulation"
                       >
                         💬 {post.commentsCount}
@@ -714,10 +714,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         <button
                           onClick={(e) => { e.stopPropagation(); handleFollow(post.user.id) }}
                           disabled={!me || followPending}
-                          aria-label={`${isFollowing ? "Unfollow" : "Follow"} ${post.user.ghostId}`}
+                          aria-label={`${isFollowing ? "unfollow" : "follow"} ${post.user.ghostId}`}
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
-                          title={isFollowing ? "Following" : "Follow"}
+                          title={isFollowing ? "following" : "follow"}
                           className={`${isFollowing ? "text-primary" : "text-white/90"} hover:text-primary disabled:opacity-50 disabled:cursor-wait touch-manipulation`}
                         >
                           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -756,13 +756,13 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs text-white/40">{post.commentsCount} comment{post.commentsCount !== 1 ? "s" : ""}</span>
                               <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="text-xs font-semibold text-primary hover:text-primary">
-                                Open thread →
+                                open thread →
                               </Link>
                             </div>
                             {inlineLoading[post.id] ? (
-                              <p className="text-xs text-white/30 py-2">Loading comments...</p>
+                              <p className="text-xs text-white/30 py-2">loading comments...</p>
                             ) : (inlineComments[post.id]?.length ?? 0) === 0 ? (
-                              <p className="text-xs text-white/30 py-2">No comments yet — be first.</p>
+                              <p className="text-xs text-white/30 py-2">no comments yet — be first.</p>
                             ) : (
                               <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar pr-1">
                                 {inlineComments[post.id]?.slice(-3).map((c: InlineComment) => (
@@ -771,7 +771,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold text-xs">{c.user?.ghostId || c.ghostId}</span>
-                                        {c.user?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+                                        {c.user?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
                                         <ChampionTrophies trophies={c.user?.championTrophies} className="text-[10px] leading-none" />
                                         <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
                                       </div>
@@ -787,7 +787,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                             <div className="flex gap-2 mt-3">
                               <input
                                 className="input flex-1 h-9 text-sm"
-                                placeholder="Add a comment..."
+                                placeholder="add a comment..."
                                 value={inlineDraft[post.id] || ""}
                                 onChange={(e) => setInlineDraft((s) => ({ ...s, [post.id]: e.target.value.toLowerCase() }))}
                                 onKeyDown={(e) => e.key === "Enter" && handleInlineSubmit(post.id)}
@@ -797,11 +797,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                                 onClick={() => handleInlineSubmit(post.id)}
                                 disabled={inlineSubmitting[post.id] || !inlineDraft[post.id]?.trim()}
                               >
-                                {inlineSubmitting[post.id] ? "..." : "Send"}
+                                {inlineSubmitting[post.id] ? "..." : "send"}
                               </button>
                             </div>
                             <Link href={`/post/${post.id}`} onClick={(e) => e.stopPropagation()} className="inline-block mt-2 mb-1 text-[11px] text-white/30 hover:text-white/50">
-                              View all comments →
+                              view all comments →
                             </Link>
                           </div>
                         </motion.div>
@@ -812,7 +812,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
               </motion.article>
             )
           })}
-          {loadingMore && <p className="text-center text-white/30 text-sm py-4">Loading more...</p>}
+          {loadingMore && <p className="text-center text-white/30 text-sm py-4">loading more...</p>}
         </div>
       )}
 
@@ -832,30 +832,30 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                   <Avatar emoji={me.avatarEmoji} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">Prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
                   {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
                 </div>
               </div>
 
               <div className="flex gap-4 mb-3 text-sm">
-                <div><span className="font-bold">{me.followingCount}</span> <span className="text-white/40">Following</span></div>
-                <div><span className="font-bold">{me.followersCount}</span> <span className="text-white/40">Followers</span></div>
+                <div><span className="font-bold">{me.followingCount}</span> <span className="text-white/40">following</span></div>
+                <div><span className="font-bold">{me.followersCount}</span> <span className="text-white/40">followers</span></div>
                 <div className="ml-auto flex items-center gap-1 text-xs text-white/30"><span>🔥 {me.streakCount}</span></div>
               </div>
 
               {/* Prime — mini stats + earnings chart, no upgrade */}
               {me.tier === "PRIME" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">Prime • earnings</p>
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">prime • earnings</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                      <p className="text-[10px] text-white/30">Earned</p>
-                      <p className="text-sm font-black text-white">GHS {((me.totalEarnedPesewas||0)/100).toFixed(2)}</p>
+                      <p className="text-[10px] text-white/30">earned</p>
+                      <p className="text-sm font-black text-white">ghs {((me.totalEarnedPesewas||0)/100).toFixed(2)}</p>
                     </div>
                     <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                      <p className="text-[10px] text-white/30">Balance</p>
-                      <p className="text-sm font-black text-primary">GHS {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
+                      <p className="text-[10px] text-white/30">balance</p>
+                      <p className="text-sm font-black text-primary">ghs {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
                       {me.hasPendingPayout && <p className="text-[10px] text-amber-400">⏳ pending</p>}
                     </div>
                   </div>
@@ -869,39 +869,39 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 grid place-items-center text-[11px] text-white/25">No earnings last 7d</div>
+                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 grid place-items-center text-[11px] text-white/25">no earnings last 7d</div>
                   )}
-                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)}/{me.storageLimit} MB • {me.ghostCoins||0} coins • {me.tierDaysLeft ?? 0}d left</p>
+                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)}/{me.storageLimit} mb • {me.ghostCoins||0} coins • {me.tierDaysLeft ?? 0}d left</p>
                 </div>
               )}
               {me.tier === "PLUS" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">Plus</p>
-                  <p className="text-xs text-white/60 mb-2">You have edits & priority. Prime unlocks full avatars.</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>Go Prime — GHS 20</button>
-                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} MB</p>
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">plus</p>
+                  <p className="text-xs text-white/60 mb-2">you have edits & priority. prime unlocks full avatars.</p>
+                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>go prime — ghs 20</button>
+                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>
               )}
               {me.tier === "FREE" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">Go Prime</p>
-                  <p className="text-xs text-white/60 mb-2">Full avatars, no ads</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>Upgrade — GHS 20</button>
-                  <p className="text-[11px] text-white/25 mt-1.5 text-center">or get Plus — GHS 10/mo</p>
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">go prime</p>
+                  <p className="text-xs text-white/60 mb-2">full avatars, no ads</p>
+                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>upgrade — ghs 20</button>
+                  <p className="text-[11px] text-white/25 mt-1.5 text-center">or get plus — ghs 10/mo</p>
                 </div>
               )}
               {/* Free: nothing else — just nav below */}
 
               <div className="space-y-1">
-                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/lair") }}>👻 My Lair <span className="ml-auto text-white/20">›</span></button>
-                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/shop") }}>🛍️ Shop <span className="ml-auto text-white/20">›</span></button>
-                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/leaderboard") }}>🏆 Leaderboard <span className="ml-auto text-white/20">›</span></button>
-                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>✏️ Edit ghost name</button>
-                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={openAvatarModal}>🎭 Edit avatar</button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/lair") }}>👻 my lair <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/shop") }}>🛍️ shop <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/leaderboard") }}>🏆 leaderboard <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>✏️ edit ghost name</button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={openAvatarModal}>🎭 edit avatar</button>
               </div>
             </div>
             <div className="p-4 border-t border-white/10">
-              <button className="btn-ghost w-full" onClick={handleLogout}>Log out</button>
+              <button className="btn-ghost w-full" onClick={handleLogout}>log out</button>
             </div>
           </div>
           <div className="flex-1 bg-black/60" onClick={() => setShowDrawer(false)} />
@@ -911,8 +911,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">Pick your avatar</h3>
-            <p className="text-white/50 text-sm mb-4">Unlocked by tier or purchased in the Shop.</p>
+            <h3 className="font-bold text-lg mb-1">pick your avatar</h3>
+            <p className="text-white/50 text-sm mb-4">unlocked by tier or purchased in the shop.</p>
             <div className="grid grid-cols-4 gap-3 mb-4">
               {availableAvatars.map((emoji) => (
                 <button
@@ -925,7 +925,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
               ))}
             </div>
             <button className="btn-ghost w-full" onClick={() => setShowAvatarModal(false)}>
-              Cancel
+              cancel
             </button>
           </div>
         </div>
@@ -934,12 +934,12 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       {showNameModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">Change your ghost name</h3>
-            <p className="text-white/50 text-sm mb-4">Costs GHS 3.00 via Paystack.</p>
-            <input className="input mb-3" placeholder="New ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <h3 className="font-bold text-lg mb-1">change your ghost name</h3>
+            <p className="text-white/50 text-sm mb-4">costs ghs 3.00 via paystack.</p>
+            <input className="input mb-3" placeholder="new ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} />
             <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1" onClick={handleNameChange}>Pay & Change</button>
+              <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>cancel</button>
+              <button className="btn-primary flex-1" onClick={handleNameChange}>pay & change</button>
             </div>
           </div>
         </div>

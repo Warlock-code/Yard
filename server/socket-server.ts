@@ -56,11 +56,6 @@ interface NotificationData {
   createdAt: string
 }
 
-interface BattleVoteData {
-  entryId: string
-  votes: number
-}
-
 interface BattleEntryData {
   id: string
   text: string | null
@@ -177,15 +172,15 @@ async function initializeSocket() {
             break
           default:
             res.writeHead(400, { "Content-Type": "application/json" })
-            res.end(JSON.stringify({ error: "Unknown event" }))
+            res.end(JSON.stringify({ error: "unknown event" }))
             return
         }
 
         res.writeHead(200, { "Content-Type": "application/json" })
         res.end(JSON.stringify({ success: true }))
-      } catch (e) {
+      } catch {
         res.writeHead(500, { "Content-Type": "application/json" })
-        res.end(JSON.stringify({ error: "Invalid request" }))
+        res.end(JSON.stringify({ error: "invalid request" }))
       }
       return
     }
@@ -240,12 +235,6 @@ export function emitBattleVote(battleId: string, entryId: string, votes: number)
 export function emitBattleUpdate(battleId: string, data: BattleUpdateData) {
   ioInstance?.io.to(`battle:${battleId}`).emit("battle_update", data)
 }
-
-export function getOnlineUsers(campus: string): number {
-  return 0
-}
-
-export const emitPostNew = emitNewPost
 
 if (require.main === module) {
   startSocketServer().catch(console.error)

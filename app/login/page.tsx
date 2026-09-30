@@ -32,13 +32,13 @@ export default function LoginPage() {
       if (!res.ok) {
         if (res.status === 403 && data.userId) {
           setVerifyUserId(data.userId)
-          throw new Error(data.error || "Verify your email first.")
+          throw new Error(data.error || "verify your email first.")
         }
-        throw new Error(data.error || "Something went wrong.")
+        throw new Error(data.error || "something went wrong.")
       }
       router.push("/feed")
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
+      setError(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(false)
     }
@@ -46,14 +46,14 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
-      <h1 className="text-4xl font-black mb-2">Welcome back</h1>
-      <p className="text-white/60 mb-8">Log in as your ghost.</p>
+      <h1 className="text-4xl font-black mb-2">welcome back</h1>
+      <p className="text-white/60 mb-8">log in as your ghost.</p>
 
       <form onSubmit={handleLogin} className="space-y-4">
         <input
           className="input"
           type="email"
-          placeholder="School email"
+          placeholder="school email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -61,7 +61,7 @@ export default function LoginPage() {
         <input
           className="input"
           type="password"
-          placeholder="Password"
+          placeholder="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -72,7 +72,7 @@ export default function LoginPage() {
             <p>{error}</p>
             {verifyUserId && (
               <Link href={`/verify-email?userId=${verifyUserId}`} className="text-white underline font-semibold mt-1 inline-block">
-                Verify email →
+                verify email →
               </Link>
             )}
           </div>
@@ -82,18 +82,18 @@ export default function LoginPage() {
           href="/forgot-password"
           className="text-sm text-white/60 hover:text-white underline self-end mr-2"
         >
-          Forgot password?
+          forgot password?
         </Link>
 
         <button className="btn-primary w-full" type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Log in"}
+          {loading ? "logging in..." : "log in"}
         </button>
       </form>
 
       <p className="text-center text-white/40 text-sm mt-5">
-        New here?{" "}
+        new here?{" "}
         <Link href="/signup" className="text-white font-semibold">
-          Create an account
+          create an account
         </Link>
       </p>
     </main>

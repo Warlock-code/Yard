@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
+import { shareContent, getShareTargets } from "@/lib/share"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -64,16 +64,6 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
     }
   }
 
-  async function handleShare(target: ShareTarget) {
-    if (!profile) return
-    try {
-      await shareContent({ type: "profile", id: profile.ghostId }, target)
-      setShowShareMenu(false)
-    } catch (err) {
-      console.error("Share failed:", err)
-    }
-  }
-
   useEffect(() => {
     let active = true
     apiGet<{ user: Profile; posts: Post[]; nextCursor: string | null }>(`/api/users/${encodeURIComponent(ghostId)}`)
@@ -85,9 +75,9 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
       })
       .catch((err: unknown) => {
         if (!active) return
-        const message = err instanceof Error ? err.message : "Could not load profile."
-        if (message === "Not authenticated.") router.push("/login")
-        else if (message === "Ghost not found.") setNotFound(true)
+        const message = err instanceof Error ? err.message : "could not load profile."
+        if (message === "not authenticated.") router.push("/login")
+        else if (message === "ghost not found.") setNotFound(true)
         else setError(message)
       })
       .finally(() => {
@@ -106,7 +96,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
       setPosts((prev) => [...prev, ...data.posts])
       setNextCursor(data.nextCursor)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not load more posts.")
+      setError(err instanceof Error ? err.message : "could not load more posts.")
     } finally {
       moreRequest.current = false
       setLoadingMore(false)
@@ -125,22 +115,22 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
         followersCount: Math.max(0, prev.followersCount + Number(data.following) - Number(prev.isFollowing)),
       } : prev))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       followRequest.current = false
       setFollowPending(false)
     }
   }
 
-  if (loading) return <p className="text-center text-white/40 mt-10">Summoning ghost...</p>
-  if (error && !profile) return <div className="text-center mt-10 px-4"><p role="alert" className="text-white/60">{error}</p><button onClick={() => window.location.reload()} className="btn-ghost mt-3">Try again</button></div>
-  if (notFound || !profile) return <div className="text-center text-white/40 mt-10"><p>Ghost not found.</p><Link href="/feed" className="text-primary">Back to feed</Link></div>
+  if (loading) return <p className="text-center text-white/40 mt-10">summoning ghost...</p>
+  if (error && !profile) return <div className="text-center mt-10 px-4"><p role="alert" className="text-white/60">{error}</p><button onClick={() => window.location.reload()} className="btn-ghost mt-3">try again</button></div>
+  if (notFound || !profile) return <div className="text-center text-white/40 mt-10"><p>ghost not found.</p><Link href="/feed" className="text-primary">back to feed</Link></div>
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4 relative overflow-hidden">
       <div className="flex items-center gap-3 pt-5 pb-3">
-        <button onClick={() => router.back()} className="text-white/60" aria-label="Go back">←</button>
-        <h1 className="text-lg font-bold">Ghost Profile</h1>
+        <button onClick={() => router.back()} className="text-white/60" aria-label="go back">←</button>
+        <h1 className="text-lg font-bold">ghost profile</h1>
       </div>
 
       {profile.isOwn && <SmartNudge compact />}
@@ -158,17 +148,16 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
         <h1 className="text-xl font-bold">{profile.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{profile.campus}</span>
-          {profile.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-          {profile.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+          {profile.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+          {profile.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
           <ChampionTrophies trophies={profile.championTrophies} />
         </div>
 
         {profile.isOwn ? (
           <>
-            <Link href="/lair" className="btn-ghost mt-3 text-sm">My private Lair</Link>
+            <Link href="/lair" className="btn-ghost mt-3 text-sm">my private lair</Link>
             <div className="flex gap-2 mt-3">
               <ProfileShareButton
-                ghostId={profile.ghostId}
                 onShareClick={() => setShowShareMenu(true)}
                 onQRClick={() => {
                   loadQRCode()
@@ -188,18 +177,18 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
                 : "border-white/20 text-white hover:border-primary hover:text-primary"
             }`}
           >
-            {profile.isFollowing ? "✓ Following" : "Follow"}
+            {profile.isFollowing ? "✓ following" : "follow"}
           </button>
         )}
 
         <div className="flex gap-6 mt-4 text-sm">
           <div className="text-center">
             <span className="font-bold block">{profile.followingCount}</span>
-            <span className="text-white/40 text-xs">Following</span>
+            <span className="text-white/40 text-xs">following</span>
           </div>
           <div className="text-center">
             <span className="font-bold block">{profile.followersCount}</span>
-            <span className="text-white/40 text-xs">Followers</span>
+            <span className="text-white/40 text-xs">followers</span>
           </div>
         </div>
       </div>
@@ -207,27 +196,27 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
       <div className="grid grid-cols-3 gap-2 mb-5">
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">🔥 {profile.streakCount}</p>
-          <p className="text-xs text-white/40">Streak</p>
+          <p className="text-xs text-white/40">streak</p>
         </div>
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">{profile.postCount}</p>
-          <p className="text-xs text-white/40">Posts</p>
+          <p className="text-xs text-white/40">posts</p>
         </div>
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">{profile.score}</p>
-          <p className="text-xs text-white/40">Points</p>
+          <p className="text-xs text-white/40">points</p>
         </div>
       </div>
 
-      <h3 className="text-sm font-semibold text-white/60 mb-2">Posts</h3>
+      <h3 className="text-sm font-semibold text-white/60 mb-2">posts</h3>
       {posts.length === 0 ? (
-        <p className="text-white/30 text-sm">This ghost hasn&apos;t posted yet.</p>
+        <p className="text-white/30 text-sm">this ghost hasn&apos;t posted yet.</p>
       ) : (
         posts.map((p) => (
           <Link
             key={p.id}
             href={`/post/${p.id}`}
-            aria-label={`Open post by ${profile.ghostId}`}
+            aria-label={`open post by ${profile.ghostId}`}
             className="block border-b border-white/[0.06] py-3 hover:bg-white/[0.02] focus-visible:outline-[#baff39]"
           >
             <div className="flex items-center gap-2 text-sm mb-1">
@@ -254,7 +243,7 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
         ))
       )}
       {error && <p role="alert" className="text-sm text-white/60 mt-3">{error}</p>}
-      {nextCursor && <button onClick={loadMore} disabled={loadingMore} className="btn-ghost w-full mt-4 disabled:opacity-50">{loadingMore ? "Loading..." : "Load more posts"}</button>}
+      {nextCursor && <button onClick={loadMore} disabled={loadingMore} className="btn-ghost w-full mt-4 disabled:opacity-50">{loadingMore ? "loading..." : "load more posts"}</button>}
 
       {showShareMenu && <ShareMenu ghostId={profile!.ghostId} onClose={() => setShowShareMenu(false)} />}
       {showQRCode && <QRCodeModal qrCodeUrl={qrCodeUrl} onClose={() => setShowQRCode(false)} />}
@@ -263,21 +252,19 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
 }
 
 function ProfileShareButton({
-  ghostId,
   onShareClick,
   onQRClick,
 }: {
-  ghostId: string
   onShareClick: () => void
   onQRClick: () => void
 }) {
   return (
     <div className="flex gap-2">
-      <button onClick={onShareClick} className="btn-ghost text-sm px-4" aria-label="Share profile">
-        🔗 Share
+      <button onClick={onShareClick} className="btn-ghost text-sm px-4" aria-label="share profile">
+        🔗 share
       </button>
-      <button onClick={onQRClick} className="btn-ghost text-sm px-4" aria-label="Show QR code">
-        📱 QR
+      <button onClick={onQRClick} className="btn-ghost text-sm px-4" aria-label="show qr code">
+        📱 qr
       </button>
     </div>
   )
@@ -291,8 +278,8 @@ function ShareMenu({ ghostId, onClose }: { ghostId: string; onClose: () => void 
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative card p-4 w-full max-w-sm shadow-xl border border-white/10 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Share Profile</h3>
-          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">✕</button>
+          <h3 className="font-semibold">share profile</h3>
+          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="close">✕</button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {targets.map((target) => (
@@ -304,10 +291,10 @@ function ShareMenu({ ghostId, onClose }: { ghostId: string; onClose: () => void 
               }}
               className="px-4 py-3 text-sm text-white/90 hover:bg-white/10 rounded border border-white/10 focus-visible:outline-[#baff39]"
             >
-              {target === "native" && "📤 Native Share"}
-              {target === "whatsapp" && "💬 WhatsApp"}
-              {target === "twitter" && "🐦 X (Twitter)"}
-              {target === "copy" && "📋 Copy Link"}
+              {target === "native" && "📤 native share"}
+              {target === "whatsapp" && "💬 whatsapp"}
+              {target === "twitter" && "🐦 x (twitter)"}
+              {target === "copy" && "📋 copy link"}
             </button>
           ))}
         </div>
@@ -322,19 +309,19 @@ function QRCodeModal({ qrCodeUrl, onClose }: { qrCodeUrl: string | null; onClose
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative card p-6 max-w-sm w-full shadow-xl border border-white/10 animate-scale-in">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Profile QR Code</h3>
-          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">✕</button>
+          <h3 className="font-semibold">profile qr code</h3>
+          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="close">✕</button>
         </div>
         <div className="flex flex-col items-center gap-4">
           {qrCodeUrl ? (
-            <img src={qrCodeUrl} alt="Profile QR Code" className="w-64 h-64 rounded-lg bg-white" />
+            <img src={qrCodeUrl} alt="profile qr code" className="w-64 h-64 rounded-lg bg-white" />
           ) : (
             <div className="w-64 h-64 flex items-center justify-center bg-white/5 rounded-lg">
-              <p className="text-white/50">Loading QR code...</p>
+              <p className="text-white/50">loading qr code...</p>
             </div>
           )}
-          <p className="text-sm text-white/50 text-center">Scan to open profile in Yard</p>
-          <button onClick={onClose} className="btn-primary w-full mt-2">Done</button>
+          <p className="text-sm text-white/50 text-center">scan to open profile in yard</p>
+          <button onClick={onClose} className="btn-primary w-full mt-2">done</button>
         </div>
       </div>
     </div>

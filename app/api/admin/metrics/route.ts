@@ -9,7 +9,7 @@ function dayOf(d: Date): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
   const raw = Number(req.nextUrl.searchParams.get("range") ?? 30)
   const range = Number.isFinite(raw) ? Math.min(90, Math.max(1, Math.floor(raw))) : 30
@@ -35,7 +35,6 @@ export async function GET(req: NextRequest) {
     paidOutAgg,
     payers,
     signups,
-    activeUsersByDay,
   ] = await Promise.all([
     prisma.post.findMany({ where: { createdAt: windowFilter }, select: { userId: true, createdAt: true } }),
     prisma.comment.findMany({ where: { createdAt: windowFilter }, select: { userId: true, createdAt: true } }),
@@ -53,16 +52,6 @@ export async function GET(req: NextRequest) {
     }),
     prisma.user.findMany({
       where: { createdAt: windowFilter },
-      select: { id: true, createdAt: true },
-    }),
-    prisma.user.findMany({
-      where: {
-        OR: [
-          { posts: { some: { createdAt: windowFilter } } },
-          { comments: { some: { createdAt: windowFilter } } },
-          { votes: { some: { createdAt: windowFilter } } },
-        ],
-      },
       select: { id: true, createdAt: true },
     }),
   ])

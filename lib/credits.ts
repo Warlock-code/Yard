@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { CREDIT_CONFIG, CreditConfig } from "@/lib/credit-config"
+import { CREDIT_CONFIG } from "@/lib/credit-config"
 import { Prisma } from "@prisma/client"
 
 export { CREDIT_CONFIG } from "@/lib/credit-config"

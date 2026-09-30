@@ -7,7 +7,7 @@ import { getTreasuryStats, mintCreditsAdmin, burnCreditsAdmin } from "@/lib/cred
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user || !isAdmin(req)) {
-    return NextResponse.json({ error: "Admin only" }, { status: 403 })
+    return NextResponse.json({ error: "admin only" }, { status: 403 })
   }
 
   const { searchParams } = new URL(req.url)
@@ -50,13 +50,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ users })
   }
 
-  return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+  return NextResponse.json({ error: "invalid action" }, { status: 400 })
 }
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user || !isAdmin(req)) {
-    return NextResponse.json({ error: "Admin only" }, { status: 403 })
+    return NextResponse.json({ error: "admin only" }, { status: 403 })
   }
 
   const body = await req.json().catch(() => ({}))
@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
     if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 })
 
     const payout = await prisma.creditPayout.findUnique({ where: { id: payoutId } })
-    if (!payout) return NextResponse.json({ error: "Payout not found" }, { status: 404 })
-    if (payout.status !== "pending") return NextResponse.json({ error: "Already processed" }, { status: 400 })
+    if (!payout) return NextResponse.json({ error: "payout not found" }, { status: 404 })
+    if (payout.status !== "pending") return NextResponse.json({ error: "already processed" }, { status: 400 })
 
     await prisma.creditPayout.update({
       where: { id: payoutId },
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 })
 
     const payout = await prisma.creditPayout.findUnique({ where: { id: payoutId } })
-    if (!payout) return NextResponse.json({ error: "Payout not found" }, { status: 404 })
+    if (!payout) return NextResponse.json({ error: "payout not found" }, { status: 404 })
 
     // Refund credits to user
     await mintCreditsAdmin(payout.userId, payout.creditsAmount, `Payout rejected: ${reason || "Admin rejection"}`, user.id)
@@ -114,5 +114,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
-  return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+  return NextResponse.json({ error: "invalid action" }, { status: 400 })
 }

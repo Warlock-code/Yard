@@ -21,18 +21,18 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(`forgot-password:${normalizedEmail}`, 3, 60 * 60 * 1000)
     if (!rl) {
       await auditLog("user.forgot_password", null, null, { success: false, reason: "Rate limited", email: normalizedEmail, ipAddress: ip })
-      return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 })
+      return NextResponse.json({ error: "too many attempts. Try again later." }, { status: 429 })
     }
 
     const emailRl = await rateLimitWithInfo(`reset-email:${normalizedEmail}`, 2, 60 * 60 * 1000)
     if (!emailRl.allowed) {
       await auditLog("user.forgot_password", null, null, { success: false, reason: "Email rate limited", email: normalizedEmail, ipAddress: ip })
-      return NextResponse.json({ error: "Too many reset emails sent. Try again later." }, { status: 429 })
+      return NextResponse.json({ error: "too many reset emails sent. Try again later." }, { status: 429 })
     }
 
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (!user) {
-      return NextResponse.json({ success: true, message: "If the email exists, a reset link has been sent." })
+      return NextResponse.json({ success: true, message: "if the email exists, a reset link has been sent." })
     }
 
     const resetToken = generateSecureToken(32)
@@ -49,14 +49,14 @@ export async function POST(req: NextRequest) {
     } catch (emailErr) {
       console.error("[forgot-password] sendResetEmail failed for", normalizedEmail, emailErr)
       await auditLog("user.forgot_password", user.id, user.id, { success: true, email: normalizedEmail, emailFailed: true, ipAddress: ip })
-      return NextResponse.json({ success: true, message: "If the email exists, a reset link has been sent.", emailFailed: true })
+      return NextResponse.json({ success: true, message: "if the email exists, a reset link has been sent.", emailFailed: true })
     }
 
     await auditLog("user.forgot_password", user.id, user.id, { success: true, email: normalizedEmail, ipAddress: ip })
 
-    return NextResponse.json({ success: true, message: "If the email exists, a reset link has been sent." })
+    return NextResponse.json({ success: true, message: "if the email exists, a reset link has been sent." })
   } catch (err) {
     console.error("[forgot-password] unexpected error", err)
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "something went wrong. Please try again." }, { status: 500 })
   }
 }

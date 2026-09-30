@@ -14,7 +14,7 @@ const BYTES_PER_MB = 1024 * 1024
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = getAdminUser(req)
   if (!admin) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+    return NextResponse.json({ error: "not authorized." }, { status: 403 })
   }
 
   const { id } = await params
@@ -26,10 +26,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { decision } = validation.data
 
   const report = await prisma.report.findUnique({ where: { id } })
-  if (!report) return NextResponse.json({ error: "Not found." }, { status: 404 })
+  if (!report) return NextResponse.json({ error: "not found." }, { status: 404 })
 
   if (report.status !== "open") {
-    return NextResponse.json({ error: "This report has already been reviewed." }, { status: 409 })
+    return NextResponse.json({ error: "this report has already been reviewed." }, { status: 409 })
   }
 
   const actionType: AuditAction = decision === "actioned" ? "admin.report.actioned" : "admin.report.dismissed"

@@ -7,15 +7,13 @@ export const dynamic = "force-dynamic"
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 })
+    return NextResponse.json({ error: "unauthorized." }, { status: 401 })
   }
 
   const now = new Date()
   const weekStart = new Date(now)
   weekStart.setDate(now.getDate() - now.getDay())
   weekStart.setHours(0, 0, 0, 0)
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   const users = await prisma.user.findMany({
     where: { tier: { not: "FREE" } },

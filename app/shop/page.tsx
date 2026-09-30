@@ -4,21 +4,20 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
-import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow, isAvatarUnlockedForTier } from "@/lib/avatars"
-import { TIER_CONFIG } from "@/lib/tier"
+import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow } from "@/lib/avatars"
 import { useTierTheme } from "@/app/components/ThemeProvider"
 import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 import { getAllPacks } from "@/lib/credits"
 import type { CreditPack } from "@/lib/credit-config"
 
 const CATEGORIES = [
-  { key: "credits", label: "Credits", icon: "💳" },
-  { key: "tier", label: "Upgrade" },
-  { key: "boosts", label: "Boosts" },
-  { key: "streak", label: "Streak" },
-  { key: "avatars", label: "Avatars" },
-  { key: "identity", label: "Identity" },
-  { key: "themes", label: "Themes" },
+  { key: "credits", label: "credits", icon: "💳" },
+  { key: "tier", label: "upgrade" },
+  { key: "boosts", label: "boosts" },
+  { key: "streak", label: "streak" },
+  { key: "avatars", label: "avatars" },
+  { key: "identity", label: "identity" },
+  { key: "themes", label: "themes" },
 ]
 
 function ThemesPicker({
@@ -41,8 +40,8 @@ function ThemesPicker({
   return (
     <div className="mt-2">
       <p className="text-white/40 text-xs mb-3 px-1">
-        Default Green is on for everyone. Plus unlocks Blue, Prime unlocks Blue & Gold — all opt-in.
-        Everyone can also buy extra colorways below.
+        default green is on for everyone. plus unlocks blue, prime unlocks blue & gold — all opt-in.
+        everyone can also buy extra colorways below.
       </p>
       <div className="grid grid-cols-2 gap-3">
         {THEMES.map((theme) => {
@@ -63,22 +62,22 @@ function ThemesPicker({
               <p className="font-semibold text-sm">{theme.name}</p>
               <p className={`text-xs mb-3 ${isActive ? theme.activeTextClass : "text-white/40"}`}>
                 {isActive
-                  ? "✓ Active"
+                  ? "✓ active"
                   : unlocked
                     ? theme.description
                     : isPaid
                       ? theme.description
                       : theme.requiresTier === "PRIME"
-                        ? "Prime perk"
-                        : "Plus perk"}
+                        ? "prime perk"
+                        : "plus perk"}
               </p>
               {isActive ? (
                 <button className="w-full text-sm btn-ghost" disabled>
-                  ✓ Active
+                  ✓ active
                 </button>
               ) : unlocked ? (
                 <button className="w-full text-sm btn-primary" onClick={() => onSelect(theme.id)}>
-                  Use
+                  use
                 </button>
               ) : isPaid ? (
                 <button
@@ -86,11 +85,11 @@ function ThemesPicker({
                   disabled={buyingId !== null}
                   onClick={() => onBuy(theme.id)}
                 >
-                  {isBuying ? "..." : `Buy — ${theme.pricePesewas / 100} credits`}
+                  {isBuying ? "..." : `buy — ${theme.pricePesewas / 100} credits`}
                 </button>
               ) : (
                 <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
-                  🔒 {theme.requiresTier === "PRIME" ? "Prime" : "Plus"} only
+                  🔒 {theme.requiresTier === "PRIME" ? "prime" : "plus"} only
                 </button>
               )}
             </div>
@@ -126,12 +125,12 @@ export default function ShopPage() {
       if (url) {
         await openPaystackCheckout(url)
       } else if (data.status === true && !url) {
-        throw new Error(data.message || "Checkout failed — no payment URL.")
+        throw new Error(data.message || "checkout failed — no payment url.")
       } else {
-        alert(data.message || "Purchased!")
+        alert(data.message || "purchased!")
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(null)
     }
@@ -145,10 +144,10 @@ export default function ShopPage() {
       if (url) {
         await openPaystackCheckout(url)
       } else {
-        alert(data.message || "Purchased!")
+        alert(data.message || "purchased!")
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(null)
     }
@@ -159,39 +158,25 @@ export default function ShopPage() {
     try {
       const data = await apiPost<{ status?: boolean; message?: string; error?: string }>(endpoint, body)
       if (data.status === true || data.message) {
-        alert(data.message || "Purchased!")
+        alert(data.message || "purchased!")
         // Refresh credit balance
         const bal = await apiGet<{ balance: number }>("/api/credits/balance")
         setMe(prev => prev ? { ...prev, creditsBalance: bal.balance } : null)
       } else {
-        alert(data.error || "Failed")
+        alert(data.error || "failed")
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(null)
     }
   }
 
-  const getPriceDisplay = (avatar: typeof AVATARS[0]) => {
-    if (!me) return `${avatar.pricePesewas / 100} credits`
-    const price = getAvatarPriceForTier(me.tier, avatar)
-    if (price === 0) return "Free"
-    return `${price / 100} credits`
-  }
-
-  const isOwnedOrFree = (avatar: typeof AVATARS[0]) => {
-    if (!me) return false
-    if (me.ownedCosmetics?.includes(avatar.id)) return true
-    if (isAvatarUnlockedForTier(me.tier, avatar.id)) return true
-    return false
-  }
-
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="pt-5 pb-3">
-        <h1 className="text-2xl font-black">The Shop</h1>
-        <p className="text-white/40 text-sm">Gear up your ghost.</p>
+        <h1 className="text-2xl font-black">the shop</h1>
+        <p className="text-white/40 text-sm">gear up your ghost.</p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
@@ -210,7 +195,7 @@ export default function ShopPage() {
 
       {me && (
         <div className="card p-3 mb-3 flex items-center justify-between">
-          <span className="text-white/50 text-sm">Your Balance</span>
+          <span className="text-white/50 text-sm">your balance</span>
           <span className="text-lg font-bold text-primary">{me.creditsBalance?.toLocaleString() || 0} credits</span>
         </div>
       )}
@@ -234,7 +219,7 @@ export default function ShopPage() {
                   disabled={loading === pack.id}
                   onClick={() => buyCredits(pack.id)}
                 >
-                  {loading === pack.id ? "..." : `Buy — GHS ${pack.ghs}`}
+                  {loading === pack.id ? "..." : `buy — ghs ${pack.ghs}`}
                 </button>
               </div>
             ))}
@@ -248,22 +233,22 @@ export default function ShopPage() {
       {category === "tier" && me?.tier === "PRIME" && (
         <div className="card p-4 mt-2 border-[#facc15]/20 bg-[#facc15]/5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-[#d4a017]" />
-          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime</p>
-          <p className="font-semibold text-sm text-white/70">You&apos;re on the highest plan — no further upgrade.</p>
+          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 prime</p>
+          <p className="font-semibold text-sm text-white/70">you&apos;re on the highest plan — no further upgrade.</p>
         </div>
       )}
       {category === "tier" && me?.tier === "PLUS" && (
         <div className="card p-5 mt-2 border-sky-500/30 bg-sky-500/5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-500" />
-          <p className="text-xs text-sky-300 uppercase mb-1 font-bold">👑 Prime</p>
-          <p className="font-bold text-lg mb-2">Upgrade to Prime — GHS 20</p>
-          <p className="text-white/40 text-xs mb-3">You&apos;re on Plus — Prime adds earnings & all common avatars free.</p>
+          <p className="text-xs text-sky-300 uppercase mb-1 font-bold">👑 prime</p>
+          <p className="font-bold text-lg mb-2">upgrade to prime — ghs 20</p>
+          <p className="text-white/40 text-xs mb-3">you&apos;re on plus — prime adds earnings & all common avatars free.</p>
           <button
             className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading !== null}
             onClick={() => buy("/api/subscribe/prime", "prime")}
           >
-            {loading === "prime" ? "..." : "Go Prime"}
+            {loading === "prime" ? "..." : "go prime"}
           </button>
         </div>
       )}
@@ -271,26 +256,26 @@ export default function ShopPage() {
         <div className="space-y-3 mt-2">
           <div className="card p-5 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-white/20 to-transparent" />
-            <p className="text-xs text-white/40 uppercase mb-1">Plus — GHS 10</p>
-            <p className="font-bold text-lg mb-2">More perks, more style</p>
+            <p className="text-xs text-white/40 uppercase mb-1">plus — ghs 10</p>
+            <p className="font-bold text-lg mb-2">more perks, more style</p>
             <button
               className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading !== null}
               onClick={() => buy("/api/subscribe/plus", "plus")}
             >
-              {loading === "plus" ? "..." : "Subscribe"}
+              {loading === "plus" ? "..." : "subscribe"}
             </button>
           </div>
           <div className="card p-5 border-[#facc15]/30 bg-[#facc15]/5 relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-[#d4a017]" />
-            <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 Prime — GHS 20</p>
-            <p className="font-bold text-lg mb-2">Every common avatar free. Real earnings. Highest priority.</p>
+            <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 prime — ghs 20</p>
+            <p className="font-bold text-lg mb-2">every common avatar free. real earnings. highest priority.</p>
             <button
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading !== null}
               onClick={() => buy("/api/subscribe/prime", "prime")}
             >
-              {loading === "prime" ? "..." : "Go Prime"}
+              {loading === "prime" ? "..." : "go prime"}
             </button>
           </div>
         </div>
@@ -300,18 +285,18 @@ export default function ShopPage() {
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🚀</p>
-            <p className="font-semibold text-sm">1 Boost Credit</p>
+            <p className="font-semibold text-sm">1 boost credit</p>
             <p className="text-white/40 text-xs mb-3">300 credits</p>
             <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/boost-credit", "boost", { useCredits: true })}>
-              {loading === "boost" ? "..." : "Buy — 300 credits"}
+              {loading === "boost" ? "..." : "buy — 300 credits"}
             </button>
           </div>
           {me && me.freeBoosts > 0 && (
             <div className="card p-4 text-center border-sky-500/30 bg-sky-500/5">
               <p className="text-3xl mb-2">🚀</p>
-              <p className="font-semibold text-sm">Free Boosts Available</p>
+              <p className="font-semibold text-sm">free boosts available</p>
               <p className="text-sky-300 text-xs mb-3">{me.freeBoosts} boost{me.freeBoosts > 1 ? "s" : ""} this week</p>
-              <button className="btn-ghost w-full text-sm" disabled>Use on post</button>
+              <button className="btn-ghost w-full text-sm" disabled>use on post</button>
             </div>
           )}
         </div>
@@ -321,26 +306,26 @@ export default function ShopPage() {
         <div className="grid grid-cols-2 gap-3 mt-2">
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🧊</p>
-            <p className="font-semibold text-sm">Streak Freeze</p>
+            <p className="font-semibold text-sm">streak freeze</p>
             <p className="text-white/40 text-xs mb-3">200 credits</p>
             <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/streak-freeze", "freeze", { useCredits: true })}>
-              {loading === "freeze" ? "..." : "Buy — 200 credits"}
+              {loading === "freeze" ? "..." : "buy — 200 credits"}
             </button>
           </div>
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🔁</p>
-            <p className="font-semibold text-sm">Restore Streak</p>
+            <p className="font-semibold text-sm">restore streak</p>
             <p className="text-white/40 text-xs mb-3">500 credits</p>
             <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/streak-restore", "restore", { useCredits: true })}>
-              {loading === "restore" ? "..." : "Buy — 500 credits"}
+              {loading === "restore" ? "..." : "buy — 500 credits"}
             </button>
           </div>
           <div className="card p-4 text-center col-span-2">
             <p className="text-3xl mb-2">💾</p>
-            <p className="font-semibold text-sm">Storage +100MB</p>
+            <p className="font-semibold text-sm">storage +100mb</p>
             <p className="text-white/40 text-xs mb-3">200 credits</p>
             <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/storage", "storage", { useCredits: true })}>
-              {loading === "storage" ? "..." : "Buy — 200 credits"}
+              {loading === "storage" ? "..." : "buy — 200 credits"}
             </button>
           </div>
         </div>
@@ -350,7 +335,6 @@ export default function ShopPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
           {AVATARS.map((c) => {
             const owned = me?.ownedCosmetics?.includes(c.id)
-            const freeForTier = me && isAvatarUnlockedForTier(me.tier, c.id)
             const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
             const isFree = price === 0
             const rarityClass = getRarityColor(c.rarity)
@@ -361,14 +345,14 @@ export default function ShopPage() {
                 <p className="font-semibold text-sm">{c.name}</p>
                 <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
                 <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
-                  {owned ? "✓ Owned" : isFree ? "Free (Prime)" : `${price / 100} credits`}
+                  {owned ? "✓ owned" : isFree ? "free with plus" : `${price / 100} credits`}
                 </p>
                 <button
                   className={`w-full text-sm ${owned || isFree ? "btn-ghost" : "btn-primary"}`}
                   disabled={owned || isFree || loading === c.id}
                   onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
                 >
-                  {owned ? "✓ Owned" : isFree ? "✓ Free" : loading === c.id ? "..." : `Buy — ${price / 100} credits`}
+                  {owned ? "✓ owned" : isFree ? "✓ free" : loading === c.id ? "..." : `buy — ${price / 100} credits`}
                 </button>
               </div>
             )
@@ -378,10 +362,10 @@ export default function ShopPage() {
 
       {category === "identity" && (
         <div className="card p-4 mt-2">
-          <p className="font-semibold text-sm mb-1">✏️ Custom Ghost Name</p>
-          <p className="text-white/40 text-xs mb-3">300 credits — change from your Lair page.</p>
+          <p className="font-semibold text-sm mb-1">✏️ custom ghost name</p>
+          <p className="text-white/40 text-xs mb-3">300 credits — change from your lair page.</p>
           <button className="btn-ghost" onClick={() => router.push("/lair")}>
-            Go to Lair
+            go to lair
           </button>
         </div>
       )}

@@ -24,7 +24,7 @@ function emptyCounts() {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
 
@@ -156,9 +156,9 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ error: "Invalid search parameters." }, { status: 400 })
+    return NextResponse.json({ error: "invalid search parameters." }, { status: 400 })
   } catch (err) {
     console.error("GET /api/search failed", err)
-    return NextResponse.json({ error: "Search failed." }, { status: 500 })
+    return NextResponse.json({ error: "search failed." }, { status: 500 })
   }
 }

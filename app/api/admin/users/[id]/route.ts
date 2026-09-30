@@ -7,14 +7,14 @@ export const revalidate = 0
 export const fetchCache = "force-no-store"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
   const { id } = await params
   let body: any = {}
-  try { body = await req.json() } catch { return NextResponse.json({ error: "Invalid JSON." }, { status: 400 }) }
+  try { body = await req.json() } catch { return NextResponse.json({ error: "invalid JSON." }, { status: 400 }) }
   const { action } = body
 
   if (action !== "suspend" && action !== "ban" && action !== "unsuspend") {
-    return NextResponse.json({ error: "Invalid action." }, { status: 400 })
+    return NextResponse.json({ error: "invalid action." }, { status: 400 })
   }
 
   const statusMap = { suspend: "SUSPENDED", ban: "BANNED", unsuspend: "ACTIVE" } as const
@@ -30,20 +30,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     return NextResponse.json({ user })
   } catch (e: any) {
-    if (e?.code === "P2025") return NextResponse.json({ error: "User not found." }, { status: 404 })
-    return NextResponse.json({ error: "Failed to update user." }, { status: 500 })
+    if (e?.code === "P2025") return NextResponse.json({ error: "user not found." }, { status: 404 })
+    return NextResponse.json({ error: "failed to update user." }, { status: 500 })
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
   const { id } = await params
   try {
     await prisma.user.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (e: any) {
-    if (e?.code === "P2003") return NextResponse.json({ error: "Cannot hard-delete user with posts/comments/battles. Use suspend/ban instead." }, { status: 409 })
-    if (e?.code === "P2025") return NextResponse.json({ error: "User not found." }, { status: 404 })
-    return NextResponse.json({ error: "Delete failed." }, { status: 500 })
+    if (e?.code === "P2003") return NextResponse.json({ error: "cannot hard-delete user with posts/comments/battles. Use suspend/ban instead." }, { status: 409 })
+    if (e?.code === "P2025") return NextResponse.json({ error: "user not found." }, { status: 404 })
+    return NextResponse.json({ error: "delete failed." }, { status: 500 })
   }
 }

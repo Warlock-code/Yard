@@ -7,17 +7,17 @@ import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { postId, reason } = await req.json()
   if (typeof postId !== "string" || !postId || typeof reason !== "string" || !reason.trim()) {
-    return NextResponse.json({ error: "Post and reason required." }, { status: 400 })
+    return NextResponse.json({ error: "post and reason required." }, { status: 400 })
   }
   if (typeof reason !== "string" || reason.length > 500) {
-    return NextResponse.json({ error: "Report reason must be 500 characters or fewer." }, { status: 400 })
+    return NextResponse.json({ error: "report reason must be 500 characters or fewer." }, { status: 400 })
   }
   if (!(await rateLimit(`report:${user.id}`, 10, 60 * 60 * 1000))) {
-    return NextResponse.json({ error: "Too many reports. Try again later." }, { status: 429 })
+    return NextResponse.json({ error: "too many reports. Try again later." }, { status: 429 })
   }
 
   // First try readable (visible) posts, then fall back to an already-hidden
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   let post = await prisma.post.findFirst({ where: { id: postId, AND: [await getReadablePostWhere(user)] } })
   if (!post) {
     const hidden = await prisma.post.findUnique({ where: { id: postId } })
-    if (!hidden) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+    if (!hidden) return NextResponse.json({ error: "post not found." }, { status: 404 })
     const inScope = await prisma.post.findFirst({
       where: {
         id: postId,
@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
         ],
       },
     })
-    if (!inScope) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+    if (!inScope) return NextResponse.json({ error: "post not found." }, { status: 404 })
     post = hidden
   }
   if (post.userId === user.id) {
-    return NextResponse.json({ error: "You cannot report your own post." }, { status: 400 })
+    return NextResponse.json({ error: "you cannot report your own post." }, { status: 400 })
   }
 
   let report
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: unknown) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      return NextResponse.json({ error: "You have already reported this post." }, { status: 409 })
+      return NextResponse.json({ error: "you have already reported this post." }, { status: 409 })
     }
     throw error
   }

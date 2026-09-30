@@ -7,12 +7,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { id: postId } = await params
 
   const post = await prisma.post.findUnique({ where: { id: postId } })
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 })
+  if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
 
   try {
     await prisma.postView.create({

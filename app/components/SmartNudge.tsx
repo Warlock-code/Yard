@@ -15,15 +15,15 @@ type Nudge = {
 }
 
 function ctaFor(nudge: Nudge): { label: string; href: string } {
-  if (nudge.type === "nudge_boost_popping") return { label: "Boost for GHS 3", href: nudge.href }
-  if (nudge.type === "nudge_avatar") return { label: "Pick avatar", href: "/shop" }
-  if (nudge.type === "nudge_streak_freeze") return { label: "Freeze streak", href: "/shop" }
-  if (nudge.type === "nudge_plus") return { label: "Go Plus", href: "/upgrade" }
-  if (nudge.type === "nudge_custom_name") return { label: "Change name", href: "/lair" }
-  if (nudge.type === "nudge_first_buy") return { label: "Shop first buy", href: "/shop" }
-  if (nudge.type === "nudge_storage") return { label: "Get space", href: "/shop" }
-  if (nudge.type === "nudge_comeback") return { label: "Post now", href: "/compose" }
-  return { label: "Open", href: nudge.href }
+  if (nudge.type === "nudge_boost_popping") return { label: "boost for ghs 3", href: nudge.href }
+  if (nudge.type === "nudge_avatar") return { label: "pick avatar", href: "/shop" }
+  if (nudge.type === "nudge_streak_freeze") return { label: "freeze streak", href: "/shop" }
+  if (nudge.type === "nudge_plus") return { label: "go plus", href: "/upgrade" }
+  if (nudge.type === "nudge_custom_name") return { label: "change name", href: "/lair" }
+  if (nudge.type === "nudge_first_buy") return { label: "shop first buy", href: "/shop" }
+  if (nudge.type === "nudge_storage") return { label: "get space", href: "/shop" }
+  if (nudge.type === "nudge_comeback") return { label: "post now", href: "/compose" }
+  return { label: "open", href: nudge.href }
 }
 
 function postIdFromHref(href: string): string | null {
@@ -71,7 +71,7 @@ export default function SmartNudge({ compact = false }: { compact?: boolean }) {
             return
           }
         } catch (err) {
-          alert(err instanceof Error ? err.message : "Boost failed.")
+          alert(err instanceof Error ? err.message : "boost failed.")
           setBusyId(null)
           return
         } finally {
@@ -110,9 +110,9 @@ export default function SmartNudge({ compact = false }: { compact?: boolean }) {
                 <button
                   className="text-xs text-white/40 hover:text-white/70 px-2"
                   onClick={() => dismiss(nudge.id)}
-                  aria-label="Dismiss"
+                  aria-label="dismiss"
                 >
-                  Later
+                  later
                 </button>
               </div>
             </div>

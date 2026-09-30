@@ -9,14 +9,14 @@ import { getChampionTrophies } from "@/lib/champions"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ ghostId: string }> }) {
   const viewer = await getCurrentUser(req)
-  if (!viewer) return NextResponse.json({ error: "Not authenticated." }, { status: 401 })
+  if (!viewer) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { ghostId } = await params
   const user = await prisma.user.findUnique({
     where: { ghostId },
     select: { id: true, ghostId: true, avatarEmoji: true, campus: true, tier: true, streakCount: true },
   })
-  if (!user) return NextResponse.json({ error: "Ghost not found." }, { status: 404 })
+  if (!user) return NextResponse.json({ error: "ghost not found." }, { status: 404 })
 
   if (viewer.id !== user.id) {
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000)
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
       createNotification({
         userId: user.id,
         type: "profile_view",
-        title: "Someone checked your lair",
+        title: "someone checked your lair",
         body: `${viewer.ghostId} viewed your profile`,
         href: `/u/${viewer.ghostId}`,
         actorName: viewer.ghostId,
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   const cursor = req.nextUrl.searchParams.get("cursor")
   if (cursor) {
     const cursorPost = await prisma.post.findFirst({ where: { AND: [visiblePosts, { id: cursor }] }, select: { id: true } })
-    if (!cursorPost) return NextResponse.json({ error: "Invalid activity cursor." }, { status: 400 })
+    if (!cursorPost) return NextResponse.json({ error: "invalid activity cursor." }, { status: 400 })
   }
 
   const [postCount, followersCount, followingCount, yeahsAgg, battleVotesAgg, posts, following] = await Promise.all([

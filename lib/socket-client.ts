@@ -104,5 +104,3 @@ export function emitBattleVote(battleId: string, entryId: string, votes: number)
 export function emitBattleUpdate(battleId: string, data: BattleUpdateData) {
   emitToSocketServer("battle_update", { battleId, data })
 }
-
-export const emitPostNew = emitNewPost

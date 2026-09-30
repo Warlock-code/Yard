@@ -9,12 +9,12 @@ export const fetchCache = "force-no-store"
 const SYSTEM_GHOST_EMAIL = "system@yardapp.me"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!isAdmin(req)) return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+  if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
   const { id } = await params
 
   const draft = await prisma.aiDraft.findUnique({ where: { id } })
-  if (!draft) return NextResponse.json({ error: "Not found." }, { status: 404 })
-  if (draft.status !== "pending") return NextResponse.json({ error: "Draft already processed." }, { status: 409 })
+  if (!draft) return NextResponse.json({ error: "not found." }, { status: 404 })
+  if (draft.status !== "pending") return NextResponse.json({ error: "draft already processed." }, { status: 409 })
 
   let systemUser = await prisma.user.findUnique({ where: { email: SYSTEM_GHOST_EMAIL } })
   if (!systemUser) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } catch (e: any) {
       if (e?.code === "P2002") {
         systemUser = await prisma.user.findUnique({ where: { email: SYSTEM_GHOST_EMAIL } })
-        if (!systemUser) return NextResponse.json({ error: "System user conflict." }, { status: 500 })
+        if (!systemUser) return NextResponse.json({ error: "system user conflict." }, { status: 500 })
       } else throw e
     }
   }

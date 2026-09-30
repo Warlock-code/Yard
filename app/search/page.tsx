@@ -59,27 +59,27 @@ type TabKey = "top" | "posts" | "people" | "hashtags" | "media"
 type SortKey = "relevance" | "recent" | "engagement"
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: "top", label: "Top", icon: "✨" },
-  { key: "posts", label: "Posts", icon: "📝" },
-  { key: "people", label: "People", icon: "👻" },
-  { key: "hashtags", label: "Hashtags", icon: "#" },
-  { key: "media", label: "Media", icon: "🖼️" },
+  { key: "top", label: "top", icon: "✨" },
+  { key: "posts", label: "posts", icon: "📝" },
+  { key: "people", label: "people", icon: "👻" },
+  { key: "hashtags", label: "hashtags", icon: "#" },
+  { key: "media", label: "media", icon: "🖼️" },
 ]
 
 const VALID_TABS = new Set<string>(TABS.map((t) => t.key))
 
 const TYPE_CHIPS = [
-  { key: "all", label: "All" },
-  { key: "confession", label: "Confession" },
-  { key: "gossip", label: "Gist" },
-  { key: "meme", label: "Meme" },
+  { key: "all", label: "all" },
+  { key: "confession", label: "confession" },
+  { key: "gossip", label: "gist" },
+  { key: "meme", label: "meme" },
 ]
 const VALID_TYPES = new Set(TYPE_CHIPS.map((c) => c.key))
 
 const SORT_LABELS: Record<SortKey, string> = {
-  relevance: "Relevance",
-  recent: "Recent",
-  engagement: "Top Engagement",
+  relevance: "relevance",
+  recent: "recent",
+  engagement: "top engagement",
 }
 
 const RECENT_KEY = "yard_recent_searches"
@@ -112,7 +112,7 @@ function PostCard({ post }: { post: Post }) {
     <article className="px-4 py-3 border-b border-white/[0.06] hover:bg-white/[0.02] relative">
       <Link
         href={`/post/${post.id}`}
-        aria-label={`Open post by ${post.user.ghostId}`}
+        aria-label={`open post by ${post.user.ghostId}`}
         className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]"
       />
       <div className="flex items-start gap-3 relative z-10">
@@ -124,10 +124,10 @@ function PostCard({ post }: { post: Post }) {
             <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="font-semibold">
               {post.user.ghostId}
             </Link>
-            {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-            {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+            {post.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+            {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             <ChampionTrophies trophies={post.user.championTrophies} className="text-[10px] leading-none" />
-            {post.boosted && <span className="badge badge-boosted">Boosted</span>}
+            {post.boosted && <span className="badge badge-boosted">boosted</span>}
             <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
           </div>
 
@@ -165,7 +165,7 @@ function PostCard({ post }: { post: Post }) {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2">
             <span className="text-orange-200">🔥 {post.yeahs}</span>
             <span className="text-sky-200">💬 {post.commentsCount}</span>
-            <span className="text-white/40 text-xs">Tap to open</span>
+            <span className="text-white/40 text-xs">tap to open</span>
           </div>
         </div>
       </div>
@@ -175,7 +175,7 @@ function PostCard({ post }: { post: Post }) {
 
 function SkeletonList({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="mt-2 space-y-4" aria-busy="true" aria-label="Loading results">
+    <div className="mt-2 space-y-4" aria-busy="true" aria-label="loading results">
       {[...Array(rows)].map((_, i) => (
         <div key={i} className="animate-pulse bg-white/5 rounded-xl p-4 border border-white/10">
           <div className="flex gap-3">
@@ -513,7 +513,7 @@ function SearchPageContent() {
         console.error(err)
         if (seq !== fetchSeq.current) return
         if (!append) {
-          setFetchError("Search failed. Check your connection and try again.")
+          setFetchError("search failed. check your connection and try again.")
           setResults({ posts: [], total: 0, page: 1, totalPages: 0 })
           setTopPosts([])
           setTopUsers([])
@@ -606,8 +606,8 @@ function SearchPageContent() {
         <Link href={`/u/${encodeURIComponent(user.ghostId)}`} className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold truncate">{user.ghostId}</span>
-            {user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-            {user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+            {user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+            {user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             <ChampionTrophies trophies={user.championTrophies} className="text-[10px] leading-none" />
           </div>
           <p className="text-white/40 text-sm mt-0.5">
@@ -626,7 +626,7 @@ function SearchPageContent() {
               : "text-white/70 border-white/20 hover:text-[#baff39] hover:border-[#baff39]/50"
           }`}
         >
-          {isFollowing ? "Following" : "Follow"}
+          {isFollowing ? "following" : "follow"}
         </button>
       </div>
     )
@@ -639,13 +639,13 @@ function SearchPageContent() {
         initialQuery={urlQ}
         onSearch={handleSearch}
         campus={campus}
-        placeholder="Search posts, ghosts, hashtags..."
+        placeholder="search posts, ghosts, hashtags..."
         className="mb-4"
       />
 
       <div
         role="tablist"
-        aria-label="Search results tabs"
+        aria-label="search results tabs"
         className="sticky top-0 bg-black/80 backdrop-blur border-b border-white/10 z-10 mb-4 rounded-xl p-1 flex gap-1 overflow-x-auto"
       >
         {TABS.map((tab) => {
@@ -687,14 +687,14 @@ function SearchPageContent() {
             <section aria-labelledby="recent-heading" className="mb-6">
               <div className="flex items-center justify-between px-1 mb-2">
                 <h2 id="recent-heading" className="text-sm font-semibold text-white/80">
-                  Recent searches
+                  recent searches
                 </h2>
                 <button
                   type="button"
                   onClick={clearRecents}
                   className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                 >
-                  Clear all
+                  clear all
                 </button>
               </div>
               <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
@@ -713,7 +713,7 @@ function SearchPageContent() {
                     <button
                       type="button"
                       onClick={() => removeRecent(term)}
-                      aria-label={`Remove ${term} from recent searches`}
+                      aria-label={`remove ${term} from recent searches`}
                       className="p-2 text-white/30 hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                     >
                       ✕
@@ -731,17 +731,17 @@ function SearchPageContent() {
               <section aria-labelledby="explore-tags-heading" className="mb-6">
                 <div className="flex items-center justify-between px-1 mb-2">
                   <h2 id="explore-tags-heading" className="text-sm font-semibold text-white/80">
-                    Trending hashtags
+                    trending hashtags
                   </h2>
                   <Link
                     href="/explore"
                     className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                   >
-                    Explore →
+                    explore →
                   </Link>
                 </div>
                 {!exploreData || exploreData.hashtags.length === 0 ? (
-                  <p className="text-white/40 text-sm px-1">No trending hashtags yet.</p>
+                  <p className="text-white/40 text-sm px-1">no trending hashtags yet.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 px-1">
                     {exploreData.hashtags.slice(0, 6).map((ht, index) => (
@@ -770,10 +770,10 @@ function SearchPageContent() {
 
               <section aria-labelledby="explore-ghosts-heading" className="mb-6">
                 <h2 id="explore-ghosts-heading" className="text-sm font-semibold text-white/80 px-1 mb-2">
-                  Suggested ghosts
+                  suggested ghosts
                 </h2>
                 {!exploreData || exploreData.suggestedGhosts.length === 0 ? (
-                  <p className="text-white/40 text-sm px-1">No suggestions right now.</p>
+                  <p className="text-white/40 text-sm px-1">no suggestions right now.</p>
                 ) : (
                   <div className="border-y border-white/[0.06] divide-y divide-white/[0.06]">
                     {exploreData.suggestedGhosts.slice(0, 4).map((user) => renderUserRow(user))}
@@ -784,19 +784,19 @@ function SearchPageContent() {
               <section aria-labelledby="explore-posts-heading">
                 <div className="flex items-center justify-between px-1 mb-2">
                   <h2 id="explore-posts-heading" className="text-sm font-semibold text-white/80">
-                    Trending posts
+                    trending posts
                   </h2>
                   <Link
                     href="/explore"
                     className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                   >
-                    See more →
+                    see more →
                   </Link>
                 </div>
                 {!exploreData || exploreData.posts.length === 0 ? (
                   <div className="text-center mt-8 px-8">
                     <p className="text-3xl mb-3">📈</p>
-                    <p className="text-white/50 text-sm">Nothing trending yet. Try searching for something.</p>
+                    <p className="text-white/50 text-sm">nothing trending yet. try searching for something.</p>
                   </div>
                 ) : (
                   <div className="border-t border-white/[0.06]">
@@ -816,7 +816,7 @@ function SearchPageContent() {
               <div className="flex items-center justify-between text-sm text-white/50 px-1">
                 <span>
                   {activeTab === "top"
-                    ? `Top results for “${qTrim}”`
+                    ? `top results for “${qTrim}”`
                     : `${activeTab === "media" ? mediaPosts.length : results.total} result${
                         (activeTab === "media" ? mediaPosts.length : results.total) !== 1 ? "s" : ""
                       }`}
@@ -824,7 +824,7 @@ function SearchPageContent() {
                 <select
                   value={sortBy}
                   onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-                  aria-label="Sort results"
+                  aria-label="sort results"
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-white text-xs focus:outline-none focus:border-[#baff39]/50"
                 >
                   <option value="relevance">{SORT_LABELS.relevance}</option>
@@ -832,7 +832,7 @@ function SearchPageContent() {
                   <option value="engagement">{SORT_LABELS.engagement}</option>
                 </select>
               </div>
-              <div className="flex gap-1.5 px-1 overflow-x-auto" role="group" aria-label="Filter by post type">
+              <div className="flex gap-1.5 px-1 overflow-x-auto" role="group" aria-label="filter by post type">
                 {TYPE_CHIPS.map((chip) => {
                   const selected = typeFilter === chip.key
                   return (
@@ -854,7 +854,7 @@ function SearchPageContent() {
               </div>
               {(hashtagFilter || dateFrom || dateTo) && (
                 <p className="text-xs text-white/40 px-1">
-                  Active filters:{hashtagFilter ? ` #${hashtagFilter}` : ""}
+                  active filters:{hashtagFilter ? ` #${hashtagFilter}` : ""}
                   {dateFrom || dateTo ? " · date range" : ""} ·{" "}
                   <button
                     type="button"
@@ -879,7 +879,7 @@ function SearchPageContent() {
                 onClick={() => fetchMainPage(1, false)}
                 className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
               >
-                Retry
+                retry
               </button>
             </div>
           ) : (
@@ -889,27 +889,27 @@ function SearchPageContent() {
                   {topPosts.length === 0 && topUsers.length === 0 && topHashtags.length === 0 ? (
                     <div className="text-center mt-14 px-8">
                       <p className="text-3xl mb-3">🔍</p>
-                      <p className="text-white/50 text-sm mb-4">No top results for &quot;{qTrim}&quot;</p>
+                      <p className="text-white/50 text-sm mb-4">no top results for &quot;{qTrim}&quot;</p>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                       >
-                        Clear filters
+                        clear filters
                       </button>
                     </div>
                   ) : (
                     <>
                       {topUsers.length > 0 && (
-                        <section aria-label="Top ghosts" className="mb-4">
+                        <section aria-label="top ghosts" className="mb-4">
                           <div className="flex items-center justify-between px-1 mb-1">
-                            <h3 className="text-sm font-semibold text-white/80">Ghosts</h3>
+                            <h3 className="text-sm font-semibold text-white/80">ghosts</h3>
                             <button
                               type="button"
                               onClick={() => handleTabChange("people")}
                               className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                             >
-                              See all →
+                              see all →
                             </button>
                           </div>
                           <div className="border-y border-white/[0.06] divide-y divide-white/[0.06]">
@@ -918,15 +918,15 @@ function SearchPageContent() {
                         </section>
                       )}
                       {topHashtags.length > 0 && (
-                        <section aria-label="Top hashtags" className="mb-4">
+                        <section aria-label="top hashtags" className="mb-4">
                           <div className="flex items-center justify-between px-1 mb-1">
-                            <h3 className="text-sm font-semibold text-white/80">Hashtags</h3>
+                            <h3 className="text-sm font-semibold text-white/80">hashtags</h3>
                             <button
                               type="button"
                               onClick={() => handleTabChange("hashtags")}
                               className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                             >
-                              See all →
+                              see all →
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-1.5 px-1">
@@ -942,15 +942,15 @@ function SearchPageContent() {
                           </div>
                         </section>
                       )}
-                      <section aria-label="Top posts">
+                      <section aria-label="top posts">
                         <div className="flex items-center justify-between px-1 mb-1">
-                          <h3 className="text-sm font-semibold text-white/80">Posts</h3>
+                          <h3 className="text-sm font-semibold text-white/80">posts</h3>
                           <button
                             type="button"
                             onClick={() => handleTabChange("posts")}
                             className="text-xs text-white/40 hover:text-[#baff39] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                           >
-                            See all →
+                            see all →
                           </button>
                         </div>
                         <div className="border-t border-white/[0.06]">
@@ -969,13 +969,13 @@ function SearchPageContent() {
                   {posts.length === 0 ? (
                     <div className="text-center mt-14 px-8">
                       <p className="text-3xl mb-3">🔍</p>
-                      <p className="text-white/50 text-sm mb-4">No posts found for &quot;{qTrim}&quot;</p>
+                      <p className="text-white/50 text-sm mb-4">no posts found for &quot;{qTrim}&quot;</p>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                       >
-                        Clear filters
+                        clear filters
                       </button>
                     </div>
                   ) : (
@@ -994,7 +994,7 @@ function SearchPageContent() {
                           onClick={handleLoadMore}
                           className="w-full py-3 text-white/50 hover:text-white/80 text-sm font-medium border-t border-white/10 mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                         >
-                          Load more
+                          load more
                         </button>
                       )}
                     </div>
@@ -1007,13 +1007,13 @@ function SearchPageContent() {
                   {mediaPosts.length === 0 ? (
                     <div className="text-center mt-14 px-8">
                       <p className="text-3xl mb-3">🖼️</p>
-                      <p className="text-white/50 text-sm mb-4">No media found for &quot;{qTrim}&quot;</p>
+                      <p className="text-white/50 text-sm mb-4">no media found for &quot;{qTrim}&quot;</p>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                       >
-                        Clear filters
+                        clear filters
                       </button>
                     </div>
                   ) : (
@@ -1023,7 +1023,7 @@ function SearchPageContent() {
                           <Link
                             key={post.id}
                             href={`/post/${post.id}`}
-                            aria-label={`Open media post by ${post.user.ghostId}`}
+                            aria-label={`open media post by ${post.user.ghostId}`}
                             className="relative aspect-square rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-[#baff39]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                           >
                             {post.imageUrl && (
@@ -1041,13 +1041,13 @@ function SearchPageContent() {
                         ))}
                       </div>
                       <div ref={sentinelRef} aria-hidden="true" className="h-1" />
-                      {loadingMore && <p className="text-center text-white/30 text-sm py-4">Loading more...</p>}
+                      {loadingMore && <p className="text-center text-white/30 text-sm py-4">loading more...</p>}
                       {!loadingMore && nextCursor && (
                         <button
                           onClick={handleLoadMore}
                           className="w-full py-3 text-white/50 hover:text-white/80 text-sm font-medium border-t border-white/10 mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39] rounded"
                         >
-                          Load more
+                          load more
                         </button>
                       )}
                     </div>
@@ -1060,13 +1060,13 @@ function SearchPageContent() {
                   {users.length === 0 ? (
                     <div className="text-center mt-14 px-8">
                       <p className="text-3xl mb-3">👻</p>
-                      <p className="text-white/50 text-sm mb-4">No ghosts found for &quot;{qTrim}&quot;</p>
+                      <p className="text-white/50 text-sm mb-4">no ghosts found for &quot;{qTrim}&quot;</p>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                       >
-                        Clear filters
+                        clear filters
                       </button>
                     </div>
                   ) : (
@@ -1082,13 +1082,13 @@ function SearchPageContent() {
                   {hashtags.length === 0 ? (
                     <div className="text-center mt-14 px-8">
                       <p className="text-3xl mb-3">#</p>
-                      <p className="text-white/50 text-sm mb-4">No hashtags found for &quot;{qTrim}&quot;</p>
+                      <p className="text-white/50 text-sm mb-4">no hashtags found for &quot;{qTrim}&quot;</p>
                       <button
                         type="button"
                         onClick={handleClearFilters}
                         className="btn-ghost text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#baff39]"
                       >
-                        Clear filters
+                        clear filters
                       </button>
                     </div>
                   ) : (
@@ -1112,7 +1112,7 @@ function SearchPageContent() {
                               </div>
                             </div>
                             <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded">
-                              Trending: {ht.trendingScore.toFixed(1)}
+                              trending: {ht.trendingScore.toFixed(1)}
                             </span>
                           </div>
                         </Link>

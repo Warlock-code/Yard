@@ -42,11 +42,6 @@ export function canAccessAvatar(tier: AccountTier, avatarRarity: AvatarRarity): 
   return false
 }
 
-export function getAvatarPriceForTier(tier: AccountTier, pricePesewas: number, rarity: AvatarRarity): number {
-  if (tier === "PLUS" && (rarity === "common" || rarity === "rare")) return 0
-  return pricePesewas
-}
-
 export function getTierAvatars(tier: AccountTier) {
   if (tier === "FREE") return []
   return AVATARS.filter((a) => canAccessAvatar(tier, a.rarity)).map((a) => a.id)
@@ -59,7 +54,7 @@ export function getWeeklyBoostGrant(tier: AccountTier): number {
   }
 }
 
-export function getMonthlyFreezeGrant(tier: AccountTier): number {
+export function getMonthlyFreezeGrant(_tier: AccountTier): number {
   return 0
 }
 
@@ -86,7 +81,7 @@ export function shouldGrantWeeklyBoost(user: { tier: AccountTier; tierExpiresAt:
   return lastGrant < weekStart
 }
 
-export function shouldGrantMonthlyFreeze(user: { tier: AccountTier; tierExpiresAt: Date | null; lastFreeFreezeGrant: Date | null }): boolean {
+export function shouldGrantMonthlyFreeze(_user: { tier: AccountTier; tierExpiresAt: Date | null; lastFreeFreezeGrant: Date | null }): boolean {
   return false
 }
 

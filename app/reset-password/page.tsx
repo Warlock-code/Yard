@@ -20,7 +20,7 @@ function ResetPasswordContent() {
   useEffect(() => {
     if (!token) {
       setTokenValid(false)
-      setError("Invalid or missing reset token.")
+      setError("invalid or missing reset token.")
     }
   }, [token])
 
@@ -28,7 +28,7 @@ function ResetPasswordContent() {
     e.preventDefault()
     if (!token) return
     if (password !== confirmPassword) {
-      setError("Passwords do not match.")
+      setError("passwords do not match.")
       return
     }
     setLoading(true)
@@ -37,10 +37,10 @@ function ResetPasswordContent() {
 
     try {
       const data = await apiPost<{ message?: string }>("/api/auth/reset-password", { token, password })
-      setMessage(data.message || "Password reset successful.")
+      setMessage(data.message || "password reset successful.")
       setTimeout(() => router.push("/login"), 3000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.")
+      setError(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setLoading(false)
     }
@@ -50,10 +50,10 @@ function ResetPasswordContent() {
     return (
       <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto text-center">
         <p className="text-3xl mb-3">🔗</p>
-        <h1 className="text-2xl font-bold mb-2">Invalid reset link</h1>
-        <p className="text-white/60 mb-6">This link is invalid or has expired.</p>
+        <h1 className="text-2xl font-bold mb-2">invalid reset link</h1>
+        <p className="text-white/60 mb-6">this link is invalid or has expired.</p>
         <Link href="/forgot-password" className="btn-primary inline-block">
-          Request a new link
+          request a new link
         </Link>
       </main>
     )
@@ -61,14 +61,14 @@ function ResetPasswordContent() {
 
   return (
     <main className="min-h-screen px-5 py-8 flex flex-col justify-center max-w-md mx-auto">
-      <h1 className="text-4xl font-black mb-2">New password</h1>
-      <p className="text-white/60 mb-8">Enter your new password below.</p>
+      <h1 className="text-4xl font-black mb-2">new password</h1>
+      <p className="text-white/60 mb-8">enter your new password below.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           className="input"
           type="password"
-          placeholder="New password (min 8 chars, upper, lower, number, symbol)"
+          placeholder="new password (min 8 chars, upper, lower, number, symbol)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -77,7 +77,7 @@ function ResetPasswordContent() {
         <input
           className="input"
           type="password"
-          placeholder="Confirm new password"
+          placeholder="confirm new password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
@@ -88,13 +88,13 @@ function ResetPasswordContent() {
         {message && !error && <p className="text-[#baff39] text-sm">{message}</p>}
 
         <button className="btn-primary w-full" type="submit" disabled={loading}>
-          {loading ? "Resetting..." : "Reset password"}
+          {loading ? "resetting..." : "reset password"}
         </button>
       </form>
 
       <p className="text-center text-white/40 text-sm mt-5">
         <Link href="/login" className="text-white font-semibold">
-          Back to login
+          back to login
         </Link>
       </p>
     </main>
@@ -103,7 +103,7 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-white/40">Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-white/40">loading...</p></div>}>
       <ResetPasswordContent />
     </Suspense>
   )

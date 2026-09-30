@@ -10,7 +10,7 @@ export const fetchCache = "force-no-store"
 
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 })
+    return NextResponse.json({ error: "not authorized." }, { status: 403 })
   }
 
   const {
@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
   } = await req.json()
 
   if (!text?.trim() || !campus) {
-    return NextResponse.json({ error: "Prompt text and campus required." }, { status: 400 })
+    return NextResponse.json({ error: "prompt text and campus required." }, { status: 400 })
   }
   if (!VALID_CAMPUSES.includes(campus)) {
-    return NextResponse.json({ error: "Invalid campus." }, { status: 400 })
+    return NextResponse.json({ error: "invalid campus." }, { status: 400 })
   }
 
   const now = new Date()
@@ -41,12 +41,12 @@ export async function POST(req: NextRequest) {
   if (seasonId) {
     season = await prisma.battleSeason.findUnique({ where: { id: seasonId }, select: { id: true } })
     if (!season) {
-      return NextResponse.json({ error: "Season not found." }, { status: 400 })
+      return NextResponse.json({ error: "season not found." }, { status: 400 })
     }
   }
 
   if (type === "BRACKET" && totalRounds < 2) {
-    return NextResponse.json({ error: "Bracket battles need at least 2 rounds." }, { status: 400 })
+    return NextResponse.json({ error: "bracket battles need at least 2 rounds." }, { status: 400 })
   }
 
   const prompt = await prisma.battlePrompt.create({

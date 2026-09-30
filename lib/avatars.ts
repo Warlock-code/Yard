@@ -55,7 +55,6 @@ export const AVATAR_EMOJI_MAP: Record<string, string> = Object.fromEntries(
 
 export const COMMON_AVATAR_IDS = AVATARS.filter((a) => a.rarity === "common").map((a) => a.id)
 export const PLUS_AVATAR_IDS = COMMON_AVATAR_IDS
-export const PRIME_AVATAR_IDS = COMMON_AVATAR_IDS
 
 export function getAvatarsForTier(tier: "FREE" | "PLUS" | "PRIME"): AvatarItem[] {
   if (tier === "FREE") return []

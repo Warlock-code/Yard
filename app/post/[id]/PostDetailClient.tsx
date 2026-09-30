@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { shareContent, getShareTargets, ShareTarget } from "@/lib/share"
+import { shareContent, getShareTargets } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
@@ -49,15 +49,15 @@ function CommentThread({
   return (
     <div className="mt-3">
       <div className="flex gap-2">
-        <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+        <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`view ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
           <Avatar emoji={comment.user.avatarEmoji} size={32} />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`View ${comment.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+            <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`view ${comment.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
               {comment.user.ghostId}
             </Link>
-            {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ Plus</span>}
+            {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
             <ChampionTrophies trophies={comment.user.championTrophies} className="text-[10px] leading-none" />
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
@@ -65,7 +65,7 @@ function CommentThread({
           <div className="flex items-center gap-4 mt-1">
             <button
               onClick={() => onHeat(comment.id)}
-              aria-label={`Add heat to comment, ${comment.yeahs ?? 0} heat`}
+              aria-label={`add heat to comment, ${comment.yeahs ?? 0} heat`}
               className={`text-xs inline-flex items-center gap-1 ${comment.heated ? "text-orange-200" : "text-white/40 hover:text-orange-200"}`}
             >
               🔥 {comment.yeahs ?? 0}
@@ -74,7 +74,7 @@ function CommentThread({
               className="text-xs text-white/40 hover:text-white"
               onClick={() => onReply(comment.id, comment.ghostId)}
             >
-              Reply
+              reply
             </button>
           </div>
         </div>
@@ -99,12 +99,12 @@ function ShareButton({ postId, postText }: { postId: string; postText?: string }
     <div className="relative">
       <button
         onClick={() => setShowMenu(!showMenu)}
-        aria-label="Share post"
+        aria-label="share post"
         aria-expanded={showMenu}
         aria-haspopup="menu"
         className="inline-flex items-center gap-1 text-purple-200 hover:text-purple-100 focus-visible:outline-[#baff39]"
       >
-        🔗 Share
+        🔗 share
       </button>
       {showMenu && (
         <div className="absolute bottom-full right-0 mb-2 card p-2 min-w-[140px] shadow-lg border border-white/10 z-10">
@@ -117,10 +117,10 @@ function ShareButton({ postId, postText }: { postId: string; postText?: string }
               }}
               className="w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10 rounded focus-visible:outline-[#baff39]"
             >
-              {target === "native" && "📤 Native Share"}
-              {target === "whatsapp" && "💬 WhatsApp"}
-              {target === "twitter" && "🐦 X (Twitter)"}
-              {target === "copy" && "📋 Copy Link"}
+              {target === "native" && "📤 native share"}
+              {target === "whatsapp" && "💬 whatsapp"}
+              {target === "twitter" && "🐦 x (twitter)"}
+              {target === "copy" && "📋 copy link"}
             </button>
           ))}
         </div>
@@ -136,18 +136,18 @@ function ReportButton({ postId }: { postId: string }) {
 
   async function handleReport() {
     if (!reason.trim()) {
-      setError("Please select a reason")
+      setError("please select a reason")
       return
     }
     setReporting(true)
     setError("")
     try {
       await apiPost("/api/reports", { postId, reason: reason.trim() })
-      alert("Post reported. It will be hidden pending review.")
+      alert("post reported. it will be hidden pending review.")
       setReporting(false)
       setReason("")
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to report")
+      setError(err instanceof Error ? err.message : "failed to report")
       setReporting(false)
     }
   }
@@ -156,16 +156,16 @@ function ReportButton({ postId }: { postId: string }) {
     <div className="relative">
       <button
         onClick={() => setReporting(!reporting)}
-        aria-label="Report post"
+        aria-label="report post"
         className="inline-flex items-center gap-1 text-red-300 hover:text-red-100 focus-visible:outline-[#baff39]"
       >
-        ⚑ Report
+        ⚑ report
       </button>
       {reporting && (
         <div className="absolute bottom-full right-0 mb-2 card p-3 min-w-[220px] shadow-lg border border-white/10 z-10">
-          <p className="text-xs font-semibold text-white/70 mb-2">Why are you reporting this?</p>
+          <p className="text-xs font-semibold text-white/70 mb-2">why are you reporting this?</p>
           <div className="space-y-1.5">
-            {["Harassment / bullying", "Hate speech", "Threats of violence", "Doxxing / private info", "Illegal content", "Spam / scam", "Something else"].map((r) => (
+            {["harassment / bullying", "hate speech", "threats of violence", "doxxing / private info", "illegal content", "spam / scam", "something else"].map((r) => (
               <label key={r} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
@@ -185,7 +185,7 @@ function ReportButton({ postId }: { postId: string }) {
             disabled={!reason.trim()}
             className="mt-3 w-full bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 text-sm font-medium py-2 rounded-xl transition-colors disabled:opacity-50"
           >
-            Submit Report
+            Submit report
           </button>
         </div>
       )}
@@ -259,7 +259,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           c.heated ? { ...c, yeahs: Math.max(0, (c.yeahs ?? 1) - 1), heated: false } : c
         )
       )
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -270,12 +270,12 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       try {
         const response = await fetch(`/api/posts/${postId}`, { credentials: "include", cache: "no-store" })
         if (!active) return
-        if (response.status === 401) throw new Error("Not authenticated.")
+        if (response.status === 401) throw new Error("not authenticated.")
         if (response.status === 404) return
-        if (!response.ok) throw new Error(`Unable to load post (${response.status}). Please try again.`)
+        if (!response.ok) throw new Error(`unable to load post (${response.status}). please try again.`)
         const data = await response.json()
         if (!active) return
-        if (!data.post) throw new Error("Unable to load post. Please try again.")
+        if (!data.post) throw new Error("unable to load post. please try again.")
         setPost(data.post)
         try {
           const data = await apiGet<{ comments: Comment[] }>(`/api/posts/${postId}/comments`)
@@ -285,10 +285,10 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         }
       } catch (err: unknown) {
         if (!active) return
-        if (err instanceof Error && err.message === "Not authenticated.") {
+        if (err instanceof Error && err.message === "not authenticated.") {
           router.push("/login")
         }
-        setError(err instanceof Error ? err.message : "Unable to load post. Please try again.")
+        setError(err instanceof Error ? err.message : "unable to load post. please try again.")
       } finally {
         if (active) setLoading(false)
       }
@@ -336,7 +336,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       await apiPost(`/api/posts/${postId}/vote`, {})
       setPost((prev) => (prev ? { ...prev, yeahs: prev.yeahs + 1 } : prev))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -349,18 +349,9 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         await openPaystackCheckout(url)
         return
       }
-      alert("Boosted for 24h!")
+      alert("boosted for 24h!")
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
-    }
-  }
-
-  async function handleShare(target: ShareTarget) {
-    if (!post) return
-    try {
-      await shareContent({ type: "post", id: post.id, text: post.text || undefined }, target)
-    } catch (err) {
-      console.error("Share failed:", err)
+      alert(err instanceof Error ? err.message : "something went wrong.")
     }
   }
 
@@ -376,21 +367,21 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       setReplyingTo(null)
       loadComments()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Something went wrong.")
+      alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (loading) return <p className="text-center text-white/40 mt-10">Loading...</p>
+  if (loading) return <p className="text-center text-white/40 mt-10">loading...</p>
   if (error) return <p role="alert" className="text-center text-white/40 mt-10">{error}</p>
-  if (!post) return <p className="text-center text-white/40 mt-10">Post not found.</p>
+  if (!post) return <p className="text-center text-white/40 mt-10">post not found.</p>
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-32">
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center gap-3 z-10">
         <button onClick={() => router.back()} className="text-white/60 hover:text-white">
-          ← Back
+          ← back
         </button>
       </div>
 
@@ -399,25 +390,25 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           <div className="rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-3 mb-3 flex items-center gap-3">
             <span className="text-xl">🚀</span>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Your post is popping</p>
-              <p className="text-[13px] text-white/60">Boost it for 24h for GHS 3.</p>
+              <p className="font-semibold text-sm">your post is popping</p>
+              <p className="text-[13px] text-white/60">boost it for 24h for ghs 3.</p>
             </div>
             <button className="btn-primary px-4 h-8 text-xs" onClick={handleBoost}>
-              Boost
+              boost
             </button>
           </div>
         )}
         <div className="flex items-center gap-3 mb-3">
-          <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
+          <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`view ${post.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
             <Avatar emoji={post.user.avatarEmoji} size={40} />
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`View ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
+              <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`view ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
                 {post.user.ghostId}
               </Link>
-              {post.user.tier === "PRIME" && <span className="badge badge-prime">Prime</span>}
-              {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ Plus</span>}
+              {post.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
+              {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
               <ChampionTrophies trophies={post.user.championTrophies} />
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>
@@ -438,10 +429,10 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         )}
 
         <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
-          <button onClick={handleVote} aria-label={`Add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
+          <button onClick={handleVote} aria-label={`add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
           <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
           {post.isOwn && !post.boosted && (
-            <button onClick={handleBoost} className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]">🚀 Boost</button>
+            <button onClick={handleBoost} className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]">🚀 boost</button>
           )}
           <ShareButton postId={post.id} postText={post.text || undefined} />
           <ReportButton postId={post.id} />
@@ -451,8 +442,8 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       <div className="px-4">
         <SmartNudge compact />
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-white/60">Comments</h3>
-          <div className="flex items-center gap-1 text-xs bg-white/5 rounded-full p-0.5" role="tablist" aria-label="Sort comments">
+          <h3 className="text-sm font-semibold text-white/60">comments</h3>
+          <div className="flex items-center gap-1 text-xs bg-white/5 rounded-full p-0.5" role="tablist" aria-label="sort comments">
             {(["top", "latest"] as const).map((s) => (
               <button
                 key={s}
@@ -461,13 +452,13 @@ export default function PostDetailClient({ postId }: { postId: string }) {
                 onClick={() => selectCommentSort(s)}
                 className={`px-2.5 py-1 rounded-full capitalize ${commentSort === s ? "bg-primary text-black font-semibold" : "text-white/50 hover:text-white"}`}
               >
-                {s === "top" ? "Top" : "Latest"}
+                {s === "top" ? "top" : "latest"}
               </button>
             ))}
           </div>
         </div>
         {comments.length === 0 ? (
-          <p className="text-white/30 text-sm">No comments yet — start the thread.</p>
+          <p className="text-white/30 text-sm">no comments yet — start the thread.</p>
         ) : (
           comments.map((c) => (
             <CommentThread
@@ -483,14 +474,14 @@ export default function PostDetailClient({ postId }: { postId: string }) {
       <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-white/10 p-3 max-w-lg mx-auto">
         {replyingTo && (
           <div className="flex items-center justify-between text-xs text-white/50 mb-2 px-1">
-            <span>Replying to {replyingTo.ghostId}</span>
+            <span>replying to {replyingTo.ghostId}</span>
             <button onClick={() => setReplyingTo(null)}>✕</button>
           </div>
         )}
         <div className="flex gap-2">
           <input
             className="input flex-1"
-            placeholder="Add a comment..."
+            placeholder="add a comment..."
             value={commentText}
             onChange={(e) => setCommentText(e.target.value.toLowerCase())}
             onKeyDown={(e) => e.key === "Enter" && handleSubmitComment()}
@@ -500,7 +491,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
             onClick={handleSubmitComment}
             disabled={submitting || !commentText.trim()}
           >
-            Send
+            send
           </button>
         </div>
       </div>
