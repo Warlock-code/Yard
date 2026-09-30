@@ -269,7 +269,6 @@ export default function ComposePage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap text-sm">
                     <span className="font-semibold">{quota?.ghostId || "yourghost"}</span>
-                    {quota?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">prime</span>}
                     {quota?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
                     <ChampionTrophies trophies={quota?.championTrophies} className="text-[10px] leading-none" />
                     <span className="text-white/30">· now</span>

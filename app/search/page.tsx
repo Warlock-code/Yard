@@ -124,7 +124,6 @@ function PostCard({ post }: { post: Post }) {
             <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="font-semibold">
               {post.user.ghostId}
             </Link>
-            {post.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
             {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             <ChampionTrophies trophies={post.user.championTrophies} className="text-[10px] leading-none" />
             {post.boosted && <span className="badge badge-boosted">boosted</span>}
@@ -606,7 +605,6 @@ function SearchPageContent() {
         <Link href={`/u/${encodeURIComponent(user.ghostId)}`} className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold truncate">{user.ghostId}</span>
-            {user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
             {user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             <ChampionTrophies trophies={user.championTrophies} className="text-[10px] leading-none" />
           </div>

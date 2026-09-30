@@ -120,8 +120,6 @@ export default function BattleHistoryPage() {
                     <p className="post-mono font-semibold text-white truncate max-w-[200px]">{battle.text}</p>
                     <p className="text-xs text-white/40">
                       {new Date(battle.startsAt).toLocaleDateString()} · round {battle.roundNumber} of {battle.totalRounds}
-                      {battle.isPrimeOnly && <span className="ml-2 badge badge-prime">prime only</span>}
-                      {battle.earlyAccessForPrime && <span className="ml-2 badge badge-prime">early access</span>}
                     </p>
                   </div>
                 </div>
@@ -145,7 +143,6 @@ export default function BattleHistoryPage() {
                         <div className="flex items-center gap-2 mt-2">
                           <span className="text-lg">{battle.winnerEntry.user.avatarEmoji}</span>
                           <span className="font-semibold">{battle.winnerEntry.user.ghostId}</span>
-                          {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
                           {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                           <ChampionTrophies trophies={battle.winnerEntry.user.championTrophies} />
                         </div>

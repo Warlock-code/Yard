@@ -48,7 +48,6 @@ export default function LeaderboardPage() {
                   <Link href={`/u/${encodeURIComponent(r.ghostId)}`} aria-label={`view ${r.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
                     {r.ghostId}
                   </Link>
-                  {r.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
                   {r.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                   <ChampionTrophies trophies={r.championTrophies} className="text-[10px] leading-none" />
                 </div>

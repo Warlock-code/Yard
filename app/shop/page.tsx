@@ -40,11 +40,11 @@ function ThemesPicker({
   return (
     <div className="mt-2">
       <p className="text-white/40 text-xs mb-3 px-1">
-        default green is on for everyone. plus unlocks blue, prime unlocks blue & gold — all opt-in.
+        default green is on for everyone. plus unlocks blue — all opt-in.
         everyone can also buy extra colorways below.
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {THEMES.map((theme) => {
+        {THEMES.filter((theme) => theme.requiresTier !== "PRIME").map((theme) => {
           const isActive = activeId === theme.id
           const unlocked = isThemeUnlocked(theme.id, tier, ownedCosmetics)
           const isPaid = theme.pricePesewas > 0
@@ -67,9 +67,7 @@ function ThemesPicker({
                     ? theme.description
                     : isPaid
                       ? theme.description
-                      : theme.requiresTier === "PRIME"
-                        ? "prime perk"
-                        : "plus perk"}
+                      : "plus perk"}
               </p>
               {isActive ? (
                 <button className="w-full text-sm btn-ghost" disabled>
@@ -89,7 +87,7 @@ function ThemesPicker({
                 </button>
               ) : (
                 <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
-                  🔒 {theme.requiresTier === "PRIME" ? "prime" : "plus"} only
+                  🔒 plus only
                 </button>
               )}
             </div>
@@ -230,26 +228,11 @@ export default function ShopPage() {
       {category === "tier" && !me && (
         <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
       )}
-      {category === "tier" && me?.tier === "PRIME" && (
-        <div className="card p-4 mt-2 border-[#facc15]/20 bg-[#facc15]/5 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-[#d4a017]" />
-          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 prime</p>
-          <p className="font-semibold text-sm text-white/70">you&apos;re on the highest plan — no further upgrade.</p>
-        </div>
-      )}
-      {category === "tier" && me?.tier === "PLUS" && (
+      {category === "tier" && (me?.tier === "PLUS" || me?.tier === "PRIME") && (
         <div className="card p-5 mt-2 border-sky-500/30 bg-sky-500/5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-500" />
-          <p className="text-xs text-sky-300 uppercase mb-1 font-bold">👑 prime</p>
-          <p className="font-bold text-lg mb-2">upgrade to prime — ghs 20</p>
-          <p className="text-white/40 text-xs mb-3">you&apos;re on plus — prime adds earnings & all common avatars free.</p>
-          <button
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading !== null}
-            onClick={() => buy("/api/subscribe/prime", "prime")}
-          >
-            {loading === "prime" ? "..." : "go prime"}
-          </button>
+          <p className="text-xs text-sky-300 uppercase mb-1 font-bold">✓ plus</p>
+          <p className="font-semibold text-sm text-white/70">you&apos;re on the highest plan — no further upgrade.</p>
         </div>
       )}
       {category === "tier" && me?.tier === "FREE" && (
@@ -264,18 +247,6 @@ export default function ShopPage() {
               onClick={() => buy("/api/subscribe/plus", "plus")}
             >
               {loading === "plus" ? "..." : "subscribe"}
-            </button>
-          </div>
-          <div className="card p-5 border-[#facc15]/30 bg-[#facc15]/5 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-[#d4a017]" />
-            <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 prime — ghs 20</p>
-            <p className="font-bold text-lg mb-2">every common avatar free. real earnings. highest priority.</p>
-            <button
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading !== null}
-              onClick={() => buy("/api/subscribe/prime", "prime")}
-            >
-              {loading === "prime" ? "..." : "go prime"}
             </button>
           </div>
         </div>

@@ -99,10 +99,6 @@ type WalletData = {
   }>
 }
 
-function ghs(pesewas: number) {
-  return `ghs ${(pesewas / 100).toFixed(2)}`
-}
-
 export default function LairPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
@@ -317,7 +313,6 @@ export default function LairPage() {
         <h1 className="text-xl font-bold">{me.ghostId}</h1>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-white/40 text-sm">{me.campus}</span>
-          {me.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
           {me.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
           <ChampionTrophies trophies={me.championTrophies} />
         </div>
@@ -565,34 +560,10 @@ export default function LairPage() {
       {me.tier === "FREE" && (
         <div className="card p-4 mb-3">
           <p className="font-semibold mb-1">deeper in the shadows</p>
-          <p className="text-sm text-white/50 mb-3">plus gets perks. prime gets perks + real earnings.</p>
+          <p className="text-sm text-white/50 mb-3">plus gets edits, avatars, blue checkmark & priority.</p>
           <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             see plans
           </button>
-        </div>
-      )}
-
-      {me.tier === "PLUS" && (
-        <div className="card p-4 mb-3">
-          <p className="font-semibold mb-1">go all the way</p>
-          <p className="text-sm text-white/50 mb-3">unlock real earnings from your posts and battles.</p>
-          <button className="btn-primary w-full" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
-            see prime
-          </button>
-        </div>
-      )}
-
-      {me.tier === "PRIME" && (
-        <div className="card p-4 mb-3">
-          <p className="font-semibold mb-2">💰 the vault</p>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-white/50">total earned</span>
-            <span>{ghs(me.totalEarnedPesewas)}</span>
-          </div>
-          <div className="flex justify-between text-sm mb-3">
-            <span className="text-white/50">available balance</span>
-            <span className="font-semibold">{ghs(me.availableBalancePesewas)}</span>
-          </div>
         </div>
       )}
 

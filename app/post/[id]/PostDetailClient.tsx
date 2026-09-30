@@ -407,7 +407,6 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`view ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
                 {post.user.ghostId}
               </Link>
-              {post.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
               {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
               <ChampionTrophies trophies={post.user.championTrophies} />
             </div>

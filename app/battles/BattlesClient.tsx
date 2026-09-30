@@ -154,7 +154,6 @@ export default function BattlesClient() {
                     <Link href={`/u/${encodeURIComponent(entry.user.ghostId)}`} aria-label={`view ${entry.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
                       {entry.user.ghostId}
                     </Link>
-                    {entry.user.tier === "PRIME" && <span className="badge badge-prime">prime</span>}
                     {entry.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                     <ChampionTrophies trophies={entry.user.championTrophies} />
                   </div>

@@ -46,8 +46,8 @@ export const THEMES: ThemeDef[] = [
   },
   {
     id: "gold",
-    name: "Prime Gold",
-    description: "Prime perk — opt-in.",
+    name: "Gold",
+    description: "gold — opt-in.",
     pricePesewas: 0,
     requiresTier: "PRIME",
     swatchFrom: "#facc15",

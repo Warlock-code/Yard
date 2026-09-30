@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
-import { BarChart, Bar, ResponsiveContainer, XAxis } from "recharts"
 import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
@@ -130,7 +129,6 @@ const [refreshSeed, setRefreshSeed] = useState(() => newRefreshSeed())
 const [followingByAuthor, setFollowingByAuthor] = useState<Record<string, boolean>>({})
 const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set())
 const pendingFollowRequests = useRef(new Set<string>())
-const [primeEarnings, setPrimeEarnings] = useState<{ date: string; total: number }[] | null>(null)
 const [pullToRefresh, setPullToRefresh] = useState(false)
 const pullStartRef = useRef<number | null>(null)
 const viewObserverRef = useRef<IntersectionObserver | null>(null)
@@ -187,18 +185,6 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     loadMe(() => active)
     return () => { active = false }
   }, [loadMe])
-
-  // Prime earnings chart for drawer
-  useEffect(() => {
-    if (me?.tier !== "PRIME") return
-    let active = true
-    apiGet<{ byDate: { date: string; total: number }[] }>("/api/analytics/earnings?range=7d&period=day").then((d) => {
-      if (!active || !d.byDate) return
-      const mapped = d.byDate.map((r) => ({ date: r.date.slice(5), total: r.total / 100 }))
-      setPrimeEarnings(mapped.length ? mapped : null)
-    }).catch(() => {})
-    return () => { active = false }
-  }, [me?.tier])
 
   useEffect(() => {
     let active = true
@@ -624,7 +610,6 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       >
                         {post.user.ghostId}
                       </Link>
-                      {post.user.tier === "PRIME" && <span className="badge badge-prime">✓ prime</span>}
                       {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                       <ChampionTrophies trophies={post.user.championTrophies} />
                       {post.boosted && <span className="badge badge-boosted">boosted</span>}
@@ -832,7 +817,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                   <Avatar emoji={me.avatarEmoji} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">prime</span>}{me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
                   {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
                 </div>
@@ -844,50 +829,18 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <div className="ml-auto flex items-center gap-1 text-xs text-white/30"><span>🔥 {me.streakCount}</span></div>
               </div>
 
-              {/* Prime — mini stats + earnings chart, no upgrade */}
-              {me.tier === "PRIME" && (
-                <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">prime • earnings</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                      <p className="text-[10px] text-white/30">earned</p>
-                      <p className="text-sm font-black text-white">ghs {((me.totalEarnedPesewas||0)/100).toFixed(2)}</p>
-                    </div>
-                    <div className="bg-black/30 rounded-lg p-2 border border-white/5">
-                      <p className="text-[10px] text-white/30">balance</p>
-                      <p className="text-sm font-black text-primary">ghs {((me.availableBalancePesewas||0)/100).toFixed(2)}</p>
-                      {me.hasPendingPayout && <p className="text-[10px] text-amber-400">⏳ pending</p>}
-                    </div>
-                  </div>
-                  {primeEarnings && primeEarnings.length > 0 ? (
-                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 p-1">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={primeEarnings}>
-                          <XAxis dataKey="date" hide />
-                          <Bar dataKey="total" fill="var(--accent)" radius={[4,4,0,0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="mt-2 h-16 bg-black/20 rounded-lg border border-white/5 grid place-items-center text-[11px] text-white/25">no earnings last 7d</div>
-                  )}
-                  <p className="text-[11px] text-white/25 mt-2 text-center">{me.storageUsed?.toFixed(0)}/{me.storageLimit} mb • {me.ghostCoins||0} coins • {me.tierDaysLeft ?? 0}d left</p>
-                </div>
-              )}
               {me.tier === "PLUS" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">plus</p>
-                  <p className="text-xs text-white/60 mb-2">you have edits & priority. prime unlocks full avatars.</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>go prime — ghs 20</button>
+                  <p className="text-xs text-white/60 mb-2">you have edits, avatars & priority. enjoy!</p>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>
               )}
               {me.tier === "FREE" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">go prime</p>
-                  <p className="text-xs text-white/60 mb-2">full avatars, no ads</p>
-                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>upgrade — ghs 20</button>
-                  <p className="text-[11px] text-white/25 mt-1.5 text-center">or get plus — ghs 10/mo</p>
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-2">go plus</p>
+                  <p className="text-xs text-white/60 mb-2">edits, avatars, blue checkmark & priority</p>
+                  <button className="btn-primary w-full text-xs" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>upgrade — ghs 10/mo</button>
                 </div>
               )}
               {/* Free: nothing else — just nav below */}
