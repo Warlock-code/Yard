@@ -486,31 +486,7 @@ export default function LairPage() {
             </ul>
           </details>
 
-          {walletData.payouts.length > 0 && (
-            <details className="group mt-3">
-              <summary className="flex items-center justify-between cursor-pointer select-none">
-                <span className="text-sm font-medium">Withdrawals</span>
-                <span className="text-xs text-white/40">{walletData.payouts.length} total</span>
-              </summary>
-              <ul className="space-y-2 mt-3 pt-3 border-t border-white/10">
-                {walletData.payouts.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between text-sm py-1">
-                    <div>
-                      <p className="font-medium">GHS {(p.netGhsAmount / 100).toFixed(2)} <span className="text-red-400 text-xs">(-{(p.feeAmount / 100).toFixed(2)} fee)</span></p>
-                      <p className="text-white/40 text-xs">{p.bankCode} • {p.accountNumber.slice(-4)}</p>
-                    </div>
-                    <span className={`badge badge-xs ${
-                      p.status === "paid" ? "badge-primary" :
-                      p.status === "approved" || p.status === "processing" ? "badge-warning" :
-                      "badge-ghost"
-                    }`}>
-                      {p.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+          {/* Withdrawals disabled */}
         </div>
       ))}
 
