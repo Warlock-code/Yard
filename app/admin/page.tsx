@@ -834,6 +834,51 @@ export default function AdminPage() {
                           </div>
                         </Card>
                       </div>
+
+                      <div className="grid lg:grid-cols-2 gap-4">
+                        <Card className="lg:col-span-2">
+                          <CardHeader title="Signup cohort posting" sub={`% of new users who post on Day 0 (signup) vs Day 1 (next day) · last ${metrics.range || range}d`} />
+                          <div className="p-5">
+                            <div className="h-[190px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={(metrics.signupPostDay0 || []).map((d: any) => ({ 
+                                  day: d.day.slice(5), 
+                                  "Day 0": d.rate, 
+                                  "Day 1": (metrics.signupPostDay1?.find((x: any) => x.day === d.day) || {}).rate || 0 
+                                }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                  <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                  <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, "dataMax"]} />
+                                  <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                  <Bar dataKey="Day 0" radius={[4, 4, 0, 0]} fill="#baff39" name="Day 0 (signup day)" />
+                                  <Bar dataKey="Day 1" radius={[4, 4, 0, 0]} fill="#38bdf8" name="Day 1 (next day)" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
+                                <p className="text-[11px] text-white/40 uppercase tracking-wide">Avg Day 0 Post Rate</p>
+                                <p className="text-2xl font-black text-[#baff39] mt-1">
+                                  {(() => {
+                                    const d0 = metrics.signupPostDay0 || []
+                                    const len = d0.length > 0 ? d0.length : 1
+                                    return (d0.reduce((a: number, r: any) => a + (r.rate || 0), 0) / len).toFixed(1)
+                                  })()}%
+                                </p>
+                              </div>
+                              <div className="card p-3 text-center bg-white/[0.03] border border-white/10">
+                                <p className="text-[11px] text-white/40 uppercase tracking-wide">Avg Day 1 Post Rate</p>
+                                <p className="text-2xl font-black text-sky-300 mt-1">
+                                  {(() => {
+                                    const d1 = metrics.signupPostDay1 || []
+                                    const len = d1.length > 0 ? d1.length : 1
+                                    return (d1.reduce((a: number, r: any) => a + (r.rate || 0), 0) / len).toFixed(1)
+                                  })()}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
                     </div>
                   )}
                 </div>

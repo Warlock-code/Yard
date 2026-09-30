@@ -98,6 +98,38 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Signup cohort posting activity: how many signups post on day 0 (signup day) and day 1 (next day)
+  const signupPostDay0 = new Map<string, number>(days.map((d) => [d, 0]))
+  const signupPostDay1 = new Map<string, number>(days.map((d) => [d, 0]))
+  
+  // Get all posts by users who signed up in the window
+  const signupUserIds = new Set(signups.map(u => u.id))
+  const signupUserPosts = await prisma.post.findMany({
+    where: {
+      userId: { in: [...signupUserIds] },
+      createdAt: { gte: start },
+    },
+    select: { userId: true, createdAt: true },
+  })
+  
+  // Map signup day for each user
+  const userSignupDay = new Map<string, string>()
+  for (const u of signups) {
+    userSignupDay.set(u.id, dayOf(u.createdAt))
+  }
+  
+  for (const p of signupUserPosts) {
+    const signupDay = userSignupDay.get(p.userId)
+    if (!signupDay) continue
+    const postDay = dayOf(p.createdAt)
+    const diffDays = Math.floor((new Date(postDay).getTime() - new Date(signupDay).getTime()) / (24 * 60 * 60 * 1000))
+    if (diffDays === 0 && signupPostDay0.has(signupDay)) {
+      signupPostDay0.set(signupDay, (signupPostDay0.get(signupDay) ?? 0) + 1)
+    } else if (diffDays === 1 && signupPostDay1.has(signupDay)) {
+      signupPostDay1.set(signupDay, (signupPostDay1.get(signupDay) ?? 0) + 1)
+    }
+  }
+
   // PaywallHit table may not exist yet (migration pending) — fall back to zeros.
   let hits = 0
   try {
@@ -168,6 +200,18 @@ export async function GET(req: NextRequest) {
     return { day, rate: signups > 0 ? Number(((paid / signups) * 100).toFixed(2)) : 0 }
   })
 
+  // Signup cohort posting rates
+  const signupPostRateDay0 = days.map((day) => {
+    const signups = signupsByDay.get(day)?.size ?? 0
+    const posted = signupPostDay0.get(day) ?? 0
+    return { day, count: posted, rate: signups > 0 ? Number(((posted / signups) * 100).toFixed(2)) : 0 }
+  })
+  const signupPostRateDay1 = days.map((day) => {
+    const signups = signupsByDay.get(day)?.size ?? 0
+    const posted = signupPostDay1.get(day) ?? 0
+    return { day, count: posted, rate: signups > 0 ? Number(((posted / signups) * 100).toFixed(2)) : 0 }
+  })
+
   return NextResponse.json({
     range,
     dau: days.map((day) => ({ day, count: dauByDay.get(day)?.size ?? 0 })),
@@ -183,5 +227,7 @@ export async function GET(req: NextRequest) {
     revenuePesewas,
     paidOutPesewas,
     payoutRatio,
+    signupPostDay0: signupPostRateDay0,
+    signupPostDay1: signupPostRateDay1,
   })
 }
