@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializeSubscription } from "@/lib/paystack"
+import { reportServerError } from "@/lib/errorAlerts"
 
 const PLANS: Record<string, string> = {
   plus: process.env.PAYSTACK_PLUS_PLAN_CODE!,
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
     const payment = await initializeSubscription(user.email, planCode, reference, amount)
     return NextResponse.json(payment)
   } catch (payErr) {
+    await reportServerError({ route: "/api/subscribe/[tier]", error: payErr, metadata: { tier } })
     // Clean up pending transaction so user can retry immediately
     await prisma.transaction.updateMany({
       where: { reference, status: "pending" },

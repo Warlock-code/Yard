@@ -129,6 +129,31 @@ export async function fulfillPaidTransaction(reference: string) {
       case "boost_credit":
         await db.user.update({ where: { id: userId }, data: { freeBoosts: { increment: 1 } } })
         break
+      case "credits": {
+        const packId = requireString(meta?.packId, "credit-pack metadata")
+        const credits = meta?.credits
+        if (typeof credits !== "number" || !Number.isSafeInteger(credits) || credits <= 0) {
+          throw new Error("Invalid credit-pack metadata.")
+        }
+        const user = await db.user.findUnique({ where: { id: userId }, select: { creditsBalance: true } })
+        if (!user) throw new Error("User not found.")
+        const balanceAfter = user.creditsBalance + credits
+        await db.creditTransaction.create({
+          data: {
+            userId,
+            type: "PURCHASE",
+            amount: credits,
+            balanceAfter,
+            reference,
+            metadata: { packId },
+          },
+        })
+        await db.user.update({
+          where: { id: userId },
+          data: { creditsBalance: balanceAfter, creditsPurchased: { increment: credits } },
+        })
+        break
+      }
       case "weekly_boost_grant": {
         const count = (meta?.count as number) ?? 1
         await db.user.update({
@@ -153,9 +178,8 @@ export async function fulfillPaidTransaction(reference: string) {
         })
         break
       }
-      case "plus":
-      case "prime": {
-        const tier = (transaction.kind.toUpperCase() as "PLUS" | "PRIME") as any
+      case "plus": {
+        const tier = "PLUS" as const
         // Extend from max(now, current expiry) so early renewal doesn't lose days
         const u = await db.user.findUnique({ where: { id: userId }, select: { tierExpiresAt: true } })
         const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
@@ -163,6 +187,8 @@ export async function fulfillPaidTransaction(reference: string) {
         await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: next } })
         break
       }
+      case "prime":
+        throw new Error("Prime tier is no longer supported.")
       default:
         throw new Error("Unsupported transaction kind.")
     }

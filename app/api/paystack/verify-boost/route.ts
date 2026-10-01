@@ -3,6 +3,7 @@ import { verifyPaystack } from "@/lib/paystack"
 import { prisma } from "@/lib/prisma"
 import { fulfillPaidTransaction, validatePaystackCharge } from "@/lib/paystackFulfillment"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { reportServerError } from "@/lib/errorAlerts"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -13,11 +14,12 @@ export async function POST(req: NextRequest) {
   const transaction = await prisma.transaction.findUnique({ where: { reference } })
   if (!transaction || transaction.userId !== user.id) return NextResponse.json({ error: "transaction not found." }, { status: 404 })
 
-  const result = await verifyPaystack(reference)
   try {
+    const result = await verifyPaystack(reference)
     await validatePaystackCharge(reference, result.data)
     await fulfillPaidTransaction(reference)
   } catch (error) {
+    await reportServerError({ route: "/api/paystack/verify-boost", error, metadata: { reference } })
     return NextResponse.json({ error: error instanceof Error ? error.message : "Payment not verified." }, { status: 400 })
   }
 

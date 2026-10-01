@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
-import { fulfillPaidTransaction } from "@/lib/paystackFulfillment"
 import { handleCors, addCorsHeaders } from "@/lib/cors"
-import { creditUser } from "@/lib/credits"
-import { getPackById } from "@/lib/credits"
+import { validatePaystackCharge, fulfillPaidTransaction } from "@/lib/paystackFulfillment"
+import { reportServerError } from "@/lib/errorAlerts"
+
+type PaystackWebhookData = {
+  reference?: string
+  status?: string
+  currency?: string
+  amount?: number
+  customer?: { email?: string }
+  plan?: { plan_code?: string }
+  authorization?: { plan?: string }
+  plan_object?: { plan_code?: string }
+  subscription?: { subscription_code?: string }
+  subscription_code?: string
+  [key: string]: unknown
+}
+
+type PaystackWebhookEvent = {
+  event?: string
+  data: PaystackWebhookData
+}
 
 export async function POST(req: NextRequest) {
   const corsPreflight = handleCors(req)
@@ -13,9 +31,9 @@ export async function POST(req: NextRequest) {
   const body = await req.text()
   const signature = req.headers.get("x-paystack-signature")
 
-  const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET
+  const webhookSecret = process.env.PAYSTACK_SECRET_KEY
   if (!webhookSecret) {
-    console.error("PAYSTACK_WEBHOOK_SECRET not configured")
+    console.error("PAYSTACK_SECRET_KEY not configured")
     return addCorsHeaders(NextResponse.json({ error: "webhook not configured" }, { status: 500 }), req.headers.get("origin"))
   }
 
@@ -24,82 +42,71 @@ export async function POST(req: NextRequest) {
     .update(body)
     .digest("hex")
 
-  if (hash !== signature) {
+  const expected = Buffer.from(hash, "utf8")
+  const received = Buffer.from(signature || "", "utf8")
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
     return addCorsHeaders(NextResponse.json({ error: "invalid signature." }, { status: 401 }), req.headers.get("origin"))
   }
 
-  let event: any
-  try { event = JSON.parse(body) } catch { return addCorsHeaders(NextResponse.json({ error: "invalid JSON" }, { status: 400 }), req.headers.get("origin")) }
+  let event: PaystackWebhookEvent
+  try { event = JSON.parse(body) } catch {
+    return addCorsHeaders(NextResponse.json({ error: "invalid JSON" }, { status: 400 }), req.headers.get("origin"))
+  }
 
-  if (event.event === "charge.success") {
-    const reference = event.data.reference
-    const tx = await prisma.transaction.findUnique({ where: { reference } })
-
-    if (tx && tx.status !== "success") {
-      // For subscriptions, Paystack amount is source of truth — correct legacy 0 amounts so admin revenue is accurate
-      if (tx.kind === "plus" && Number.isSafeInteger(event.data?.amount) && event.data.amount !== tx.amount) {
-        await prisma.transaction.update({ where: { reference }, data: { amount: event.data.amount } })
+  try {
+    if (event.event === "charge.success") {
+      const reference = event.data.reference
+      if (!reference) {
+        return addCorsHeaders(NextResponse.json({ error: "missing payment reference" }, { status: 400 }), req.headers.get("origin"))
       }
-      await fulfillPaidTransaction(reference)
-    } else if (!tx) {
-      // Renewal auto-deduct: Paystack creates new charge with fresh reference for monthly subscription
-      // No pending Transaction exists — create one and extend tier frictionlessly
-      const email: string | undefined = event.data?.customer?.email?.toLowerCase()
-      const planCode: string | undefined = event.data?.plan?.plan_code || event.data?.authorization?.plan || event.data?.plan_object?.plan_code
-      const amount: number | undefined = event.data?.amount
-      const subCode: string | undefined = event.data?.subscription?.subscription_code || event.data?.subscription_code
-      if (email && planCode && Number.isSafeInteger(amount)) {
-        const plusCode = process.env.PAYSTACK_PLUS_PLAN_CODE
-        let tier: string | null = null
-        if (planCode === plusCode) tier = "plus"
-        if (tier) {
+      const tx = await prisma.transaction.findUnique({ where: { reference } })
+
+      if (tx && tx.status !== "success") {
+        await validatePaystackCharge(reference, event.data)
+        await fulfillPaidTransaction(reference)
+      } else if (!tx) {
+        const email: string | undefined = event.data?.customer?.email?.toLowerCase()
+        const planCode: string | undefined =
+          event.data?.plan?.plan_code || event.data?.authorization?.plan || event.data?.plan_object?.plan_code
+        const amount: number | undefined = event.data?.amount
+        const subCode: string | undefined =
+          event.data?.subscription?.subscription_code || event.data?.subscription_code
+        const expectedAmount = Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000)
+        const isValidRenewal =
+          event.data?.status === "success" &&
+          event.data?.currency === "GHS" &&
+          typeof email === "string" &&
+          typeof planCode === "string" &&
+          typeof amount === "number" &&
+          Number.isSafeInteger(amount) &&
+          amount === expectedAmount &&
+          planCode === process.env.PAYSTACK_PLUS_PLAN_CODE
+
+        if (isValidRenewal) {
           const user = await prisma.user.findUnique({ where: { email } })
           if (user) {
-            const exists = await prisma.transaction.findUnique({ where: { reference } })
-            if (!exists) {
-              await prisma.transaction.create({
-                data: {
-                  userId: user.id,
-                  kind: tier,
-                  reference,
-                  amount: amount as number,
-                  status: "success",
-                  metadata: { tier, paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
-                },
+            await prisma.transaction.create({
+              data: {
+                userId: user.id,
+                kind: "plus",
+                reference,
+                amount,
+                status: "success",
+                metadata: { tier: "plus", paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
+              },
+            })
+            await prisma.$transaction(async (db) => {
+              const current = await db.user.findUnique({ where: { id: user.id }, select: { tierExpiresAt: true } })
+              const base = Math.max(Date.now(), current?.tierExpiresAt?.getTime() ?? 0)
+              await db.user.update({
+                where: { id: user.id },
+                data: { tier: "PLUS", tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000) },
               })
-              // Extend tier from max(now, current expiry) — no friction, user keeps perks
-              await prisma.$transaction(async (db) => {
-                const u = await db.user.findUnique({ where: { id: user.id }, select: { tierExpiresAt: true } })
-                const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
-                const next = new Date(base + 31 * 24 * 60 * 60 * 1000)
-                await db.user.update({ where: { id: user.id }, data: { tier: tier!.toUpperCase() as any, tierExpiresAt: next } })
-              })
-}
-      }
-
-      // Credit purchase: reference starts with "credits_"
-      if (reference.startsWith("credits_")) {
-        const [, userId, packId] = reference.split("_")
-        if (userId && packId) {
-          const existingTx = await prisma.creditTransaction.findFirst({
-            where: { userId, reference, type: "PURCHASE" },
-          })
-          if (!existingTx) {
-            const pack = getPackById(packId)
-            if (pack) {
-              await creditUser(userId, "PURCHASE", pack.credits, reference, {
-                packId,
-                ghsAmount: pack.ghs,
-                bonusPct: pack.bonusPct,
-              })
-            }
+            })
           }
         }
       }
     }
-  }
-    }
-  }
 
   if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
     const trRef = event.data?.reference || ""
@@ -149,6 +156,10 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+  }
+  } catch (error) {
+    await reportServerError({ route: "/api/paystack/webhook", error })
+    return addCorsHeaders(NextResponse.json({ error: "webhook processing failed" }, { status: 500 }), req.headers.get("origin"))
   }
 
   return addCorsHeaders(NextResponse.json({ received: true }), req.headers.get("origin"))

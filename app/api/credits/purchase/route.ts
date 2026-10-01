@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getAllPacks, getPackById } from "@/lib/credits"
 import { initializePaystack } from "@/lib/paystack"
+import { reportServerError } from "@/lib/errorAlerts"
 
 export async function GET() {
   const packs = getAllPacks()
@@ -28,6 +30,16 @@ try {
     const amountInPesewas = pack.ghs * 100
     const reference = `credits_${user.id}_${packId}_${Date.now()}`
 
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        kind: "credits",
+        reference,
+        amount: amountInPesewas,
+        metadata: { packId, credits: pack.credits, ghsAmount: pack.ghs, bonusPct: pack.bonusPct },
+      },
+    })
+
     const payment = await initializePaystack(user.email, amountInPesewas, reference)
 
     return NextResponse.json({
@@ -36,7 +48,7 @@ try {
       pack,
     })
   } catch (err) {
-    console.error("[credits/purchase] error", err)
+    await reportServerError({ route: "/api/credits/purchase", error: err, metadata: { packId } })
     return NextResponse.json({ error: "failed to initialize payment" }, { status: 500 })
   }
 }

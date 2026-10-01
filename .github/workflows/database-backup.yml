@@ -1,0 +1,50 @@
+name: Database backup
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL"
+          mkdir -p backups
+          filename="yard-$(date -u +%Y-%m-%dT%H-%M-%SZ).dump"
+          pg_dump "$DATABASE_URL" --format=custom --no-owner --file="backups/$filename"
+          pg_restore --list "backups/$filename" > "backups/$filename.manifest"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yard-database-backup-${{ github.run_id }}
+          path: backups/
+          retention-days: 30
+
+      - name: Restore-test backup
+        env:
+          RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
+        run: |
+          if [ -z "$RESTORE_DATABASE_URL" ]; then
+            echo "RESTORE_DATABASE_URL is not configured; skipping restore test."
+            exit 0
+          fi
+          dump="$(find backups -name '*.dump' -print -quit)"
+          dropdb --if-exists "$RESTORE_DATABASE_URL" --force || true
+          createdb "$RESTORE_DATABASE_URL"
+          pg_restore --no-owner --clean --if-exists --dbname="$RESTORE_DATABASE_URL" "$dump"
+          psql "$RESTORE_DATABASE_URL" --command="SELECT 1;"

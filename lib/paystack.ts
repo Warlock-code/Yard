@@ -1,6 +1,13 @@
 function getPaystackSecret(): string {
   const s = process.env.PAYSTACK_SECRET_KEY
   if (!s) throw new Error("PAYSTACK_SECRET_KEY missing")
+  const mode = process.env.PAYSTACK_MODE || (s.startsWith("sk_test_") ? "test" : s.startsWith("sk_live_") ? "live" : "")
+  if (mode !== "test" && mode !== "live") throw new Error("PAYSTACK_MODE must be 'test' or 'live'")
+  if (process.env.NODE_ENV === "production" && mode !== "live") throw new Error("Production requires PAYSTACK_MODE=live")
+  if (process.env.NODE_ENV !== "production" && mode !== "test") throw new Error("Non-production requires PAYSTACK_MODE=test")
+  if ((mode === "test" && !s.startsWith("sk_test_")) || (mode === "live" && !s.startsWith("sk_live_"))) {
+    throw new Error("PAYSTACK_SECRET_KEY does not match PAYSTACK_MODE")
+  }
   return s
 }
 const CALLBACK_URL = "https://yardapp.me/payment/callback"
@@ -25,10 +32,17 @@ export async function initializePaystack(email: string, amountKobo: number, refe
 }
 
 export async function verifyPaystack(reference: string) {
+  if (!reference || !/^[A-Za-z0-9._-]+$/.test(reference)) {
+    throw new Error("Invalid Paystack reference")
+  }
   const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
     headers: { Authorization: `Bearer ${getPaystackSecret()}` },
   })
-  return res.json()
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data.status !== true || !data.data) {
+    throw new Error(data.message || `Paystack verification failed (${res.status})`)
+  }
+  return data
 }
 
 export async function initializeSubscription(email: string, planCode: string, reference: string, amountPesewas?: number) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getBoostExpiry, isBoostActive } from "@/lib/boost"
 import { initializePaystack } from "@/lib/paystack"
+import { reportServerError } from "@/lib/errorAlerts"
 
 export const dynamic = "force-dynamic"
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const payment = await initializePaystack(user.email, BOOST_PRICE_PESEWAS, reference)
     return NextResponse.json(payment)
   } catch (err) {
+    await reportServerError({ route: "/api/boost/[id]", error: err, metadata: { postId: id } })
     await prisma.transaction.updateMany({ where: { reference, status: "pending" }, data: { status: "failed" } }).catch(() => {})
     return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed" }, { status: 400 })
   }
