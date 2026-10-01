@@ -423,6 +423,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               rounded
+              contain
             />
           </div>
         )}

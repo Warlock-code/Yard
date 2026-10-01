@@ -248,6 +248,7 @@ export default function ComposePage() {
               sizes="(max-width: 768px) 100vw, 50vw"
               unoptimized
               rounded
+              contain
             />
             <button
               onClick={handleRemoveImage}
@@ -286,7 +287,7 @@ export default function ComposePage() {
                   {image && (
                     <div className="mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
                       <div className="relative w-full aspect-[16/9]">
-                        <OptimizedImage src={image} alt="preview" fill sizes="(max-width: 768px) 100vw, 50vw" unoptimized rounded />
+                        <OptimizedImage src={image} alt="preview" fill sizes="(max-width: 768px) 100vw, 50vw" unoptimized rounded contain />
                       </div>
                     </div>
                   )}

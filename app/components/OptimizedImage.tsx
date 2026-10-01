@@ -15,6 +15,7 @@ interface OptimizedImageProps {
   priority?: boolean
   className?: string
   rounded?: boolean
+  contain?: boolean
   unoptimized?: boolean
   onLoad?: () => void
   onError?: () => void
@@ -30,6 +31,7 @@ export default function OptimizedImage({
   priority = false,
   className = "",
   rounded = true,
+  contain = false,
   unoptimized = false,
   onLoad,
   onError,
@@ -47,7 +49,7 @@ export default function OptimizedImage({
     onError?.()
   }
 
-  const baseStyles = "object-cover transition-opacity duration-300"
+  const baseStyles = `${contain ? "object-contain" : "object-cover"} transition-opacity duration-300`
   const roundedStyles = rounded ? "rounded-xl" : ""
   const fillStyles = fill ? "absolute inset-0" : ""
   const opacityStyles = isLoaded ? "opacity-100" : "opacity-0"

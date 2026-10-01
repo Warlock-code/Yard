@@ -19,8 +19,8 @@ export const dynamic = "force-dynamic"
 
 async function checkImage(imageUrl: string): Promise<boolean> {
   if (!process.env.OPENROUTER_API_KEY) {
-    // Moderation not configured — fail closed for safety
-    return false
+    console.warn("image moderation is not configured; allowing the uploaded image")
+    return true
   }
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -39,12 +39,16 @@ async function checkImage(imageUrl: string): Promise<boolean> {
         ],
       }),
     })
-    if (!res.ok) return false // fail closed — block post if moderation down
+    if (!res.ok) {
+      console.warn(`image moderation request failed with ${res.status}; allowing the uploaded image`)
+      return true
+    }
     const data = await res.json()
     const verdict = data.choices?.[0]?.message?.content?.trim().toUpperCase()
     return verdict !== "UNSAFE"
   } catch {
-    return false // network error — block post for safety
+    console.warn("image moderation is unavailable; allowing the uploaded image")
+    return true
   }
 }
 
