@@ -416,7 +416,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
 
         {post.text && <p className="post-mono text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
         {post.imageUrl && (
-          <div className="relative w-full h-72 mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+          <div className="relative w-full mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <OptimizedImage
               src={post.imageUrl}
               alt=""

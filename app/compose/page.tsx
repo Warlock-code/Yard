@@ -240,7 +240,7 @@ export default function ComposePage() {
         </div>
 
         {image && (
-          <div className="relative mt-4 w-full h-64 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+          <div className="relative mt-4 w-full rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <OptimizedImage
               src={image}
               alt="preview"
@@ -286,7 +286,7 @@ export default function ComposePage() {
                   )}
                   {image && (
                     <div className="mt-2 rounded-xl overflow-hidden bg-white/5 border border-white/10">
-                      <div className="relative w-full aspect-[16/9]">
+                      <div className="relative w-full">
                         <OptimizedImage src={image} alt="preview" fill sizes="(max-width: 768px) 100vw, 50vw" unoptimized rounded contain />
                       </div>
                     </div>

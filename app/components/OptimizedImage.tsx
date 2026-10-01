@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useState, type SyntheticEvent } from "react"
 
 const BLUR_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
@@ -38,8 +38,13 @@ export default function OptimizedImage({
 }: OptimizedImageProps) {
   const [hasError, setHasError] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [aspectRatio, setAspectRatio] = useState(16 / 9)
 
-  const handleLoad = () => {
+  const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget
+    if (fill && naturalWidth > 0 && naturalHeight > 0) {
+      setAspectRatio(naturalWidth / naturalHeight)
+    }
     setIsLoaded(true)
     onLoad?.()
   }
@@ -68,7 +73,7 @@ export default function OptimizedImage({
 
   if (fill) {
     return (
-      <div className={`relative overflow-hidden ${roundedStyles} ${className}`} style={{ width: "100%", aspectRatio: "16/9" }}>
+      <div className={`relative overflow-hidden ${roundedStyles} ${className}`} style={{ width: "100%", aspectRatio }}>
         <Image
           src={src}
           alt={alt}
