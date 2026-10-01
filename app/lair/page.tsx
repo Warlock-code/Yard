@@ -20,18 +20,11 @@ type Me = {
   postCount: number
   followersCount: number
   followingCount: number
-  totalEarnedPesewas: number
-  availableBalancePesewas: number
-  hasPendingPayout: boolean
   storageUsed: number
   storageLimit: number
   storageRemaining: number
   inviteCode: string
   referralCount: number
-  creditsBalance: number
-  creditsEarned: number
-  creditsPurchased: number
-  creditsWithdrawn: number
 }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
@@ -59,43 +52,6 @@ type ReferralStats = {
     rewardStatus: string
     rewardAmount: number
     completedAt: string | null
-  }>
-}
-
-type WalletData = {
-  balance: number
-  earned: number
-  purchased: number
-  withdrawn: number
-  transactions: Array<{
-    id: string
-    type: string
-    amount: number
-    balanceAfter: number
-    reference?: string
-    metadata?: Record<string, unknown>
-    createdAt: string
-  }>
-  payouts: Array<{
-    id: string
-    creditsAmount: number
-    ghsAmount: number
-    netGhsAmount: number
-    feeAmount: number
-    status: string
-    bankCode: string
-    accountNumber: string
-    accountName: string
-    requestedAt: string
-    processedAt?: string
-  }>
-  packs: Array<{
-    id: string
-    name: string
-    ghs: number
-    credits: number
-    bonusPct: number
-    description: string
   }>
 }
 
@@ -136,44 +92,6 @@ export default function LairPage() {
     }>
   } | null>(null)
   const [copied, setCopied] = useState(false)
-  const [walletData, setWalletData] = useState<{
-    balance: number
-    earned: number
-    purchased: number
-    withdrawn: number
-    transactions: Array<{
-      id: string
-      type: string
-      amount: number
-      balanceAfter: number
-      reference?: string
-      metadata?: Record<string, unknown>
-      createdAt: string
-    }>
-    payouts: Array<{
-      id: string
-      creditsAmount: number
-      ghsAmount: number
-      netGhsAmount: number
-      feeAmount: number
-      status: string
-      bankCode: string
-      accountNumber: string
-      accountName: string
-      requestedAt: string
-      processedAt?: string
-    }>
-    packs: Array<{
-      id: string
-      name: string
-      ghs: number
-      credits: number
-      bonusPct: number
-      description: string
-    }>
-  } | null>(null)
-
-
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
       .then((data) => {
@@ -246,23 +164,13 @@ export default function LairPage() {
       .catch(console.error)
   }, [])
 
-  const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet<WalletData>("/api/credits/balance")
-      .then((data) => {
-        if (!isCurrent()) return
-        setWalletData(data)
-      })
-      .catch(console.error)
-  }, [])
-
   useEffect(() => {
     let active = true
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
-    loadWallet(() => active)
     return () => { active = false }
-  }, [load, loadStorage, loadReferral, loadWallet])
+  }, [load, loadStorage, loadReferral])
 
   async function handleLogout() {
     document.cookie = "yard_token=; Max-Age=0; path=/"
@@ -425,73 +333,6 @@ export default function LairPage() {
         </div>
       )}
 
-      {walletData && (me.tier !== "FREE" && (
-        <div className="card p-4 mb-4">
-          <p className="font-semibold mb-3">💳 wallet</p>
-
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{walletData.balance.toLocaleString()}</p>
-              <p className="text-xs text-white/40">credits</p>
-              <p className="text-xs text-primary mt-0.5">≈ ghs {(walletData.balance / 100).toFixed(2)}</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{walletData.earned.toLocaleString()}</p>
-              <p className="text-xs text-white/40">lifetime earned</p>
-              <p className="text-xs text-white/40 mt-0.5">≈ ghs {(walletData.earned / 100).toFixed(2)}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{walletData.purchased.toLocaleString()}</p>
-              <p className="text-xs text-white/40">purchased</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{walletData.withdrawn.toLocaleString()}</p>
-              <p className="text-xs text-white/40">withdrawn</p>
-              <p className="text-xs text-white/40 mt-0.5">≈ ghs {(walletData.withdrawn / 100).toFixed(2)}</p>
-            </div>
-          </div>
-
-          <div className="flex gap-2 mb-3">
-            <button className="btn-primary flex-1" disabled>
-              withdrawals disabled
-            </button>
-            <button className="btn-primary flex-1" onClick={() => router.push("/shop")}>
-              buy credits
-            </button>
-          </div>
-
-          <details className="group mt-3">
-            <summary className="flex items-center justify-between cursor-pointer select-none">
-              <span className="text-sm font-medium">recent transactions</span>
-              <span className="text-xs text-white/40">{walletData.transactions.length} total</span>
-            </summary>
-            <ul className="space-y-2 mt-3 pt-3 border-t border-white/10 max-h-64 overflow-y-auto">
-              {walletData.transactions.slice(0, 20).map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between text-sm py-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded bg-white/[0.05] ${
-                      tx.amount > 0 ? "text-green-400" : "text-red-400"
-                    }`}>
-                      {tx.amount > 0 ? "+" : ""}{tx.amount}
-                    </span>
-                    <span className="text-white/70 capitalize">{tx.type.toLowerCase().replace(/_/g, " ")}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white/50 text-xs">bal: {tx.balanceAfter.toLocaleString()}</p>
-                    <p className="text-white/40 text-xs">{new Date(tx.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </details>
-
-          {/* Withdrawals disabled */}
-        </div>
-      ))}
-
       <button
         className="card w-full p-4 mb-3 flex items-center justify-between"
         onClick={() => router.push("/lair/activity")}
@@ -579,7 +420,7 @@ export default function LairPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">delete account</h3>
-            <p className="text-white/50 text-sm mb-4">this action is irreversible. all your posts, votes, earnings, and data will be permanently deleted.</p>
+            <p className="text-white/50 text-sm mb-4">this action is irreversible. all your posts, votes, and data will be permanently deleted.</p>
             <input className="input mb-3" type="password" placeholder="password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
             <div className="flex gap-2">
               <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>cancel</button>

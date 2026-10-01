@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { apiGet } from "@/lib/useApi"
 import type { MeResponse } from "@/lib/api-types"
+import Avatar from "@/app/components/Avatar"
 import { useHoverPrefetch } from "@/lib/prefetch"
 import { prefetchDataFor } from "@/lib/prefetch"
 import { getCached, setCached, cacheKeys, TTL } from "@/lib/client-cache"
@@ -22,6 +23,7 @@ export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
+  const [avatarEmoji, setAvatarEmoji] = useState("👻")
   const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin", "/download"]
   const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
 
@@ -51,9 +53,11 @@ export default function BottomNav() {
         if (!active) return
         setAuthenticatedPath(data.user ? pathname : null)
         if (!data.user) {
+          setAvatarEmoji("👻")
           setUnreadCount(0)
           return
         }
+        setAvatarEmoji(data.user.avatarEmoji)
       } catch {
         if (active) {
           setAuthenticatedPath(null)
@@ -110,7 +114,11 @@ export default function BottomNav() {
                   : "w-9 text-white/40 hover:text-white/70"
               }`}
             >
-              <span aria-hidden="true" className="text-xl">{tab.icon}</span>
+              {tab.href === "/lair" ? (
+                <Avatar emoji={avatarEmoji} size={24} />
+              ) : (
+                <span aria-hidden="true" className="text-xl">{tab.icon}</span>
+              )}
               {active && <span className="text-[11px] font-bold tracking-tight">{tab.label}</span>}
               {tab.href === "/feed" && unreadCount > 0 && (
                 <span
