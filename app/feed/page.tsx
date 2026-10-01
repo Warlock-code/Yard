@@ -133,6 +133,7 @@ const pendingFollowRequests = useRef(new Set<string>())
 const [pullToRefresh, setPullToRefresh] = useState(false)
 const pullStartRef = useRef<number | null>(null)
 const viewObserverRef = useRef<IntersectionObserver | null>(null)
+const loadMoreRef = useRef<HTMLDivElement | null>(null)
 const viewedPostsRef = useRef<Set<string>>(new Set())
 
 // Expand + inline comments (X-style tap anywhere)
@@ -250,9 +251,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         loadMore()
       }
     }
+    const loadObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore()
+      },
+      { rootMargin: "600px 0px" }
+    )
+    if (loadMoreRef.current) loadObserver.observe(loadMoreRef.current)
     window.addEventListener("scroll", handleScroll)
     return () => {
       active = false
+      loadObserver.disconnect()
       window.removeEventListener("scroll", handleScroll)
     }
   }, [nextCursor, loading, mode, feedVersion, refreshSeed])
@@ -813,6 +822,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
             )
           })}
           {loadingMore && <p className="text-center text-white/30 text-sm py-4">loading more...</p>}
+          {nextCursor && <div ref={loadMoreRef} className="h-8" aria-hidden="true" />}
         </div>
       )}
 
