@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiGet } from "@/lib/useApi"
+import { apiDelete, apiGet, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 
 type Post = {
@@ -21,6 +21,7 @@ export default function ActivityPage() {
   const [tab, setTab] = useState<"posts" | "liked">("posts")
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -39,6 +40,34 @@ export default function ActivityPage() {
     if (nextTab === tab) return
     setLoading(true)
     setTab(nextTab)
+  }
+
+  async function editPost(post: Post) {
+    const edited = window.prompt("edit your post:", post.text || "")
+    if (edited === null || !edited.trim() || busyId) return
+    setBusyId(post.id)
+    try {
+      const text = edited.toLowerCase().trim()
+      await apiPatch(`/api/posts/${post.id}`, { text })
+      setPosts((current) => current.map((item) => item.id === post.id ? { ...item, text } : item))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "could not edit post.")
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function deletePost(postId: string) {
+    if (busyId || !window.confirm("delete this post?")) return
+    setBusyId(postId)
+    try {
+      await apiDelete(`/api/posts/${postId}`)
+      setPosts((current) => current.filter((item) => item.id !== postId))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "could not delete post.")
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -76,6 +105,26 @@ export default function ActivityPage() {
                 <span>💬 {p.commentsCount}</span>
               </div>
             </Link>
+            {tab === "posts" && (
+              <div className="flex items-center gap-4 mt-2 text-xs text-white/35">
+                <button
+                  type="button"
+                  onClick={() => editPost(p)}
+                  disabled={busyId === p.id}
+                  className="hover:text-primary disabled:opacity-40"
+                >
+                  edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deletePost(p.id)}
+                  disabled={busyId === p.id}
+                  className="hover:text-red-400 disabled:opacity-40"
+                >
+                  {busyId === p.id ? "working..." : "delete"}
+                </button>
+              </div>
+            )}
           </div>
         ))
       )}
