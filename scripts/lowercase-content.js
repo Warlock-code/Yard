@@ -11,7 +11,7 @@ async function main() {
     prisma.comment.count(),
   ])
 
-  console.log(`lowercased ${posts.length} posts and ${comments.length} comments`)
+  console.log(`lowercased ${posts} posts and ${comments} comments`)
 }
 
 main().catch((error) => {
