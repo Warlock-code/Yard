@@ -3,26 +3,13 @@ const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
 async function main() {
-  const posts = await prisma.post.findMany({ select: { id: true, text: true } })
-  const comments = await prisma.comment.findMany({ select: { id: true, text: true } })
+  await prisma.$executeRawUnsafe('UPDATE "Post" SET "text" = LOWER("text") WHERE "text" IS NOT NULL')
+  await prisma.$executeRawUnsafe('UPDATE "Comment" SET "text" = LOWER("text")')
 
-  for (let index = 0; index < posts.length; index += 25) {
-    await prisma.$transaction(
-      posts.slice(index, index + 25).map((post) => prisma.post.update({
-        where: { id: post.id },
-        data: { text: post.text?.toLowerCase() ?? post.text },
-      }))
-    )
-  }
-
-  for (let index = 0; index < comments.length; index += 25) {
-    await prisma.$transaction(
-      comments.slice(index, index + 25).map((comment) => prisma.comment.update({
-        where: { id: comment.id },
-        data: { text: comment.text.toLowerCase() },
-      }))
-    )
-  }
+  const [posts, comments] = await Promise.all([
+    prisma.post.count(),
+    prisma.comment.count(),
+  ])
 
   console.log(`lowercased ${posts.length} posts and ${comments.length} comments`)
 }

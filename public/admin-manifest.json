@@ -3,7 +3,7 @@
   "short_name": "yard admin",
   "description": "yard administration",
   "id": "/admin",
-  "start_url": "/admin",
+  "start_url": "/admin/login",
   "scope": "/admin",
   "display": "standalone",
   "background_color": "#050505",
