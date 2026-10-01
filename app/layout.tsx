@@ -81,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content="#050505" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png" />
         <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon-167.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152.png" />
@@ -94,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-startup-image" href="/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
         <link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
-      <body>
+      <body style={{ backgroundColor: "#050505", color: "#f5f5f5" }}>
         <PushNotificationsSetup />
         <RoutePrefetcher />
         <SWRegistration />
