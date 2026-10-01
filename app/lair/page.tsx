@@ -17,6 +17,7 @@ type Me = {
   championTrophies?: number
   streakCount: number
   ghostCoins: number
+  creditsBalance: number
   postCount: number
   followersCount: number
   followingCount: number
@@ -37,7 +38,7 @@ type ReferralStats = {
     verifiedReferrals: number
     flaggedReferrals: number
     pendingReferrals: number
-    coinsEarned: number
+    creditsEarned: number
     dailyCap: number
     referrerReward: number
     refereeReward: number
@@ -74,7 +75,7 @@ export default function LairPage() {
       verifiedReferrals: number
       flaggedReferrals: number
       pendingReferrals: number
-      coinsEarned: number
+      creditsEarned: number
       dailyCap: number
       referrerReward: number
       refereeReward: number
@@ -247,8 +248,8 @@ export default function LairPage() {
           <p className="text-xs text-white/40">posts</p>
         </div>
         <div className="card p-3 text-center">
-          <p className="text-lg font-bold">{me.ghostCoins}</p>
-          <p className="text-xs text-white/40">coins</p>
+          <p className="text-lg font-bold">{me.creditsBalance}</p>
+          <p className="text-xs text-white/40">credits</p>
         </div>
       </div>
 
@@ -269,8 +270,8 @@ export default function LairPage() {
               <p className="text-xs text-white/40">verified</p>
             </div>
             <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{referralStats.stats.coinsEarned}</p>
-              <p className="text-xs text-white/40">coins earned</p>
+              <p className="text-lg font-bold text-primary">{referralStats.stats.creditsEarned}</p>
+              <p className="text-xs text-white/40">credits earned</p>
             </div>
           </div>
 
@@ -294,7 +295,7 @@ export default function LairPage() {
               </button>
             </div>
             <p className="text-xs text-white/40 mt-1">
-              share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} coins for you, {referralStats.stats.refereeReward} for them on verification
+              share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} credits for you, {referralStats.stats.refereeReward} for them on verification
             </p>
             <p className="text-xs text-white/40 mt-1">daily cap: {referralStats.stats.dailyCap} rewarded referrals/day</p>
           </div>

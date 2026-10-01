@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'yard-static-v1'
-const DYNAMIC_CACHE = 'yard-dynamic-v1'
+const STATIC_CACHE = 'yard-static-v2'
+const DYNAMIC_CACHE = 'yard-dynamic-v2'
 
 const STATIC_ASSETS = [
   '/',

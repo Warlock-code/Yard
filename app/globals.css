@@ -184,6 +184,15 @@ body {
   scroll-padding-top: 4rem;
   touch-action: pan-y;
   text-rendering: optimizeLegibility;
+  text-transform: lowercase;
+}
+
+.brand-mark {
+  text-transform: uppercase !important;
+}
+
+.uppercase {
+  text-transform: lowercase !important;
 }
 
 .theme-default body { background: radial-gradient(ellipse 80% 50% at 50% -10%, var(--accent-free-soft), transparent), var(--background); }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getAdminUser } from "@/lib/getAdmin"
 import { UTApi } from "uploadthing/server"
+import { textStorageMB } from "@/lib/storage"
 import { auditLog, AuditAction } from "@/lib/auditLog"
 import { adminActionSchema, validateRequest } from "@/lib/validation"
 
@@ -52,11 +53,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ...(post.upload ? [prisma.mediaUpload.delete({ where: { id: post.upload.id } })] : []),
         prisma.post.delete({ where: { id: post.id } }),
       ])
-      if (post.upload) {
+      if (post.upload || post.text) {
         const user = await prisma.user.findUnique({ where: { id: post.userId }, select: { storageUsed: true } })
-        const newVal = Math.max(0, (user?.storageUsed || 0) - post.upload.sizeBytes / BYTES_PER_MB)
+        const decrement = (post.upload?.sizeBytes || 0) / BYTES_PER_MB + textStorageMB(post.text)
+        const newVal = Math.max(0, (user?.storageUsed || 0) - decrement)
         await prisma.user.update({ where: { id: post.userId }, data: { storageUsed: newVal } })
-        try { await new UTApi().deleteFiles(post.upload.fileKey) } catch {}
+        const fileKey = post.upload?.fileKey
+        try { if (fileKey) await new UTApi().deleteFiles(fileKey) } catch {}
       }
     } else {
       await prisma.report.update({ where: { id }, data: { status: "actioned" } })

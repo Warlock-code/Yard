@@ -11,6 +11,7 @@ export interface UserProfile {
   tierDaysLeft: number | null
   streakCount: number
   ghostCoins: number
+  creditsBalance: number
   ownedCosmetics: string[]
   postCount: number
   followersCount: number

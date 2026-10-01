@@ -436,7 +436,7 @@ export default function AdminPage() {
       <aside className="hidden lg:flex w-[260px] shrink-0 sticky top-0 h-screen flex-col border-r border-white/[0.07] bg-[#080808]/95 backdrop-blur-xl z-20 relative">
         <div className="px-5 pt-6 pb-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2.5">
-            <span className="font-black text-xl tracking-tight">YARD<span className="text-[#baff39]">.</span></span>
+            <span className="brand-mark font-black text-xl tracking-tight">YARD<span className="text-[#baff39]">.</span></span>
             <span className="text-[10px] font-black tracking-[0.14em] text-black bg-[#baff39] rounded-full px-2 py-0.5">admin</span>
           </div>
           <p className="text-xs text-white/30 mt-2 flex items-center gap-1.5">
@@ -467,7 +467,7 @@ export default function AdminPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/70" onClick={() => setDrawer(false)} />
             <motion.div initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#0a0a0a] border-r border-white/10 flex flex-col">
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-                <span className="font-black">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] bg-[#baff39] text-black rounded-full px-2 py-0.5 ml-1 font-black">admin</span></span>
+                <span className="brand-mark font-black">YARD<span className="text-[#baff39]">.</span> <span className="text-[10px] bg-[#baff39] text-black rounded-full px-2 py-0.5 ml-1 font-black">admin</span></span>
                 <button onClick={() => setDrawer(false)} className="w-8 h-8 rounded-full bg-white/5 grid place-items-center text-white/60">✕</button>
               </div>
               <div className="flex-1 overflow-y-auto">{sidebarNav}</div>
@@ -485,7 +485,7 @@ export default function AdminPage() {
         <header className="sticky top-0 z-30 bg-[#050505]/90 backdrop-blur-xl border-b border-white/[0.06]">
           <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-3">
             <button onClick={() => setDrawer(true)} aria-label="open navigation" className="lg:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 grid place-items-center shrink-0">☰</button>
-            <span className="lg:hidden font-black">YARD<span className="text-[#baff39]">.</span></span>
+            <span className="brand-mark lg:hidden font-black">YARD<span className="text-[#baff39]">.</span></span>
             <div className="hidden lg:flex items-center gap-3 min-w-0">
               <span className="w-9 h-9 rounded-xl grid place-items-center text-lg bg-white/5 border border-white/10 shrink-0">{activeMeta.icon}</span>
               <div className="min-w-0">

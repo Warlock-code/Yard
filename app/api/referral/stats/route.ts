@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const verifiedReferrals = referrals.filter((r) => r.rewardStatus === "completed").length
   const flaggedReferrals = referrals.filter((r) => r.rewardStatus === "flagged").length
   const pendingReferrals = referrals.filter((r) => r.status === "pending" && r.rewardStatus === "none").length
-  const coinsEarned = referrals.reduce((sum, r) => sum + (r.rewardAmount || 0), 0)
+  const creditsEarned = referrals.reduce((sum, r) => sum + (r.rewardAmount || 0), 0)
 
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://yardapp.me"}/join?ref=${stats?.inviteCode}`
 
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       verifiedReferrals,
       flaggedReferrals,
       pendingReferrals,
-      coinsEarned,
+      creditsEarned,
       dailyCap: REFERRAL_CONFIG.DAILY_CAP,
       referrerReward: REFERRAL_CONFIG.REFERRER_REWARD,
       refereeReward: REFERRAL_CONFIG.REFEREE_REWARD,

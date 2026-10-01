@@ -6,6 +6,7 @@ import { getEffectiveTier } from "@/lib/tier"
 import { UTApi } from "uploadthing/server"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { attachChampionTrophiesDeep } from "@/lib/champions"
+import { textStorageMB } from "@/lib/storage"
 
 const BYTES_PER_MB = 1024 * 1024
 
@@ -55,12 +56,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       : []),
     prisma.post.delete({ where: { id } }),
   ])
-  if (post.upload) {
+  const textSizeMB = textStorageMB(post.text)
+  if (post.upload || textSizeMB > 0) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { storageUsed: { decrement: post.upload.sizeBytes / BYTES_PER_MB } },
+      data: {
+        storageUsed: {
+          decrement: (post.upload?.sizeBytes || 0) / BYTES_PER_MB + textSizeMB,
+        },
+      },
     })
-    await new UTApi().deleteFiles(post.upload.fileKey)
+    const fileKey = post.upload?.fileKey
+    if (fileKey) await new UTApi().deleteFiles(fileKey)
   }
   return NextResponse.json({ success: true })
 }
@@ -87,6 +94,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "post text must be 2000 characters or fewer." }, { status: 400 })
   }
 
+  const previousTextSizeMB = textStorageMB(post.text)
+  const nextTextSizeMB = textStorageMB(text)
+  const storageDeltaMB = nextTextSizeMB - previousTextSizeMB
+  if (storageDeltaMB > 0 && user.storageUsed + storageDeltaMB > user.storageLimit) {
+    return NextResponse.json({ error: "this edit would exceed your storage limit." }, { status: 400 })
+  }
+
   const updated = await prisma.post.update({ where: { id }, data: { text: text.trim() } })
+  if (storageDeltaMB !== 0) {
+    await prisma.user.update({ where: { id: user.id }, data: { storageUsed: { increment: storageDeltaMB } } })
+  }
   return NextResponse.json({ post: { ...updated, boosted: isBoostActive(updated) } })
 }

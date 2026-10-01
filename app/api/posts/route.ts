@@ -8,6 +8,8 @@ import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 import { emitNewPost } from "@/lib/socket-client"
 import { processPostHashtags } from "@/lib/search"
 import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
+import { textStorageMB } from "@/lib/storage"
+import { getEffectiveStorageLimitMB } from "@/lib/tier"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
 
   const { text: rawText, imageUrl, type, visibility } = await req.json()
   const text = typeof rawText === "string" ? rawText.toLowerCase() : rawText
+  const textSizeMB = textStorageMB(text)
 
   if (typeof text !== "undefined" && text !== null && (typeof text !== "string" || text.length > 2000)) {
     return NextResponse.json({ error: "post text must be 2000 characters or fewer." }, { status: 400 })
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
 
   if (!text && !imageUrl) {
     return NextResponse.json({ error: "post needs text or an image." }, { status: 400 })
+  }
+  if (user.storageUsed + textSizeMB > getEffectiveStorageLimitMB(user)) {
+    return NextResponse.json({ error: "this post would exceed your storage limit." }, { status: 400 })
   }
   if (visibility === "program" && !user.programKey) {
     return NextResponse.json({ error: "choose your program before posting to Class." }, { status: 400 })
@@ -121,6 +127,13 @@ export async function POST(req: NextRequest) {
     await prisma.mediaUpload.update({
       where: { id: upload.id },
       data: { postId: post.id, status: "posted" },
+    })
+  }
+
+  if (textSizeMB > 0) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { storageUsed: { increment: textSizeMB } },
     })
   }
 

@@ -535,7 +535,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         <button onClick={() => setShowDrawer(true)} className="absolute left-4">
           <Avatar emoji={me?.avatarEmoji || "👻"} size={32} />
         </button>
-        <span className="font-black text-lg tracking-tight">
+        <span className="brand-mark font-black text-lg tracking-tight">
           YARD<span className="text-primary">.</span>
         </span>
         <Link href="/explore" aria-label="search" className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-lg text-white/60 hover:text-white">
