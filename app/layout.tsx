@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import BottomNav from "@/app/components/BottomNav"
+import AndroidBackHandler from "@/app/components/AndroidBackHandler"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
 import { RoutePrefetcher } from "@/app/components/RoutePrefetcher"
 import { ThemeProvider } from "@/app/components/ThemeProvider"
@@ -103,6 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ErrorBoundaryWrapper>
             {children}
             <BottomNav />
+            <AndroidBackHandler />
             <IOSInstallPrompt />
           </ErrorBoundaryWrapper>
         </ThemeProvider>
