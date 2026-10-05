@@ -1,5 +1,8 @@
 name: Android release APK
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -92,3 +95,18 @@ jobs:
         with:
           name: Yard-v${{ inputs.versionName }}.apk
           path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Publish GitHub Release (public download link)
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "Yard-v${{ inputs.versionName }}.apk"
+          if gh release view "v${{ inputs.versionName }}" > /dev/null 2>&1; then
+            gh release upload "v${{ inputs.versionName }}" "Yard-v${{ inputs.versionName }}.apk" --clobber
+          else
+            gh release create "v${{ inputs.versionName }}" "Yard-v${{ inputs.versionName }}.apk" \
+              --title "Yard v${{ inputs.versionName }}" \
+              --notes "Yard v${{ inputs.versionName }} (versionCode ${{ inputs.versionCode }}). Download the APK below."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

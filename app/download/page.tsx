@@ -8,7 +8,7 @@ export default function DownloadPage() {
 
       <a
         className="btn-primary px-8 py-3 text-base mb-8"
-        href="https://github.com/Warlock-code/Yard/releases/download/v1.0.0/Yard-v1.0.0.apk"
+        href="https://github.com/Warlock-code/Yard/releases/download/v1.0.1/Yard-v1.0.1.apk"
       >
         download for android
       </a>
