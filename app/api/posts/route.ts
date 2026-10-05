@@ -258,17 +258,20 @@ export async function GET(req: NextRequest) {
   }
 
   const typeWhere = type !== "all" ? { type } : null
+  // Admin announcements live outside the ranked feed: they are prepended
+  // pinned to the top below, so keep them out of normal ranking/pagination.
+  const notAnnouncement: Prisma.PostWhereInput = { type: { not: "announcement" } }
   let where: Prisma.PostWhereInput
   if (boostedScopeWhere) {
     const normalBranch: Prisma.PostWhereInput = {
-      AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])],
+      AND: [readableWhere, scopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])],
     }
     const boostedBranch: Prisma.PostWhereInput = {
-      AND: [boostedScopeWhere, ...(typeWhere ? [typeWhere] : [])],
+      AND: [boostedScopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])],
     }
     where = { OR: [normalBranch, boostedBranch] }
   } else {
-    where = { AND: [readableWhere, scopeWhere, ...(typeWhere ? [typeWhere] : [])] }
+    where = { AND: [readableWhere, scopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])] }
   }
 
   const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
@@ -303,14 +306,37 @@ export async function GET(req: NextRequest) {
     ? page[page.length - 1]?.id ?? null
     : null
 
-  await attachChampionTrophies(page)
+  // Pinned admin announcements: global ("ALL") or this campus, newest first.
+  // Only on the first page, never in following mode (that feed is people only).
+  let announcements: typeof page = []
+  if (!cursor && mode !== "following") {
+    const rows = await prisma.post.findMany({
+      where: {
+        type: "announcement",
+        archived: false,
+        OR: [{ campus: "ALL" }, { campus: user.campus }],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
+    })
+    announcements = rows.map((post) => ({
+      ...post,
+      boosted: false,
+      isFollowing: false,
+      seen: false,
+    }))
+  }
+
+  const fullPage = [
+    ...announcements.map((post) => ({ ...post, isFollowing: false, seen: false })),
+    ...page.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId), seen: viewedPostIds.has(post.id) })),
+  ]
+  await attachChampionTrophies(fullPage)
 
   return NextResponse.json({
-    posts: page.map((post) => ({
+    posts: fullPage.map((post) => ({
       ...post,
       boosted: Boolean(post.boostedUntil && post.boostedUntil > now),
-      isFollowing: followingIds.has(post.userId),
-      seen: viewedPostIds.has(post.id),
     })),
     nextCursor,
   }, { headers: { "Cache-Control": "private, no-store" } })

@@ -36,7 +36,9 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Settings"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Settings"
+
+type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
 
 const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: string }[] = [
   { key: "Overview", label: "overview", icon: "▦", desc: "revenue & health", group: "general" },
@@ -45,6 +47,7 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Posts", label: "posts", icon: "▤", desc: "search & delete", group: "manage" },
   { key: "Reports", label: "reports", icon: "⚑", desc: "flagged posts", group: "moderation" },
   { key: "Battles", label: "battles", icon: "⚔", desc: "create prompts", group: "moderation" },
+  { key: "Announce", label: "announce", icon: "📢", desc: "pin posts & notify all", group: "moderation" },
   { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
   { key: "Settings", label: "settings", icon: "⚙", desc: "keys & config", group: "system" },
 ]
@@ -175,6 +178,15 @@ export default function AdminPage() {
   const [promptText, setPromptText] = useState("")
   const [campus, setCampus] = useState("")
 
+  const [annText, setAnnText] = useState("")
+  const [annCampus, setAnnCampus] = useState("ALL")
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [bcTitle, setBcTitle] = useState("")
+  const [bcBody, setBcBody] = useState("")
+  const [bcHref, setBcHref] = useState("/download")
+  const [bcSending, setBcSending] = useState(false)
+  const [bcStatus, setBcStatus] = useState("")
+
   const loadAll = useCallback((isCurrent: () => boolean = () => true) => {
     return Promise.all([
       adminFetch("/api/admin/stats"),
@@ -216,6 +228,11 @@ export default function AdminPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [section, postSearch])
+
+  useEffect(() => {
+    if (section !== "Announce") return
+    loadAnnouncements()
+  }, [section])
 
   // Payout tab fetch (pending is default set, paid/all fetched on demand)
   useEffect(() => {
@@ -333,6 +350,65 @@ export default function AdminPage() {
       loadAll()
     } catch (e: unknown) { alert(errMsg(e, "delete failed.")) }
     finally { setBusyId(null) }
+  }
+
+  async function loadAnnouncements() {
+    try {
+      const d = await adminFetch("/api/admin/announcements") as unknown as { announcements?: Announcement[] }
+      setAnnouncements(d.announcements || [])
+    } catch {}
+  }
+
+  async function handlePostAnnouncement() {
+    if (!annText.trim()) { alert("write the announcement first"); return }
+    if (busyId) return
+    setBusyId("announce")
+    try {
+      await adminFetch("/api/admin/announcements", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: annText, campus: annCampus }),
+      })
+      setAnnText("")
+      await loadAnnouncements()
+    } catch (e: unknown) { alert(errMsg(e, "failed to post announcement.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleRemoveAnnouncement(id: string) {
+    if (!confirm("take this announcement down from the feed?")) return
+    if (busyId) return
+    setBusyId(id)
+    try {
+      await adminFetch(`/api/admin/announcements/${id}`, { method: "DELETE" })
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id))
+    } catch (e: unknown) { alert(errMsg(e, "failed to remove announcement.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleBroadcast() {
+    if (!bcTitle.trim() || !bcBody.trim()) { alert("title and message required"); return }
+    if (!confirm(`notify ALL users with "${bcTitle.trim()}"?`)) return
+    setBcSending(true)
+    setBcStatus("starting…")
+    try {
+      let cursor: string | null = null
+      let totalSent = 0
+      let totalPushed = 0
+      for (;;) {
+        const d = await adminFetch("/api/admin/broadcast", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: bcTitle, body: bcBody, href: bcHref || "/download", cursor }),
+        }) as unknown as { sent?: number; pushed?: number; done?: boolean; nextCursor?: string | null }
+        totalSent += d.sent || 0
+        totalPushed += d.pushed || 0
+        setBcStatus(`sent ${totalSent} · pushed ${totalPushed}…`)
+        cursor = d.nextCursor || null
+        if (d.done || !cursor) break
+      }
+      setBcStatus(`done — ${totalSent} notified, ${totalPushed} pushes.`)
+      setBcTitle(""); setBcBody("")
+    } catch (e: unknown) { setBcStatus(errMsg(e, "broadcast failed partway — re-run to continue.")) }
+    finally { setBcSending(false) }
   }
 
   async function handleCreateBattle() {
@@ -1068,6 +1144,46 @@ export default function AdminPage() {
                           <div key={l} className="rounded-xl border border-white/[0.07] bg-black/30 py-3"><p>{i}</p><p className="text-[11px] font-bold text-white/50 mt-1">{l}</p></div>
                         ))}
                       </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* ============ ANNOUNCE ============ */}
+              {section === "Announce" && (
+                <div className="grid lg:grid-cols-5 gap-4">
+                  <Card className="lg:col-span-3">
+                    <CardHeader title="pin post to feed" sub="stays at the top until you take it down" />
+                    <div className="p-5 space-y-3">
+                      <textarea value={annText} onChange={(e) => setAnnText(e.target.value)} placeholder="announcement — e.g. yard v1.0.1 is out, update your app…" rows={3} maxLength={2000} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <select value={annCampus} onChange={(e) => setAnnCampus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#baff39]/60">
+                        <option value="ALL">all schools</option>
+                        {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <button disabled={busyId === "announce"} onClick={handlePostAnnouncement} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "announce" ? "posting…" : "pin to feed"}</button>
+                      <div className="pt-2 space-y-2">
+                        {announcements.length === 0 && <p className="text-xs text-white/30">no pinned posts right now.</p>}
+                        {announcements.map((a) => (
+                          <div key={a.id} className="rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.05] p-3 flex items-start gap-3">
+                            <span>📢</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-white/90 whitespace-pre-wrap">{a.text}</p>
+                              <p className="text-[11px] text-white/35 mt-1">{a.campus === "ALL" ? "all schools" : a.campus} · {new Date(a.createdAt).toLocaleString()}</p>
+                            </div>
+                            <button disabled={busyId === a.id} onClick={() => handleRemoveAnnouncement(a.id)} className="text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50">take down</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="lg:col-span-2">
+                    <CardHeader title="notify everyone" sub="in-app + push to all users" />
+                    <div className="p-5 space-y-3">
+                      <input value={bcTitle} onChange={(e) => setBcTitle(e.target.value)} placeholder="title — e.g. update your app" maxLength={80} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <textarea value={bcBody} onChange={(e) => setBcBody(e.target.value)} placeholder="message — e.g. yard v1.0.1 is out with fixes…" rows={3} maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={bcHref} onChange={(e) => setBcHref(e.target.value)} placeholder="link — /download" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <button disabled={bcSending} onClick={handleBroadcast} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{bcSending ? "sending…" : "notify all users"}</button>
+                      {bcStatus && <p className="text-xs text-white/50">{bcStatus}</p>}
                     </div>
                   </Card>
                 </div>
