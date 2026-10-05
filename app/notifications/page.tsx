@@ -41,7 +41,7 @@ async function registerPushToken() {
     })
 
     const token = JSON.stringify(subscription)
-    await apiPost("/api/notifications/register", { token })
+    await apiPost("/api/notifications/register", { token, platform: "web-push" })
     console.log("Push token registered")
   } catch (error) {
     console.error("Push registration failed:", error)

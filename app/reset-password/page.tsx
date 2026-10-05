@@ -12,6 +12,7 @@ function ResetPasswordContent() {
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPasswords, setShowPasswords] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
@@ -65,18 +66,29 @@ function ResetPasswordContent() {
       <p className="text-white/60 mb-8">enter your new password below.</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="relative">
+          <input
+            className="input pr-16"
+            type={showPasswords ? "text" : "password"}
+            placeholder="new password (min 8 chars, upper, lower, number, symbol)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPasswords((v) => !v)}
+            aria-label={showPasswords ? "hide passwords" : "show passwords"}
+            aria-pressed={showPasswords}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-white/50 hover:text-white"
+          >
+            {showPasswords ? "hide" : "show"}
+          </button>
+        </div>
         <input
           className="input"
-          type="password"
-          placeholder="new password (min 8 chars, upper, lower, number, symbol)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
-        <input
-          className="input"
-          type="password"
+          type={showPasswords ? "text" : "password"}
           placeholder="confirm new password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { recordBattleWin } from "@/lib/champions"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
+import { sendPush } from "@/lib/sendPush"
 
 export const dynamic = "force-dynamic"
 
@@ -292,16 +293,14 @@ async function createNotificationsForRoundStart(prompt: { id: string; text: stri
     ].filter((t): t is string => Boolean(t)))
 
     for (const token of tokens) {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          title: `Round ${prompt.roundNumber} Starting!`,
-          body: `Your entry advanced! "${prompt.text}"`,
-          href: `/battles/${prompt.id}`,
-        }),
-      })
+      // Direct dispatch: never throws (sendPush swallows transport errors),
+      // so one bad token can't abort the remaining notifications.
+      await sendPush(
+        token,
+        `Round ${prompt.roundNumber} Starting!`,
+        `Your entry advanced! "${prompt.text}"`,
+        `/battles/${prompt.id}`
+      )
     }
   }
 }
@@ -319,16 +318,12 @@ async function createStartingSoonNotifications(prompt: { id: string; text: strin
     ].filter((t): t is string => Boolean(t)))
 
     for (const token of tokens) {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          title: "Battle Starting Soon!",
-          body: `"${prompt.text}" starts in 10 minutes. Get ready!`,
-          href: `/battles/${prompt.id}`,
-        }),
-      })
+      await sendPush(
+        token,
+        "Battle Starting Soon!",
+        `"${prompt.text}" starts in 10 minutes. Get ready!`,
+        `/battles/${prompt.id}`
+      )
     }
   }
 }
@@ -347,16 +342,12 @@ async function createWinNotification(winner: { id: string; userId: string; text:
   ].filter((t): t is string => Boolean(t)))
 
   for (const token of tokens) {
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        token,
-        title: "🏆 You Won the Battle!",
-        body: `Your entry "${winner.text?.slice(0, 50)}..." won!`,
-        href: `/battles/${winner.prompt.id}`,
-      }),
-    })
+    await sendPush(
+      token,
+      "🏆 You Won the Battle!",
+      `Your entry "${winner.text?.slice(0, 50)}..." won!`,
+      `/battles/${winner.prompt.id}`
+    )
   }
 }
 

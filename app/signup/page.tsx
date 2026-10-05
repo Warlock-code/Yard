@@ -13,6 +13,7 @@ function SignupForm() {
   const referralCode = searchParams.get("ref")?.trim() || searchParams.get("referralCode")?.trim() || ""
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [programLevel, setProgramLevel] = useState("")
   const [program, setProgram] = useState("")
   const [loading, setLoading] = useState(false)
@@ -73,15 +74,27 @@ function SignupForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <input
-          className="input"
-          type="password"
-          placeholder="password (8+ chars, upper, lower, symbol)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-        />
+        <div className="relative">
+          <input
+            className="input pr-16"
+            type={showPassword ? "text" : "password"}
+            placeholder="password (8+ chars, upper, lower, symbol)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "hide password" : "show password"}
+            aria-pressed={showPassword}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-white/50 hover:text-white"
+          >
+            {showPassword ? "hide" : "show"}
+          </button>
+        </div>
         <input
           className="input"
           type="text"

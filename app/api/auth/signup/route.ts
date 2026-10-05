@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma, withDbRetry, isDbConnectionError } from "@/lib/prisma"
 import { hashPassword, makeGhostId, signToken } from "@/lib/auth"
 import { getCampusFromEmail } from "@/lib/schoolEmails"
 import { rateLimit } from "@/lib/rateLimit"
@@ -27,13 +27,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "use a valid school email." }, { status: 400 })
   }
 
-  const rl = await rateLimit(`signup:${normalizedEmail}`, 3, 60 * 60 * 1000)
+  // 10 attempts/hour per email: enough for legit retries after typos,
+  // still blocks credential-stuffing. Per-email key keeps one user's
+  // retries from blocking anyone else.
+  const rl = await rateLimit(`signup:${normalizedEmail}`, 10, 60 * 60 * 1000)
   if (!rl) {
     await auditLog("user.signup", null, null, { success: false, reason: "Rate limited", email: normalizedEmail, ipAddress: ip })
     return NextResponse.json({ error: "too many signup attempts. Try again later." }, { status: 429 })
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+  // Retry once: Neon pooled connections go cold when idle and the first
+  // query can fail even though the database is healthy.
+  const existing = await withDbRetry(() => prisma.user.findUnique({ where: { email: normalizedEmail } }))
   if (existing) {
     return NextResponse.json({ error: "account already exists." }, { status: 400 })
   }
@@ -48,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (ghostAttempts > 10) {
       return NextResponse.json({ error: "failed to generate ghost ID. Please try again." }, { status: 500 })
     }
-  } while (await prisma.user.findUnique({ where: { ghostId } }))
+  } while (await withDbRetry(() => prisma.user.findUnique({ where: { ghostId } })))
 
   let inviteCode: string
   let attempts = 0
@@ -58,32 +63,34 @@ export async function POST(req: NextRequest) {
     if (attempts > 10) {
       return NextResponse.json({ error: "failed to generate invite code." }, { status: 500 })
     }
-  } while (await prisma.user.findUnique({ where: { inviteCode } }))
+  } while (await withDbRetry(() => prisma.user.findUnique({ where: { inviteCode } })))
 
   // Validate referral exists before storing; don't persist invalid codes
   let validatedReferralCode: string | null = null
   let referrer: { id: string } | null = null
   if (referralCode) {
-    referrer = await prisma.user.findUnique({ where: { inviteCode: referralCode }, select: { id: true } })
+    referrer = await withDbRetry(() => prisma.user.findUnique({ where: { inviteCode: referralCode }, select: { id: true } }))
     if (referrer) validatedReferralCode = referralCode
   }
 
   let user
   try {
-    user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        campus,
-        programLevel: programLevel?.trim() || null,
-        program: program?.trim() || null,
-        programKey: getProgramKey(campus, program),
-        ghostId,
-        emailVerified: true,
-        inviteCode,
-        referredBy: validatedReferralCode,
-      },
-    })
+    user = await withDbRetry(() =>
+      prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash,
+          campus,
+          programLevel: programLevel?.trim() || null,
+          program: program?.trim() || null,
+          programKey: getProgramKey(campus, program),
+          ghostId,
+          emailVerified: true,
+          inviteCode,
+          referredBy: validatedReferralCode,
+        },
+      })
+    )
   } catch (createErr: unknown) {
     // Handle race where email/ghostId/inviteCode collision happens between check and create
     if (createErr instanceof Error && (createErr as any).code === "P2002") {
@@ -136,6 +143,11 @@ export async function POST(req: NextRequest) {
   return res
   } catch (err) {
     console.error("[signup] unexpected error", err)
+    // Connection blips (Neon waking from sleep) get a 503 + actionable
+    // message so users retry instead of thinking signup is broken.
+    if (isDbConnectionError(err)) {
+      return NextResponse.json({ error: "database is waking up. please try again in a few seconds." }, { status: 503 })
+    }
     // Don't leak internal error details (Prisma, etc.) to client
     if (err instanceof Error && err.message.includes("account already exists")) {
       return NextResponse.json({ error: err.message }, { status: 400 })
