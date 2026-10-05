@@ -517,10 +517,11 @@ h1, h2, h3 {
   display: none;
 }
 
-/* Post content display — clean monospace, inherits surrounding font-size */
+/* Post content display — Inter, heavier weight; applies to old + new posts */
 .post-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  letter-spacing: 0;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 /* line-clamp fallback (Tailwind v4 has line-clamp core; this covers older renderers) */
