@@ -70,7 +70,10 @@ jobs:
           test -s android/yard-release.keystore
 
       - name: Sync Capacitor (regenerates native plugin list)
-        run: npx cap sync android
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          mkdir -p out
+          npx cap sync android
 
       - name: Apply version
         run: |
