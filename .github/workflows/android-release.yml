@@ -40,11 +40,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install deps
         run: npm ci
+        env:
+          # Dummy URL lets `prisma generate` (postinstall) run without a real DB.
+          DATABASE_URL: postgresql://user:password@localhost:5432/yard?sslmode=require
+          DIRECT_URL: postgresql://user:password@localhost:5432/yard?sslmode=require
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
