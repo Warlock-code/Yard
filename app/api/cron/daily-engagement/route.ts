@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
+import { battleCountdownText } from "@/lib/battle-countdown"
 
 export const dynamic = "force-dynamic"
 
@@ -85,6 +86,67 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     results.generatePost = { success: false, error: String(e) }
   }
+
+  // 3. Battle countdowns — one reminder per battle per day:
+  //    UPCOMING -> "starts in N days", ACTIVE -> "ends in N days".
+  //    Deduped per user per battle per day via the notification type.
+  let countdownSent = 0
+  try {
+    const dayStart = new Date(now)
+    dayStart.setUTCHours(0, 0, 0, 0)
+    const prompts = await prisma.battlePrompt.findMany({
+      where: {
+        OR: [
+          { status: "UPCOMING", startsAt: { gt: new Date(now) } },
+          { status: "ACTIVE", endsAt: { gt: new Date(now) } },
+        ],
+      },
+      select: { id: true, text: true, campus: true, status: true, startsAt: true, endsAt: true },
+      orderBy: { startsAt: "asc" },
+      take: 10,
+    })
+
+    for (const prompt of prompts) {
+      const copy = battleCountdownText({
+        text: prompt.text,
+        status: prompt.status,
+        startsAt: prompt.startsAt,
+        endsAt: prompt.endsAt,
+        now: new Date(now),
+      })
+      if (!copy) continue
+      const type = `battle_countdown:${prompt.id}`
+      const recipients = await prisma.user.findMany({
+        where: {
+          campus: prompt.campus,
+          notifications: {
+            none: { type, createdAt: { gte: dayStart } },
+          },
+        },
+        select: { id: true },
+        take: 1000,
+      })
+      const CHUNK = 10
+      for (let i = 0; i < recipients.length; i += CHUNK) {
+        await Promise.allSettled(
+          recipients.slice(i, i + CHUNK).map((u) =>
+            createNotification({
+              userId: u.id,
+              type,
+              title: copy.title,
+              body: copy.body,
+              href: "/battles",
+            }).catch(() => null)
+          )
+        )
+        countdownSent += Math.min(CHUNK, recipients.length - i)
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  results.battleCountdowns = { sent: countdownSent }
 
   return NextResponse.json({ success: true, ...results })
 }

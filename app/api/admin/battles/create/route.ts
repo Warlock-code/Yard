@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
+import { createNotification } from "@/lib/notifications"
+import { newBattleText } from "@/lib/battle-countdown"
 
 const VALID_CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
@@ -80,6 +82,34 @@ export async function POST(req: NextRequest) {
     }
     // Schedule handling would go here (e.g., using external cron service)
     console.log("Scheduled battle:", scheduleData)
+  }
+
+  // Instant alert: every user on this campus hears about the new battle.
+  // Fire-and-forget safe — notification failures never fail the create.
+  // Capped + chunked so a big campus can't hang the admin's request.
+  try {
+    const copy = newBattleText({ text, status: prompt.status, startsAt, endsAt })
+    const recipients = await prisma.user.findMany({
+      where: { campus },
+      select: { id: true },
+      take: 500,
+    })
+    const CHUNK = 10
+    for (let i = 0; i < recipients.length; i += CHUNK) {
+      await Promise.allSettled(
+        recipients.slice(i, i + CHUNK).map((u) =>
+          createNotification({
+            userId: u.id,
+            type: "battle_new",
+            title: copy.title,
+            body: copy.body,
+            href: "/battles",
+          }).catch(() => null)
+        )
+      )
+    }
+  } catch {
+    // ignore — battle is created either way
   }
 
   return NextResponse.json({ prompt })
