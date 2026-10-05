@@ -1,5 +1,12 @@
 import type { Metadata } from "next"
+import { Inter } from "next/font/google"
 import "./globals.css"
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+})
 import BottomNav from "@/app/components/BottomNav"
 import AndroidBackHandler from "@/app/components/AndroidBackHandler"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
@@ -80,7 +87,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <head>
         <meta name="theme-color" content="#050505" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180.png" />
