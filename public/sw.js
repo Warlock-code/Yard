@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'yard-static-v2'
-const DYNAMIC_CACHE = 'yard-dynamic-v2'
+const STATIC_CACHE = 'yard-static-v3'
+const DYNAMIC_CACHE = 'yard-dynamic-v3'
 
 const STATIC_ASSETS = [
   '/',
@@ -66,12 +66,29 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|webp|avif|woff|woff2|ico)$/)) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE))
+    // Hashed /_next/static/* files are content-addressed (safe to cache-first).
+    // Plain pages must never be served stale or new features won't reach users.
+    if (url.pathname.startsWith('/_next/static/')) {
+      event.respondWith(cacheFirst(request, STATIC_CACHE))
+      return
+    }
+    if (request.mode === 'navigate') {
+      event.respondWith(networkFirst(request, DYNAMIC_CACHE))
+      return
+    }
+    event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE))
+    return
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, DYNAMIC_CACHE))
     return
   }
 
   if (url.pathname === '/' || url.pathname.match(/^\/(feed|explore|search|lair|notifications|compose|shop|battles|admin|profile|post|u|owned|welcome|verify-email|upgrade|reset-password|forgot-password|join|guidelines|terms|privacy|download|leaderboard|analytics|payment|child-safety)/)) {
-    event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE))
+    // Pages + RSC payloads: always try network first so deploys reach
+    // users immediately. Falls back to cache when offline.
+    event.respondWith(networkFirst(request, DYNAMIC_CACHE))
     return
   }
 
