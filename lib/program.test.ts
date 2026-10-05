@@ -48,6 +48,24 @@ test("program posts are unreadable for viewers without a program", () => {
   )
 })
 
+test("cohort viewers only read their class plus pre-cohort posts", () => {
+  const scoped2025 = getProgramKey("KNUST", "BSc Computer Science", 2025)
+  const scoped2024 = getProgramKey("KNUST", "BSc Computer Science", 2024)
+  const viewer2025 = { campus: "KNUST", program: "BSc Computer Science", cohortYear: 2025 }
+  const own = { campus: "KNUST", program: "BSc Computer Science", programKey: scoped2025, visibility: "program", archived: false }
+  const other = { ...own, programKey: scoped2024 }
+  const legacy = { campus: "KNUST", program: "BSc Computer Science", programKey: key, visibility: "program", archived: false }
+  assert.equal(canReadPost(viewer2025, own), true)
+  assert.equal(canReadPost(viewer2025, other), false)
+  assert.equal(canReadPost(viewer2025, legacy), true)
+})
+
+test("viewers without a year still read the whole program family", () => {
+  const scoped2025 = getProgramKey("KNUST", "BSc Computer Science", 2025)
+  const scoped = { campus: "KNUST", program: "BSc Computer Science", programKey: scoped2025, visibility: "program", archived: false }
+  assert.equal(canReadPost(viewer, scoped), true)
+})
+
 test("legacy posts fall back to the stored snapshot when programKey is missing", () => {
   const legacy = { campus: "KNUST", program: "BSc Computer Science", visibility: "program", archived: false }
   assert.equal(canReadPost(viewer, legacy), true)

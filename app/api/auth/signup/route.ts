@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   if (!validation.success) {
     return NextResponse.json({ error: validation.error }, { status: 400 })
   }
-  const { email, password, programLevel, program } = validation.data
+  const { email, password, programLevel, program, cohortYear } = validation.data
   const normalizedEmail = email.trim().toLowerCase()
   const rawReferral = typeof body.referralCode === "string" ? body.referralCode.trim() : ""
   const referralCode = rawReferral ? rawReferral.toUpperCase() : null
@@ -83,7 +83,8 @@ export async function POST(req: NextRequest) {
           campus,
           programLevel: programLevel?.trim() || null,
           program: program?.trim() || null,
-          programKey: getProgramKey(campus, program),
+          cohortYear: cohortYear ?? null,
+          programKey: getProgramKey(campus, program, cohortYear ?? undefined),
           ghostId,
           emailVerified: true,
           inviteCode,

@@ -6,8 +6,14 @@ export const signupSchema = z.object({
     .regex(/[A-Z]/, "password must contain at least one uppercase letter")
     .regex(/[a-z]/, "password must contain at least one lowercase letter")
     .regex(/[^A-Za-z0-9]/, "password must contain at least one special character"),
-  programLevel: z.string().trim().min(1, "program level is required").max(50, "program level too long"),
+  // Level is superseded by admission year; still accepted when sent.
+  programLevel: z.string().trim().max(50, "program level too long").optional().nullable(),
   program: z.string().trim().min(1, "program is required").max(100, "program too long"),
+  cohortYear: z.number().int("admission year must be a whole year").min(2000, "admission year looks wrong").max(2100, "admission year looks wrong").optional().nullable(),
+})
+
+export const cohortYearSchema = z.object({
+  cohortYear: z.number().int("admission year must be a whole year").min(2000, "admission year looks wrong").max(2100, "admission year looks wrong"),
 })
 
 export const loginSchema = z.object({

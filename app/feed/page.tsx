@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -92,13 +92,14 @@ type Me = {  id: string
   storageUsed?: number
   storageLimit?: number
   ghostCoins?: number
+  cohortYear?: number | null
 }
 
 const TABS = [
   { key: "campus", label: "for you", description: "posts from your school/program" },
   { key: "following", label: "following", description: "posts from ghosts you follow" },
   { key: "all", label: "all", description: "posts from every school" },
-  { key: "program", label: "class", description: "posts from your program only" },
+  { key: "program", label: "class", description: "posts from your class (program + admission year)" },
 ]
 
 const EMPTY_MESSAGES: Record<string, string> = {
@@ -106,6 +107,54 @@ const EMPTY_MESSAGES: Record<string, string> = {
   following: "no posts from ghosts you follow yet — tap + on posts to follow ghosts",
   all: "no posts from any school yet",
   program: "no posts from your program yet — be first in class",
+}
+
+function CohortPrompt({ onSaved }: { onSaved: (year: number) => void }) {
+  const years = useMemo(() => {
+    const current = new Date().getFullYear() + 1
+    return Array.from({ length: 12 }, (_, i) => current - i)
+  }, [])
+  const [year, setYear] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  async function save() {
+    if (!year || saving) return
+    setSaving(true)
+    setError("")
+    try {
+      await apiPatch("/api/profile/cohort", { cohortYear: Number(year) })
+      onSaved(Number(year))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "could not save. try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mx-4 mt-3 rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-4">
+      <p className="font-bold text-sm">which year were you admitted?</p>
+      <p className="text-xs text-white/50 mt-1 mb-3">class feed is now per admission year — pick yours to see your own class.</p>
+      <div className="flex gap-2">
+        <select
+          className="input flex-1"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+          aria-label="admission year"
+        >
+          <option value="" disabled>year</option>
+          {years.map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        <button className="btn-primary px-4 text-sm" onClick={save} disabled={!year || saving}>
+          {saving ? "saving..." : "save"}
+        </button>
+      </div>
+      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+    </div>
+  )
 }
 
 export default function FeedPage() {
@@ -574,6 +623,14 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       )}
 
       {!loading && <SmartNudge />}
+      {!loading && me && me.cohortYear == null && (
+        <CohortPrompt
+          onSaved={(year) => {
+            setMe((prev) => (prev ? { ...prev, cohortYear: year } : prev))
+            loadFeed()
+          }}
+        />
+      )}
 
       {loading ? (
         <div>

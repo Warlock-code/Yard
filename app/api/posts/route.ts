@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
       campus: user.campus,
       program: user.program,
       programLevel: user.programLevel,
+      cohortYear: user.cohortYear,
       programKey: user.programKey,
       isPrime: false, // Prime tier removed — no post is Prime-flagged anymore
       visibility: visibility === "program" ? "program" : "school",

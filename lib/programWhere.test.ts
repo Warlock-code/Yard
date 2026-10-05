@@ -5,10 +5,10 @@ import { getProgramKey, programPostWhere, readablePostWhere } from "./program.ts
 const viewer = { campus: "KNUST", program: "BSc Computer Science" }
 const key = getProgramKey(viewer.campus, viewer.program)
 
-test("programPostWhere matches canonical key and normalized legacy strings", () => {
+test("programPostWhere matches program family and normalized legacy strings", () => {
   const where = programPostWhere(viewer, ["Bsc   computer science", "bsc computer science", "BSc Mathematics"])
   assert.deepEqual(where.OR, [
-    { programKey: key },
+    { programKey: { startsWith: (key as string).slice(0, -1) } },
     {
       AND: [
         { OR: [{ programKey: null }, { programKey: "" }] },
@@ -16,6 +16,13 @@ test("programPostWhere matches canonical key and normalized legacy strings", () 
       ],
     },
   ])
+})
+
+test("programPostWhere scopes cohort viewers to their class plus legacy posts", () => {
+  const cohortViewer = { campus: "KNUST", program: "BSc Computer Science", cohortYear: 2025 }
+  const scoped = getProgramKey(cohortViewer.campus, cohortViewer.program, 2025)
+  const where = programPostWhere(cohortViewer, [])
+  assert.deepEqual(where.OR![0], { programKey: { in: [scoped, key] } })
 })
 
 test("programPostWhere never matches when the viewer has no program", () => {

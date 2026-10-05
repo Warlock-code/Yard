@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
       avatarEmoji: user.avatarEmoji,
       campus: user.campus,
       program: user.program,
+      cohortYear: user.cohortYear,
       tier: effectiveTier,
       rawTier: user.tier,
       tierExpiresAt: user.tierExpiresAt,

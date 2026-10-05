@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
 import { prewarmAppData } from "@/lib/client-cache"
@@ -14,18 +14,23 @@ function SignupForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [programLevel, setProgramLevel] = useState("")
+  const [cohortYear, setCohortYear] = useState("")
   const [program, setProgram] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const admissionYears = useMemo(() => {
+    const current = new Date().getFullYear() + 1
+    return Array.from({ length: 12 }, (_, i) => current - i)
+  }, [])
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError("")
 
-    if (!programLevel.trim()) {
-      setError("program level is required (e.g. level 200).")
+    if (!cohortYear) {
+      setError("pick your admission year so we put you in the right class.")
       setLoading(false)
       return
     }
@@ -39,7 +44,7 @@ function SignupForm() {
       await apiPost("/api/auth/signup", {
         email: email.trim(),
         password,
-        programLevel: programLevel.trim(),
+        cohortYear: Number(cohortYear),
         program: program.trim(),
         referralCode: referralCode || undefined,
       })
@@ -95,14 +100,18 @@ function SignupForm() {
             {showPassword ? "hide" : "show"}
           </button>
         </div>
-        <input
+        <select
           className="input"
-          type="text"
-          placeholder="program level (e.g. level 200)"
-          value={programLevel}
-          onChange={(e) => setProgramLevel(e.target.value)}
+          value={cohortYear}
+          onChange={(e) => setCohortYear(e.target.value)}
           required
-        />
+          aria-label="admission year"
+        >
+          <option value="" disabled>admission year (e.g. 2025)</option>
+          {admissionYears.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
         <input
           className="input"
           type="text"
