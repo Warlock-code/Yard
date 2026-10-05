@@ -187,8 +187,12 @@ body {
   text-transform: lowercase;
 }
 
+/* Top "YARD." logo keeps its own distinct look — excluded from Inter */
 .brand-mark {
   text-transform: uppercase !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.04em !important;
 }
 
 .uppercase {
