@@ -178,7 +178,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 500;
+  font-weight: 700;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: contain;
   scroll-padding-top: 4rem;
@@ -524,7 +524,7 @@ h1, h2, h3 {
 /* Post content display — Inter, heavier weight; applies to old + new posts */
 .post-mono {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
