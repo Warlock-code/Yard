@@ -51,14 +51,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Monthly freeze grant (Prime only)
+    // Monthly freeze grant (PLUS) — extends, never clobbers a live freeze.
     if (shouldGrantMonthlyFreeze(user)) {
       const count = getMonthlyFreezeGrant(effectiveTier)
       if (count > 0) {
+        const current = await prisma.user.findUnique({ where: { id: user.id }, select: { streakFreezeUntil: true } })
+        const base = Math.max(now.getTime(), current?.streakFreezeUntil ? new Date(current.streakFreezeUntil).getTime() : 0)
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            streakFreezeUntil: new Date(now.getTime() + 48 * 60 * 60 * 1000),
+            streakFreezeUntil: new Date(base + 48 * 60 * 60 * 1000),
             freeStreakFreezeMonthly: { increment: count },
             lastFreeFreezeGrant: now,
           },

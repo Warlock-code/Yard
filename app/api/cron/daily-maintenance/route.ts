@@ -71,5 +71,41 @@ export async function GET(req: NextRequest) {
 
   results.boostExpiry = { expired: expired.count, capped: capped.count, checkedAt: now }
 
+  // 3. Streak breaker: anyone with a live streak who missed yesterday (and
+  // has no active freeze) drops to 0, stamped restorable for 48h. Frozen
+  // users are skipped entirely — the freeze bridges the gap.
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+  const yesterdayStart = new Date(todayStart)
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+
+  const lapsed = await prisma.user.findMany({
+    where: {
+      streakCount: { gt: 0 },
+      AND: [
+        { OR: [{ lastPostedAt: { lt: yesterdayStart } }, { lastPostedAt: null }] },
+        { OR: [{ streakFreezeUntil: null }, { streakFreezeUntil: { lte: now } }] },
+      ],
+    },
+    select: { id: true, streakCount: true },
+  })
+
+  let streaksBroken = 0
+  const BATCH = 100
+  for (let i = 0; i < lapsed.length; i += BATCH) {
+    const chunk = lapsed.slice(i, i + BATCH)
+    await prisma.$transaction(
+      chunk.map((u) =>
+        prisma.user.update({
+          where: { id: u.id },
+          data: { lastStreakCount: u.streakCount, streakBrokenAt: now, streakCount: 0 },
+        })
+      )
+    )
+    streaksBroken += chunk.length
+  }
+
+  results.streakBreak = { broken: streaksBroken, checkedAt: now }
+
   return NextResponse.json({ success: true, ...results })
 }

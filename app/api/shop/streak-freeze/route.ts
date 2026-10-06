@@ -5,7 +5,8 @@ import { initializePaystack } from "@/lib/paystack"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
 const FREEZE_PRICE_PESEWAS = 200 // GHS 2.00
-const FREEZE_CREDIT_COST = CREDIT_CONFIG.SPEND.STREAK_FREEZE_7D // 200 credits
+const FREEZE_CREDIT_COST = CREDIT_CONFIG.SPEND.STREAK_FREEZE_48H // 200 credits
+const FREEZE_DURATION_MS = 48 * 60 * 60 * 1000
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -19,9 +20,11 @@ export async function POST(req: NextRequest) {
     try {
       const result = await creditUser(user.id, "STREAK_FREEZE", -FREEZE_CREDIT_COST, reference, {})
       try {
+        // Extend from max(now, current freeze) so re-buying never wastes time.
+        const base = Math.max(Date.now(), user.streakFreezeUntil ? new Date(user.streakFreezeUntil).getTime() : 0)
         await prisma.user.update({
           where: { id: user.id },
-          data: { streakFreezeUntil: new Date(Date.now() + 48 * 60 * 60 * 1000) },
+          data: { streakFreezeUntil: new Date(base + FREEZE_DURATION_MS) },
         })
       } catch {
         await creditUser(user.id, "STREAK_FREEZE", FREEZE_CREDIT_COST, `${reference}_refund`, { refund: true }).catch(() => {})

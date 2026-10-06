@@ -26,8 +26,10 @@ export async function POST(req: NextRequest) {
     try {
       const result = await creditUser(user.id, "STREAK_RESTORE", -RESTORE_CREDIT_COST, reference, {})
       try {
-        const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { lastStreakCount: true } })
-        if (!fresh?.lastStreakCount) throw new Error("streak no longer restorable")
+        // Re-check eligibility on fresh data — grace may have lapsed after deduct.
+        const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { lastStreakCount: true, streakBrokenAt: true } })
+        const freshGrace = fresh?.streakBrokenAt && new Date(fresh.streakBrokenAt).getTime() > Date.now() - 48 * 60 * 60 * 1000
+        if (!fresh?.lastStreakCount || !freshGrace) throw new Error("streak no longer restorable")
         await prisma.user.update({
           where: { id: user.id },
           data: { streakCount: fresh.lastStreakCount, lastStreakCount: null, streakBrokenAt: null },

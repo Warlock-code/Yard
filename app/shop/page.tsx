@@ -313,7 +313,7 @@ export default function ShopPage() {
           <div className="card p-4 text-center">
             <p className="text-3xl mb-2">🧊</p>
             <p className="font-semibold text-sm">streak freeze</p>
-            <p className="text-white/40 text-xs mb-3">200 credits</p>
+            <p className="text-white/40 text-xs mb-3">200 credits · 48h protection</p>
             <button className="btn-primary w-full text-sm" onClick={() => buyWithCredits("/api/shop/streak-freeze", "freeze", { useCredits: true })}>
               {loading === "freeze" ? "..." : "buy — 200 credits"}
             </button>

@@ -101,9 +101,13 @@ export async function fulfillPaidTransaction(reference: string) {
         await db.user.update({ where: { id: userId }, data: { ghostId: newName } })
         break
       }
-      case "freeze":
-        await db.user.update({ where: { id: userId }, data: { streakFreezeUntil: new Date(Date.now() + 48 * 60 * 60 * 1000) } })
+      case "freeze": {
+        // Extend from max(now, current freeze) so paying never wastes time.
+        const fu = await db.user.findUnique({ where: { id: userId }, select: { streakFreezeUntil: true } })
+        const base = Math.max(Date.now(), fu?.streakFreezeUntil ? new Date(fu.streakFreezeUntil).getTime() : 0)
+        await db.user.update({ where: { id: userId }, data: { streakFreezeUntil: new Date(base + 48 * 60 * 60 * 1000) } })
         break
+      }
       case "storage": {
         const mb = meta?.mb
         if (typeof mb !== "number" || !Number.isSafeInteger(mb) || mb <= 0) throw new Error("Invalid storage metadata.")
@@ -111,10 +115,12 @@ export async function fulfillPaidTransaction(reference: string) {
         break
       }
       case "restore": {
-        const user = await db.user.findUnique({ where: { id: userId }, select: { lastStreakCount: true } })
-        if (user?.lastStreakCount) {
-          await db.user.update({ where: { id: userId }, data: { streakCount: user.lastStreakCount, lastStreakCount: null, streakBrokenAt: null } })
-        }
+        // Grace re-checked here: throwing rolls the whole fulfillment back
+        // (tx stays pending for review) instead of silently taking payment.
+        const user = await db.user.findUnique({ where: { id: userId }, select: { lastStreakCount: true, streakBrokenAt: true } })
+        const inGrace = user?.streakBrokenAt && new Date(user.streakBrokenAt).getTime() > Date.now() - 48 * 60 * 60 * 1000
+        if (!user?.lastStreakCount || !inGrace) throw new Error("Restore no longer eligible — grace lapsed.")
+        await db.user.update({ where: { id: userId }, data: { streakCount: user.lastStreakCount, lastStreakCount: null, streakBrokenAt: null } })
         break
       }
       case "cosmetic": {
@@ -168,10 +174,12 @@ export async function fulfillPaidTransaction(reference: string) {
       }
       case "monthly_freeze_grant": {
         const count = (meta?.count as number) ?? 1
+        const fu = await db.user.findUnique({ where: { id: userId }, select: { streakFreezeUntil: true } })
+        const base = Math.max(Date.now(), fu?.streakFreezeUntil ? new Date(fu.streakFreezeUntil).getTime() : 0)
         await db.user.update({
           where: { id: userId },
           data: {
-            streakFreezeUntil: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            streakFreezeUntil: new Date(base + 48 * 60 * 60 * 1000),
             freeStreakFreezeMonthly: { increment: count },
             lastFreeFreezeGrant: new Date(),
           },

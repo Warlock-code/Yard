@@ -54,8 +54,11 @@ export function getWeeklyBoostGrant(tier: AccountTier): number {
   }
 }
 
-export function getMonthlyFreezeGrant(_tier: AccountTier): number {
-  return 0
+export function getMonthlyFreezeGrant(tier: AccountTier): number {
+  switch (tier) {
+    case "PLUS": return 1
+    default: return 0
+  }
 }
 
 export function getTierStorageBonusMB(tier: AccountTier): number {
@@ -81,8 +84,14 @@ export function shouldGrantWeeklyBoost(user: { tier: AccountTier; tierExpiresAt:
   return lastGrant < weekStart
 }
 
-export function shouldGrantMonthlyFreeze(_user: { tier: AccountTier; tierExpiresAt: Date | null; lastFreeFreezeGrant: Date | null }): boolean {
-  return false
+export function shouldGrantMonthlyFreeze(user: { tier: AccountTier; tierExpiresAt: Date | null; lastFreeFreezeGrant: Date | null }): boolean {
+  const effectiveTier = getEffectiveTier(user)
+  if (effectiveTier === "FREE") return false
+  const now = new Date()
+  if (!user.lastFreeFreezeGrant) return true
+  const lastGrant = new Date(user.lastFreeFreezeGrant)
+  // One grant per calendar month.
+  return lastGrant.getFullYear() !== now.getFullYear() || lastGrant.getMonth() !== now.getMonth()
 }
 
 export const TIER_CONFIG = {
@@ -113,6 +122,7 @@ export const TIER_CONFIG = {
       "Blue checkmark on profile and posts",
       "Higher battle priority",
       "1 free post boost per week",
+      "1 free streak freeze per month",
       "Can buy epic/legendary avatars and shop items",
       "Can buy custom ghost name",
       "100 MB storage bonus",
