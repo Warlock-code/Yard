@@ -387,7 +387,7 @@ export default function ShopPage() {
       {category === "identity" && (
         <div className="card p-4 mt-2">
           <p className="font-semibold text-sm mb-1">✏️ custom ghost name</p>
-          <p className="text-white/40 text-xs mb-3">300 credits — change from your lair page.</p>
+          <p className="text-white/40 text-xs mb-3">500 credits — credits only. change it from your lair page.</p>
           <button className="btn-ghost" onClick={() => router.push("/lair")}>
             go to lair
           </button>

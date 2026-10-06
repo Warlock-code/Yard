@@ -162,7 +162,7 @@ export const api = {
     apiPost<{ prompt: BattlePrompt }>("/api/admin/battles/create", data),
   getProfile: (ghostId: string) => apiGet<{ user: MeResponse["user"]; posts: FeedResponse["posts"] }>(`/api/users/${ghostId}`),
   updateAvatar: (emoji: string) => apiPost<{ avatarEmoji: string }>("/api/profile/avatar", { emoji }),
-  changeGhostName: (newName: string) => apiPost<{ authorization_url: string }>("/api/shop/custom-name", { newName }),
+  changeGhostName: (newName: string) => apiPost<{ ghostId: string; newBalance?: number }>("/api/shop/custom-name", { newName, useCredits: true }),
   buyBoostCredits: (packId: string) => apiPost<{ authorization_url: string }>("/api/shop/boost-credit", { packId }),
   buyStreakFreeze: () => apiPost<{ authorization_url: string }>("/api/shop/streak-freeze", {}),
   buyStreakRestore: () => apiPost<{ authorization_url: string }>("/api/shop/streak-restore", {}),

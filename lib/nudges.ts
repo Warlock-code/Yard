@@ -77,7 +77,7 @@ export function getNudgeCopy(
     case "nudge_custom_name":
       return {
         title: "your name is forgettable ✏️",
-        body: `${opts.name ?? "your ghost name"} won't stick. Custom ghost name for GHS 3 — make the yard know you.`,
+        body: `${opts.name ?? "your ghost name"} won't stick. Custom ghost name for 500 credits — make the yard know you.`,
         href: "/lair?nudge=name",
         icon: "✏️",
       }

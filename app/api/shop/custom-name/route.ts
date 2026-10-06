@@ -1,53 +1,47 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { initializePaystack } from "@/lib/paystack"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
-const CUSTOM_NAME_PRICE_PESEWAS = 500 // GHS 5.00
-const CUSTOM_NAME_CREDIT_COST = CREDIT_CONFIG.SPEND.CUSTOM_NAME // 300 credits
+// Ghost name changes are credits-only (500 credits). Real money is only
+// for buying credits + subscription — no Paystack checkout here.
+const CUSTOM_NAME_CREDIT_COST = CREDIT_CONFIG.SPEND.CUSTOM_NAME
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const body = await req.json().catch(() => ({}))
-  const { newName } = body
-  const useCredits = body.useCredits === true
-
-  if (!newName?.trim()) return NextResponse.json({ error: "enter a name." }, { status: 400 })
-
-  const taken = await prisma.user.findUnique({ where: { ghostId: newName } })
-  if (taken) return NextResponse.json({ error: "that ghost name is taken." }, { status: 400 })
-
-  if (useCredits) {
-    try {
-      const result = await creditUser(user.id, "CUSTOM_NAME", -CUSTOM_NAME_CREDIT_COST, `custom_name_${user.id}_${Date.now()}`, { newName })
-      await prisma.user.update({ where: { id: user.id }, data: { ghostId: newName.toLowerCase() } })
-      return NextResponse.json({ success: true, creditsUsed: CUSTOM_NAME_CREDIT_COST, newBalance: result.newBalance, ghostId: newName.toLowerCase(), message: "ghost name changed with credits" })
-    } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
-    }
+  const rawName = typeof body.newName === "string" ? body.newName.trim().toLowerCase() : ""
+  // Explicit opt-in so stale cached clients (old paystack flow) can never
+  // trigger a surprise credits charge — they get a clear error instead.
+  if (body.useCredits !== true) {
+    return NextResponse.json({ error: "ghost name changes are credits-only now (500 credits). update the app and try again." }, { status: 400 })
   }
 
+  if (!rawName) return NextResponse.json({ error: "enter a name." }, { status: 400 })
+  if (rawName.length < 3 || rawName.length > 24) {
+    return NextResponse.json({ error: "name must be 3–24 characters." }, { status: 400 })
+  }
+  if (rawName === user.ghostId.toLowerCase()) {
+    return NextResponse.json({ error: "that's already your name." }, { status: 400 })
+  }
+
+  const taken = await prisma.user.findUnique({ where: { ghostId: rawName } })
+  if (taken) return NextResponse.json({ error: "that ghost name is taken." }, { status: 400 })
+
   const reference = `custom_name_${user.id}_${Date.now()}`
-
-  await prisma.transaction.create({
-    data: {
-      userId: user.id,
-      kind: "custom_name",
-      reference,
-      amount: CUSTOM_NAME_PRICE_PESEWAS,
-      metadata: { newName },
-    },
-  })
-
   try {
-    const payment = await initializePaystack(user.email, CUSTOM_NAME_PRICE_PESEWAS, reference)
-    return NextResponse.json(payment)
+    const result = await creditUser(user.id, "CUSTOM_NAME", -CUSTOM_NAME_CREDIT_COST, reference, { newName: rawName })
+    try {
+      await prisma.user.update({ where: { id: user.id }, data: { ghostId: rawName } })
+    } catch {
+      // Rename failed after deduct — refund so the user never pays for nothing.
+      await creditUser(user.id, "CUSTOM_NAME", CUSTOM_NAME_CREDIT_COST, `${reference}_refund`, { newName: rawName, refund: true }).catch(() => {})
+      return NextResponse.json({ error: "rename failed, credits refunded. try again." }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, creditsUsed: CUSTOM_NAME_CREDIT_COST, newBalance: result.newBalance, ghostId: rawName, message: "ghost name changed!" })
   } catch (err) {
-    await prisma.transaction.updateMany({ where: { reference, status: "pending" }, data: { status: "failed" } }).catch(() => {})
-    console.error("[shop/custom-name] init failed", err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed" }, { status: 400 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
   }
 }

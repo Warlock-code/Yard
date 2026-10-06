@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiGet } from "@/lib/useApi"
+import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -93,6 +93,8 @@ export default function LairPage() {
     }>
   } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [renaming, setRenaming] = useState(false)
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
       .then((data) => {
@@ -205,6 +207,26 @@ export default function LairPage() {
     }
   }
 
+  async function handleRename() {
+    const name = newName.trim()
+    if (!name) {
+      alert("enter a new ghost name.")
+      return
+    }
+    if (renaming) return
+    setRenaming(true)
+    try {
+      const data = await apiPost<{ ghostId: string; newBalance?: number; message?: string }>("/api/shop/custom-name", { newName: name, useCredits: true })
+      setMe((current) => current ? { ...current, ghostId: data.ghostId, creditsBalance: typeof data.newBalance === "number" ? data.newBalance : current.creditsBalance } : current)
+      setNewName("")
+      alert(data.message || "ghost name changed!")
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "something went wrong.")
+    } finally {
+      setRenaming(false)
+    }
+  }
+
   if (loading || !me) return <p className="text-center text-white/40 mt-10">entering the den...</p>
 
   return (
@@ -250,6 +272,24 @@ export default function LairPage() {
         <div className="card p-3 text-center">
           <p className="text-lg font-bold">{me.creditsBalance}</p>
           <p className="text-xs text-white/40">credits</p>
+        </div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <p className="font-semibold">✏️ ghost name</p>
+        <p className="text-sm text-white/50 mb-3">500 credits — credits only, no cash.</p>
+        <div className="flex gap-2">
+          <input
+            className="input flex-1"
+            placeholder={me.ghostId}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRename()}
+            maxLength={24}
+          />
+          <button className="btn-primary px-4 disabled:opacity-50" disabled={renaming || !newName.trim()} onClick={handleRename}>
+            {renaming ? "…" : "change"}
+          </button>
         </div>
       </div>
 

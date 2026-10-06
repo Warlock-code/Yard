@@ -544,8 +544,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   async function handleNameChange() {
     if (!newName.trim()) return
     try {
-      const data = await apiPost<{ data?: { authorization_url?: string } }>("/api/shop/custom-name", { newName })
-      if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
+      const data = await apiPost<{ ghostId?: string; message?: string }>("/api/shop/custom-name", { newName, useCredits: true })
+      alert(data.message || "ghost name changed!")
+      setNewName("")
+      setShowNameModal(false)
+      loadMe()
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "something went wrong.")
     }
@@ -970,11 +973,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
             <h3 className="font-bold text-lg mb-1">change your ghost name</h3>
-            <p className="text-white/50 text-sm mb-4">costs ghs 3.00 via paystack.</p>
-            <input className="input mb-3" placeholder="new ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <p className="text-white/50 text-sm mb-4">500 credits — credits only, no cash.</p>
+            <input className="input mb-3" placeholder="new ghost name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={24} />
             <div className="flex gap-2">
               <button className="btn-ghost flex-1" onClick={() => setShowNameModal(false)}>cancel</button>
-              <button className="btn-primary flex-1" onClick={handleNameChange}>pay & change</button>
+              <button className="btn-primary flex-1" onClick={handleNameChange}>change for 500</button>
             </div>
           </div>
         </div>
