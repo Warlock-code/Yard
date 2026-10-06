@@ -277,7 +277,7 @@ export default function LairPage() {
 
       <div className="card p-4 mb-4">
         <p className="font-semibold">✏️ ghost name</p>
-        <p className="text-sm text-white/50 mb-3">500 credits — credits only, no cash.</p>
+        <p className="text-sm text-white/50 mb-3">500 credits only.</p>
         <div className="flex gap-2">
           <input
             className="input flex-1"
@@ -337,7 +337,6 @@ export default function LairPage() {
             <p className="text-xs text-white/40 mt-1">
               share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} credits for you, {referralStats.stats.refereeReward} for them on verification
             </p>
-            <p className="text-xs text-white/40 mt-1">daily cap: {referralStats.stats.dailyCap} rewarded referrals/day</p>
           </div>
 
           {referralStats.referrals.length > 0 && (
