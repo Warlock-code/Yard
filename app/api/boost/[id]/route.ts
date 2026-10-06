@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getBoostExpiry, isBoostActive } from "@/lib/boost"
-import { initializePaystack } from "@/lib/paystack"
-import { reportServerError } from "@/lib/errorAlerts"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
 
-export const BOOST_PRICE_PESEWAS = 300 // GHS 3.00 for 24h
+// Boosts are credits-only: burn a free boost if you have one,
+// otherwise 300 credits for 24h. Real money is only for buying
+// credits + subscription — no Paystack checkout here.
+const BOOST_CREDIT_COST = CREDIT_CONFIG.SPEND.BOOST_24H
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -32,29 +34,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         data: { boosted: true, boostedUntil: getBoostExpiry() },
       }),
     ])
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: "boosted for 24h!" })
   }
 
-  // No free boosts left -> paid contextual boost: GHS 3 for 24h via Paystack.
-  // Reuses the same Transaction -> webhook -> fulfillPaidTransaction("boost") path.
+  // No free boosts left -> direct credits boost for 24h.
   const reference = `boost_${user.id}_${id}_${Date.now()}`
-
-  await prisma.transaction.create({
-    data: {
-      userId: user.id,
-      kind: "boost",
-      reference,
-      amount: BOOST_PRICE_PESEWAS,
-      metadata: { postId: id },
-    },
-  })
-
   try {
-    const payment = await initializePaystack(user.email, BOOST_PRICE_PESEWAS, reference)
-    return NextResponse.json(payment)
+    const result = await creditUser(user.id, "BOOST_PURCHASE", -BOOST_CREDIT_COST, reference, { postId: id, direct: true })
+    try {
+      const fresh = await prisma.post.findUnique({ where: { id }, select: { boostedUntil: true } })
+      if (!fresh) throw new Error("post not found")
+      if (isBoostActive(fresh)) {
+        // Boosted meanwhile — refund, nothing charged.
+        await creditUser(user.id, "BOOST_PURCHASE", BOOST_CREDIT_COST, `${reference}_refund`, { postId: id, refund: true }).catch(() => {})
+        return NextResponse.json({ success: true, alreadyBoosted: true, message: "already boosted." })
+      }
+      await prisma.post.update({
+        where: { id },
+        data: { boosted: true, boostedUntil: getBoostExpiry() },
+      })
+    } catch {
+      await creditUser(user.id, "BOOST_PURCHASE", BOOST_CREDIT_COST, `${reference}_refund`, { postId: id, refund: true }).catch(() => {})
+      return NextResponse.json({ error: "boost failed, credits refunded. try again." }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, creditsUsed: BOOST_CREDIT_COST, newBalance: result.newBalance, message: "boosted for 24h!" })
   } catch (err) {
-    await reportServerError({ route: "/api/boost/[id]", error: err, metadata: { postId: id } })
-    await prisma.transaction.updateMany({ where: { reference, status: "pending" }, data: { status: "failed" } }).catch(() => {})
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed" }, { status: 400 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
   }
 }

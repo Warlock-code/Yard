@@ -6,7 +6,6 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
-import { openPaystackCheckout } from "@/lib/purchaseGate"
 import RichText from "@/app/components/RichText"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
@@ -452,14 +451,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   async function handleBoost(postId: string) {
     try {
-      const data = await apiPost<{ data?: { authorization_url?: string }; success?: boolean }>(`/api/boost/${postId}`, {})
-      const url = data?.data?.authorization_url as string | undefined
-      if (url) {
-        // No free boosts — contextual paid boost: GHS 3 for 24h
-        await openPaystackCheckout(url)
-        return
-      }
-      alert("boosted for 24h!")
+      const data = await apiPost<{ success?: boolean; message?: string }>(`/api/boost/${postId}`, {})
+      alert(data.message || "boosted for 24h!")
       loadFeed()
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "something went wrong.")

@@ -11,7 +11,6 @@ import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import SmartNudge from "@/app/components/SmartNudge"
-import { openPaystackCheckout } from "@/lib/purchaseGate"
 
 type Comment = {
   id: string
@@ -424,13 +423,8 @@ export default function PostDetailClient({ postId }: { postId: string }) {
   async function handleBoost() {
     if (!post) return
     try {
-      const data = await apiPost<{ data?: { authorization_url?: string }; success?: boolean }>(`/api/boost/${post.id}`, {})
-      const url = data?.data?.authorization_url as string | undefined
-      if (url) {
-        await openPaystackCheckout(url)
-        return
-      }
-      alert("boosted for 24h!")
+      const data = await apiPost<{ success?: boolean; message?: string }>(`/api/boost/${post.id}`, {})
+      alert(data.message || "boosted for 24h!")
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "something went wrong.")
     }
@@ -472,7 +466,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
             <span className="text-xl">🚀</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">your post is popping</p>
-              <p className="text-[13px] text-white/60">boost it for 24h for ghs 3.</p>
+              <p className="text-[13px] text-white/60">boost it for 24h — free boost or 300 credits.</p>
             </div>
             <button className="btn-primary px-4 h-8 text-xs" onClick={handleBoost}>
               boost

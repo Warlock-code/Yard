@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   emitVoteUpdate(post.campus, post.id, post.yeahs)
 
-  // Smart nudge: post heating up -> "boost it for 24h for GHS 3" (fire-and-forget)
+  // Smart nudge: post heating up -> "boost it for 24h with credits" (fire-and-forget)
   evalHotPostNudge(post.id).catch(() => {})
 
   return NextResponse.json({ post: { ...post, boosted: isBoostActive(post) } })

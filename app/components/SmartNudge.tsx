@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
-import { openPaystackCheckout } from "@/lib/purchaseGate"
 
 type Nudge = {
   id: string
@@ -15,7 +14,7 @@ type Nudge = {
 }
 
 function ctaFor(nudge: Nudge): { label: string; href: string } {
-  if (nudge.type === "nudge_boost_popping") return { label: "boost for ghs 3", href: nudge.href }
+  if (nudge.type === "nudge_boost_popping") return { label: "boost post", href: nudge.href }
   if (nudge.type === "nudge_avatar") return { label: "pick avatar", href: "/shop" }
   if (nudge.type === "nudge_streak_freeze") return { label: "freeze streak", href: "/shop" }
   if (nudge.type === "nudge_plus") return { label: "go plus", href: "/upgrade" }
@@ -52,19 +51,13 @@ export default function SmartNudge({ compact = false }: { compact?: boolean }) {
   }, [])
 
   const act = useCallback(async (nudge: Nudge) => {
-    // Boost nudge acts inline: burn free boost or open GHS 3 Paystack checkout
+    // Boost nudge acts inline: burn free boost or 300 credits for 24h
     if (nudge.type === "nudge_boost_popping") {
       const postId = postIdFromHref(nudge.href)
       if (postId) {
         setBusyId(nudge.id)
         try {
-          const data = await apiPost<{ data?: { authorization_url?: string }; success?: boolean }>(`/api/boost/${postId}`, {})
-          const url = data?.data?.authorization_url as string | undefined
-          if (url) {
-            await dismiss(nudge.id)
-            await openPaystackCheckout(url)
-            return
-          }
+          const data = await apiPost<{ success?: boolean }>(`/api/boost/${postId}`, {})
           if (data?.success) {
             await dismiss(nudge.id)
             router.push(`/post/${postId}`)

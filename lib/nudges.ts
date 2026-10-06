@@ -46,7 +46,7 @@ export function getNudgeCopy(
     case "nudge_boost_popping":
       return {
         title: "your post is popping 🚀",
-        body: `your post is popping with ${opts.count ?? "lots of"} heat — boost it for 24h for GHS 3.`,
+        body: `your post is popping with ${opts.count ?? "lots of"} heat — boost it for 24h with credits.`,
         href: opts.postId ? `/post/${opts.postId}?nudge=boost` : "/feed?nudge=boost",
         icon: "🚀",
       }
