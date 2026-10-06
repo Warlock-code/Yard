@@ -198,6 +198,80 @@ export async function GET(req: NextRequest) {
     return { day, count: posted, rate: signups > 0 ? Number(((posted / signups) * 100).toFixed(2)) : 0 }
   })
 
+  // Daily signups series (previously computed but never returned)
+  const signupsPerDay = days.map((day) => ({ day, count: signupsByDay.get(day)?.size ?? 0 }))
+  const signupsTotal = signupsPerDay.reduce((a, d) => a + d.count, 0)
+  const signupsAvgPerDay = days.length > 0 ? Number((signupsTotal / days.length).toFixed(1)) : 0
+
+  // Session-based usage averages. Tables may not exist until migration
+  // 20261005120000 is deployed — fall back to zeros so live never breaks.
+  let usage = {
+    hasSessionData: false,
+    totalSessions: 0,
+    trackedUsers: 0,
+    totalMinutes: 0,
+    avgSessionMin: 0,
+    avgMinPerUserPerDay: 0,
+    avgSessionsPerUserPerDay: 0,
+    wauSession: 0,
+    mauSession: 0,
+    sessionsPerDay: days.map((day) => ({ day, count: 0 })),
+    minutesPerDay: days.map((day) => ({ day, count: 0 })),
+  }
+  try {
+    const sessions = await prisma.userSession.findMany({
+      where: { startedAt: windowFilter },
+      select: { userId: true, startedAt: true, durationSec: true },
+    })
+    if (sessions.length > 0) {
+      const sessionsByDay = new Map<string, number>(days.map((d) => [d, 0]))
+      const minutesByDay = new Map<string, number>(days.map((d) => [d, 0]))
+      const usersByDay = new Map<string, Set<string>>(days.map((d) => [d, new Set<string>()]))
+      const allUsers = new Set<string>()
+      let totalSec = 0
+      for (const s of sessions) {
+        const day = dayOf(s.startedAt)
+        if (!sessionsByDay.has(day)) continue
+        sessionsByDay.set(day, (sessionsByDay.get(day) ?? 0) + 1)
+        const mins = (s.durationSec || 0) / 60
+        minutesByDay.set(day, Number(((minutesByDay.get(day) ?? 0) + mins).toFixed(1)))
+        totalSec += s.durationSec || 0
+        if (s.userId) {
+          allUsers.add(s.userId)
+          usersByDay.get(day)?.add(s.userId)
+        }
+      }
+      const totalMinutes = Number((totalSec / 60).toFixed(1))
+      const denomDays = days.length || 1
+      const denomUsers = allUsers.size || 1
+      const wauCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
+      const mauCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+      const wauUsers = new Set<string>()
+      const mauUsers = new Set<string>()
+      for (const s of sessions) {
+        if (!s.userId) continue
+        const t = s.startedAt.getTime()
+        if (t >= wauCutoff) wauUsers.add(s.userId)
+        if (t >= mauCutoff) mauUsers.add(s.userId)
+      }
+      usage = {
+        hasSessionData: true,
+        totalSessions: sessions.length,
+        trackedUsers: allUsers.size,
+        totalMinutes,
+        avgSessionMin: sessions.length > 0 ? Number((totalMinutes / sessions.length).toFixed(1)) : 0,
+        avgMinPerUserPerDay: Number((totalMinutes / denomUsers / denomDays).toFixed(1)),
+        avgSessionsPerUserPerDay: Number((sessions.length / denomUsers / denomDays).toFixed(2)),
+        wauSession: wauUsers.size,
+        mauSession: mauUsers.size,
+        sessionsPerDay: days.map((day) => ({ day, count: sessionsByDay.get(day) ?? 0 })),
+        minutesPerDay: days.map((day) => ({ day, count: minutesByDay.get(day) ?? 0 })),
+      }
+    }
+  } catch {
+    // table missing — keep zeroed usage
+  }
+
   return NextResponse.json({
     range,
     dau: days.map((day) => ({ day, count: dauByDay.get(day)?.size ?? 0 })),
@@ -215,5 +289,9 @@ export async function GET(req: NextRequest) {
     payoutRatio,
     signupPostDay0: signupPostRateDay0,
     signupPostDay1: signupPostRateDay1,
+    signupsPerDay,
+    signupsTotal,
+    signupsAvgPerDay,
+    usage,
   })
 }

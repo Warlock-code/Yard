@@ -616,3 +616,31 @@ model CampusBattleWin {
   @@unique([userId, campus])
   @@index([campus, wins])
 }
+
+// --- Usage tracking (additive, live-safe). Tables may not exist until
+// migration 20261005120000_add_usage_tracking is deployed. All readers
+// and writers must try/catch so the app works before + after deploy.
+model UserSession {
+  id          String    @id @default(cuid())
+  userId      String?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  durationSec Int       @default(0)
+  platform    String?
+  pathname    String?
+
+  @@index([userId, startedAt])
+  @@index([startedAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String
+  pathname  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+}

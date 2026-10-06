@@ -15,6 +15,7 @@ import { RoutePrefetcher } from "@/app/components/RoutePrefetcher"
 import { ThemeProvider } from "@/app/components/ThemeProvider"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 import SWRegistration from "@/app/components/SWRegistration"
+import UsageTracker from "@/app/components/UsageTracker"
 import { ErrorBoundaryWrapper } from "@/app/components/ErrorBoundaryWrapper"
 
 export const metadata: Metadata = {
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PushNotificationsSetup />
         <RoutePrefetcher />
         <SWRegistration />
+        <UsageTracker />
         <ThemeProvider>
           <ErrorBoundaryWrapper>
             {children}

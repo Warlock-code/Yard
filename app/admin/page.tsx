@@ -149,23 +149,39 @@ export default function AdminPage() {
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [users, setUsers] = useState<AdminUser[]>([])
   const [posts, setPosts] = useState<AdminPost[]>([])
-  const [metrics, setMetrics] = useState<null | { 
-  range: number; 
-  dau: {day:string;count:number}[]; 
-  postsPerDay: {day:string;count:number}[]; 
+  const [metrics, setMetrics] = useState<null | {
+  range: number;
+  dau: {day:string;count:number}[];
+  postsPerDay: {day:string;count:number}[];
   postsPerUserByDay: {day:string;count:number}[];
-  paywallHits: {day:string;count:number}[]; 
+  paywallHits: {day:string;count:number}[];
   payConversionByDay: {day:string;rate:number}[];
   retentionD1: {day:string;rate:number}[];
   retentionD7: {day:string;rate:number}[];
-  funnel: {hits:number;checkoutStarted:number;paid:number}; 
-  conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number}; 
-  arppuPesewas:number; 
-  revenuePesewas:number; 
-  paidOutPesewas:number; 
+  funnel: {hits:number;checkoutStarted:number;paid:number};
+  conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
+  arppuPesewas:number;
+  revenuePesewas:number;
+  paidOutPesewas:number;
   payoutRatio:number;
   signupPostDay0: {day:string;count:number;rate:number}[];
   signupPostDay1: {day:string;count:number;rate:number}[];
+  signupsPerDay?: {day:string;count:number}[];
+  signupsTotal?: number;
+  signupsAvgPerDay?: number;
+  usage?: {
+    hasSessionData: boolean;
+    totalSessions: number;
+    trackedUsers: number;
+    totalMinutes: number;
+    avgSessionMin: number;
+    avgMinPerUserPerDay: number;
+    avgSessionsPerUserPerDay: number;
+    wauSession: number;
+    mauSession: number;
+    sessionsPerDay: {day:string;count:number}[];
+    minutesPerDay: {day:string;count:number}[];
+  };
 }>(null)
   const [range, setRange] = useState<7|30>(30)
   const [metricsError, setMetricsError] = useState<string | null>(null)
@@ -251,23 +267,39 @@ export default function AdminPage() {
     adminFetch("/api/admin/metrics?range="+range)
       .then((d) => {
         if (!active) return
-        setMetrics(d as unknown as { 
-          range: number; 
-          dau: {day:string;count:number}[]; 
-          postsPerDay: {day:string;count:number}[]; 
+        setMetrics(d as unknown as {
+          range: number;
+          dau: {day:string;count:number}[];
+          postsPerDay: {day:string;count:number}[];
           postsPerUserByDay: {day:string;count:number}[];
-          paywallHits: {day:string;count:number}[]; 
+          paywallHits: {day:string;count:number}[];
           payConversionByDay: {day:string;rate:number}[];
           retentionD1: {day:string;rate:number}[];
           retentionD7: {day:string;rate:number}[];
-          funnel: {hits:number;checkoutStarted:number;paid:number}; 
-          conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number}; 
-          arppuPesewas:number; 
-          revenuePesewas:number; 
-          paidOutPesewas:number; 
+          funnel: {hits:number;checkoutStarted:number;paid:number};
+          conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
+          arppuPesewas:number;
+          revenuePesewas:number;
+          paidOutPesewas:number;
           payoutRatio:number;
           signupPostDay0: {day:string;count:number;rate:number}[];
           signupPostDay1: {day:string;count:number;rate:number}[];
+          signupsPerDay?: {day:string;count:number}[];
+          signupsTotal?: number;
+          signupsAvgPerDay?: number;
+          usage?: {
+            hasSessionData: boolean;
+            totalSessions: number;
+            trackedUsers: number;
+            totalMinutes: number;
+            avgSessionMin: number;
+            avgMinPerUserPerDay: number;
+            avgSessionsPerUserPerDay: number;
+            wauSession: number;
+            mauSession: number;
+            sessionsPerDay: {day:string;count:number}[];
+            minutesPerDay: {day:string;count:number}[];
+          };
         })
         setMetricsError(null)
       })
@@ -763,6 +795,53 @@ export default function AdminPage() {
                           </div>
                         )
                       })()}
+
+                      {/* ============ GENERAL USAGE: signups + average time ============ */}
+                      <Card>
+                        <CardHeader title="general usage" sub={`all users · averages · last ${metrics.range || range}d`} right={
+                          <span className="text-[11px] text-white/30">{metrics.usage?.hasSessionData ? `${(metrics.usage?.totalSessions || 0).toLocaleString()} sessions tracked` : "time tracking just started"}</span>
+                        } />
+                        <div className="p-5 space-y-4">
+                          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                            <StatCard label="signups / day avg" value={(metrics.signupsAvgPerDay ?? 0).toFixed(1)} sub={`${(metrics.signupsTotal ?? 0).toLocaleString()} new in ${metrics.range || range}d`} icon="👥" accent="#baff39" />
+                            <StatCard label="avg session" value={`${metrics.usage?.hasSessionData ? (metrics.usage?.avgSessionMin ?? 0).toFixed(1) : "—"}${metrics.usage?.hasSessionData ? "m" : ""}`} sub={metrics.usage?.hasSessionData ? "per open" : "collecting… check back 24h"} icon="⏱" accent="#38bdf8" />
+                            <StatCard label="avg / user / day" value={`${metrics.usage?.hasSessionData ? (metrics.usage?.avgMinPerUserPerDay ?? 0).toFixed(1) : "—"}${metrics.usage?.hasSessionData ? "m" : ""}`} sub={metrics.usage?.hasSessionData ? "average user spends this" : "collecting…"} icon="📊" accent="#facc15" />
+                            <StatCard label="sessions / user / day" value={metrics.usage?.hasSessionData ? `${metrics.usage?.avgSessionsPerUserPerDay ?? 0}` : "—"} sub={metrics.usage?.hasSessionData ? `${(metrics.usage?.trackedUsers ?? 0).toLocaleString()} users tracked` : "collecting…"} icon="🔁" accent="#a855f7" />
+                            <StatCard label="wau / mau" value={metrics.usage?.hasSessionData ? `${(metrics.usage?.wauSession ?? 0).toLocaleString()} / ${(metrics.usage?.mauSession ?? 0).toLocaleString()}` : "—"} sub="session-based · incl. lurkers" icon="⚡" accent="#34d399" />
+                          </div>
+                          {!metrics.usage?.hasSessionData && (
+                            <p className="text-xs text-white/40 leading-relaxed rounded-xl border border-white/10 bg-black/30 p-3">time tracking started with this deploy — averages appear after users open the app (heartbeat every 30s). signups + posts + dau below already work from old data. no action needed, nothing broke.</p>
+                          )}
+                          <div className="grid lg:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs font-bold text-white/50 mb-2">daily signups · last {metrics.range || range}d</p>
+                              <div className="h-[170px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={(metrics.signupsPerDay || []).map((d) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                    <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                    <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                    <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#baff39" />
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-white/50 mb-2">minutes spent / day · all users</p>
+                              <div className="h-[170px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={(metrics.usage?.minutesPerDay || []).map((d) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                    <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                    <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#38bdf8" name="minutes" />
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
 
                       <div className="grid lg:grid-cols-2 gap-4">
                         <Card>
