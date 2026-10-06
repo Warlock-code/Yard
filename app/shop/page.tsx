@@ -4,9 +4,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
-import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow } from "@/lib/avatars"
-import { useTierTheme } from "@/app/components/ThemeProvider"
-import { THEMES, isThemeUnlocked, themeCosmeticId, type ThemeId } from "@/lib/themes"
+import { AVATARS, getAvatarPriceForTier, getRarityColor, isAvatarUnlockedForTier } from "@/lib/avatars"
+import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 import { getAllPacks } from "@/lib/credits"
 import type { CreditPack } from "@/lib/credit-config"
 
@@ -23,26 +22,20 @@ const CATEGORIES = [
 function ThemesPicker({
   tier,
   ownedCosmetics,
-  themeChoice,
   buyingId,
-  onSelect,
   onBuy,
 }: {
   tier: "FREE" | "PLUS" | "PRIME"
   ownedCosmetics: string[]
-  themeChoice: ThemeId | null
   buyingId: string | null
-  onSelect: (value: ThemeId) => void
   onBuy: (value: ThemeId) => void
 }) {
-  const activeId: ThemeId = themeChoice && isThemeUnlocked(themeChoice, tier, ownedCosmetics) ? themeChoice : "default"
-
-  // One-time buys leave the shop once owned — use them from owned.
-  // Additive filter only: purchasable themes you already own are hidden,
-  // free / tier-perk themes stay visible so plus gating never changes.
+  // Anything you already have — bought or included with your tier — lives
+  // in owned, never in the shop. Only locked themes show here: paid ones
+  // you can buy, tier ones as a plus upsell.
   const visibleThemes = THEMES.filter((theme) => {
     if (theme.requiresTier === "PRIME") return false
-    if (theme.pricePesewas > 0 && ownedCosmetics.includes(themeCosmeticId(theme.id))) return false
+    if (isThemeUnlocked(theme.id, tier, ownedCosmetics)) return false
     return true
   })
 
@@ -58,44 +51,24 @@ function ThemesPicker({
   return (
     <div className="mt-2">
       <p className="text-white/40 text-xs mb-3 px-1">
-        default green is on for everyone. plus unlocks blue — all opt-in.
-        everyone can also buy extra colorways below. owned themes live in owned.
+        owned themes live in owned — only what you don&apos;t have shows here.
       </p>
       <div className="grid grid-cols-2 gap-3">
         {visibleThemes.map((theme) => {
-          const isActive = activeId === theme.id
-          const unlocked = isThemeUnlocked(theme.id, tier, ownedCosmetics)
           const isPaid = theme.pricePesewas > 0
           const isBuying = buyingId === theme.id
 
           return (
-            <div
-              key={theme.id}
-              className={`card p-4 text-center ${isActive ? `${theme.activeBorderClass} ${theme.activeBgClass}` : ""}`}
-            >
+            <div key={theme.id} className="card p-4 text-center">
               <div
                 className="mx-auto mb-2 h-12 w-12 rounded-full border border-white/10"
                 style={{ background: `linear-gradient(135deg, ${theme.swatchFrom} 50%, ${theme.swatchTo} 50%)` }}
               />
               <p className="font-semibold text-sm">{theme.name}</p>
-              <p className={`text-xs mb-3 ${isActive ? theme.activeTextClass : "text-white/40"}`}>
-                {isActive
-                  ? "✓ active"
-                  : unlocked
-                    ? theme.description
-                    : isPaid
-                      ? theme.description
-                      : "plus perk"}
+              <p className="text-xs mb-3 text-white/40">
+                {isPaid ? theme.description : "plus perk"}
               </p>
-              {isActive ? (
-                <button className="w-full text-sm btn-ghost" disabled>
-                  ✓ active
-                </button>
-              ) : unlocked ? (
-                <button className="w-full text-sm btn-primary" onClick={() => onSelect(theme.id)}>
-                  use
-                </button>
-              ) : isPaid ? (
+              {isPaid ? (
                 <button
                   className="w-full text-sm btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={buyingId !== null}
@@ -121,8 +94,6 @@ export default function ShopPage() {
   const [category, setCategory] = useState("credits")
   const [loading, setLoading] = useState<string | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
-  const { themeChoice, setThemeChoice } = useTierTheme()
-
   useEffect(() => {
     apiGet<{ user: { tier: "FREE" | "PLUS"; ownedCosmetics: string[]; freeBoosts?: number } | null }>("/api/auth/me").then((d) => {
       if (d.user) {
@@ -338,9 +309,11 @@ export default function ShopPage() {
       )}
 
       {category === "avatars" && (() => {
-        // One-time avatars leave the shop once owned — find them in owned.
-        // Frontend-only filter; API still guards with "already owned".
-        const visibleAvatars = AVATARS.filter((c) => !(me?.ownedCosmetics?.includes(c.id)))
+        // Anything you already have — bought or included with your tier —
+        // lives in owned, never in the shop. API still guards both cases.
+        const visibleAvatars = AVATARS.filter(
+          (c) => !(me?.ownedCosmetics?.includes(c.id) || (me && isAvatarUnlockedForTier(me.tier, c.id)))
+        )
         if (visibleAvatars.length === 0) {
           return (
             <div className="card p-5 mt-2 text-center">
@@ -354,27 +327,25 @@ export default function ShopPage() {
         }
         return (
           <div>
-            <p className="text-white/40 text-xs mb-3 px-1">owned avatars live in owned — they leave the shop once bought.</p>
+            <p className="text-white/40 text-xs mb-3 px-1">avatars you have live in owned — only what you don&apos;t have shows here.</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
               {visibleAvatars.map((c) => {
                 const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
-                const isFree = price === 0
                 const rarityClass = getRarityColor(c.rarity)
-                const rarityGlow = getRarityGlow(c.rarity)
                 return (
-                  <div key={c.id} className={`card p-4 text-center ${isFree ? `border-${rarityClass.replace("text-", "")}/30 ${rarityGlow}` : ""}`}>
+                  <div key={c.id} className="card p-4 text-center">
                     <p className="text-3xl mb-2">{c.emoji}</p>
                     <p className="font-semibold text-sm">{c.name}</p>
                     <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
-                    <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
-                      {isFree ? "free with plus" : `${price / 100} credits`}
+                    <p className="text-xs mb-3 text-white/40">
+                      {`${price / 100} credits`}
                     </p>
                     <button
-                      className={`w-full text-sm ${isFree ? "btn-ghost" : "btn-primary"}`}
-                      disabled={isFree || loading === c.id}
+                      className="w-full text-sm btn-primary"
+                      disabled={loading === c.id}
                       onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
                     >
-                      {isFree ? "✓ free" : loading === c.id ? "..." : `buy — ${price / 100} credits`}
+                      {loading === c.id ? "..." : `buy — ${price / 100} credits`}
                     </button>
                   </div>
                 )
@@ -401,25 +372,7 @@ export default function ShopPage() {
         <ThemesPicker
           tier={me.tier}
           ownedCosmetics={me.ownedCosmetics || []}
-          themeChoice={themeChoice}
           buyingId={loading}
-          onSelect={(value) => {
-            try {
-              window.localStorage.setItem("yard-theme", value)
-            } catch {
-              // ignore persistence failures
-            }
-            try {
-              setThemeChoice(value)
-            } catch {
-              // context setter unavailable — custom event below still notifies ThemeProvider
-            }
-            try {
-              window.dispatchEvent(new CustomEvent("yard-theme-change", { detail: value }))
-            } catch {
-              // ignore dispatch failures
-            }
-          }}
           onBuy={(themeId) => buyWithCredits("/api/shop/theme", themeId, { themeId, useCredits: true })}
         />
       )}

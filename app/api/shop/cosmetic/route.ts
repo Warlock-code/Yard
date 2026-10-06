@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 import { creditUser } from "@/lib/credits"
-import { AVATARS } from "@/lib/avatars"
+import { AVATARS, isAvatarUnlockedForTier } from "@/lib/avatars"
+import { getEffectiveTier } from "@/lib/tier"
 
 export const COSMETICS = AVATARS
 
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
 
   if (user.ownedCosmetics.includes(cosmeticId)) {
     return NextResponse.json({ error: "already owned." }, { status: 400 })
+  }
+
+  // Tier-included avatars are never for sale — charging for them would bill
+  // users for what their plan already gives. Effective tier honors grace.
+  if (isAvatarUnlockedForTier(getEffectiveTier(user), cosmeticId)) {
+    return NextResponse.json({ error: "included with your plan — find it in owned." }, { status: 400 })
   }
 
   const useCredits = body.useCredits === true
