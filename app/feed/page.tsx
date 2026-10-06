@@ -13,7 +13,7 @@ import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import SmartNudge from "@/app/components/SmartNudge"
 import { logPaywallHit } from "@/lib/logPaywall"
-import { getCached, setCached, cacheKeys, TTL } from "@/lib/client-cache"
+import { getCached, setCached, cacheKeys, TTL, fetchDeduped } from "@/lib/client-cache"
 
 function PostSkeleton() {
   return (
@@ -198,7 +198,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const { connected, on } = useSocket()
 
   const loadMe = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet<{ user: Me | null }>("/api/auth/me")
+    // Deduped: shares one in-flight /me with ThemeProvider + BottomNav +
+    // prewarm when they fire on the same cold-boot tick. Same URL, same
+    // response handling — behavior unchanged.
+    return fetchDeduped("GET /api/auth/me", () => apiGet<{ user: Me | null }>("/api/auth/me"))
       .then((data) => {
         if (!data.user) {
           if (isCurrent()) router.push("/login")

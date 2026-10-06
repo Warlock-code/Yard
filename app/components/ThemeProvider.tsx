@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { apiGet } from "@/lib/useApi"
+import { getCached, setCached, cacheKeys, TTL, fetchDeduped } from "@/lib/client-cache"
 import { getEffectiveTier } from "@/lib/tier"
 import { THEME_CLASS_NAMES, THEME_MAP, isThemeId, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 
@@ -59,25 +60,64 @@ const ThemeContext = createContext<ThemeContextType>({
   setThemeChoice: () => {},
 })
 
+type CachedThemeUser = { tier: "FREE" | "PLUS"; tierExpiresAt: string | null; ownedCosmetics: string[] } | null
+
+function readCachedThemeUser(): CachedThemeUser {
+  try {
+    return getCached<{ user: CachedThemeUser }>(cacheKeys.me)?.user ?? null
+  } catch {
+    return null
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [tier, setTier] = useState<Tier>("FREE")
-  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // Instant theme from cache via lazy initializers (no network, no effect
+  // setState): cold boot paints the right accent on first render, network
+  // revalidates silently in the background effect below.
+  const [tier, setTier] = useState<Tier>(() => {
+    const cached = readCachedThemeUser()
+    if (!cached) return "FREE"
+    try {
+      return getEffectiveTier({
+        tier: cached.tier,
+        tierExpiresAt: cached.tierExpiresAt ? new Date(cached.tierExpiresAt) : null,
+      })
+    } catch {
+      return "FREE"
+    }
+  })
+  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>(() => {
+    const cached = readCachedThemeUser()
+    return cached && Array.isArray(cached.ownedCosmetics) ? cached.ownedCosmetics : []
+  })
+  const [isLoading, setIsLoading] = useState(() => readCachedThemeUser() === null)
   const [themeChoice, setThemeChoiceState] = useState<ThemeId | null>(null)
 
   useEffect(() => {
     let active = true
 
+    function applyUser(user: { tier: "FREE" | "PLUS"; tierExpiresAt: string | null; ownedCosmetics: string[] } | null) {
+      if (!user) return
+      const effectiveTier = getEffectiveTier({
+        tier: user.tier,
+        tierExpiresAt: user.tierExpiresAt ? new Date(user.tierExpiresAt) : null,
+      })
+      setTier(effectiveTier)
+      setOwnedCosmetics(Array.isArray(user.ownedCosmetics) ? user.ownedCosmetics : [])
+    }
+
     async function loadTier() {
+      if (document.hidden) return
       try {
-        const data = await apiGet<{ user: { tier: "FREE" | "PLUS"; tierExpiresAt: string | null; ownedCosmetics: string[] } | null }>("/api/auth/me")
+        // Deduped: shares one in-flight /me with Feed + BottomNav + prewarm
+        // when they fire on the same cold-boot tick.
+        const data = await fetchDeduped(
+          "GET /api/auth/me",
+          () => apiGet<{ user: { tier: "FREE" | "PLUS"; tierExpiresAt: string | null; ownedCosmetics: string[] } | null }>("/api/auth/me")
+        )
         if (active && data.user) {
-          const effectiveTier = getEffectiveTier({
-            tier: data.user.tier,
-            tierExpiresAt: data.user.tierExpiresAt ? new Date(data.user.tierExpiresAt) : null,
-          })
-          setTier(effectiveTier)
-          setOwnedCosmetics(Array.isArray(data.user.ownedCosmetics) ? data.user.ownedCosmetics : [])
+          applyUser(data.user)
+          setCached(cacheKeys.me, data, TTL.me)
         }
       } catch {
         if (active) {
@@ -90,7 +130,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     loadTier()
-    const interval = setInterval(loadTier, 30_000)
+    // 60s (was 30s): tier changes are rare; halves background /me load.
+    const interval = setInterval(loadTier, 60_000)
     return () => {
       active = false
       clearInterval(interval)

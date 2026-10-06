@@ -21,27 +21,65 @@ export function useRoutePrefetch() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    // Warm data once (me + campus feed) alongside route JS
-    prewarmAppData()
 
-    const idleCallback = (deadline: IdleDeadline) => {
-      while (deadline.timeRemaining() > 0 && ROUTES_TO_PREFETCH.length > 0) {
-        const route = ROUTES_TO_PREFETCH.shift()
-        if (route) {
-          router.prefetch(route)
-        }
+    // Deferred past first paint: data warm + route JS must never contend
+    // with the foreground page's critical fetch on cold boot.
+    const warmTimer = window.setTimeout(() => {
+      try {
+        if (!document.hidden) prewarmAppData()
+      } catch {}
+    }, 3000)
+
+    // Staggered, connection-aware route prefetch. Copies the list (the old
+    // code mutated the module array with shift(), so only the first mount
+    // ever prefetched). Skips entirely on save-data / 2G.
+    const queue = [...ROUTES_TO_PREFETCH]
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const shouldPrefetch = () => {
+      try {
+        const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+        if (conn?.saveData) return false
+        if (conn?.effectiveType === "2g" || conn?.effectiveType === "slow-2g") return false
+        if (document.hidden) return false
+      } catch {}
+      return true
+    }
+
+    const w = window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }
+    const pump = () => {
+      if (cancelled) return
+      if (!shouldPrefetch()) {
+        // Retry later instead of burning radio on a hidden/slow client.
+        timer = setTimeout(pump, 5000)
+        return
       }
-      if (ROUTES_TO_PREFETCH.length > 0) {
-        requestIdleCallback(idleCallback)
+      try {
+        // One route per idle slice — never bursts 9 navigations at once.
+        const route = queue.shift()
+        if (route) router.prefetch(route)
+      } catch {}
+      if (queue.length > 0) {
+        timer = setTimeout(pump, 1500)
       }
     }
 
-    if ("requestIdleCallback" in window) {
-      requestIdleCallback(idleCallback)
-    } else {
-      setTimeout(() => {
-        ROUTES_TO_PREFETCH.forEach((route) => router.prefetch(route))
-      }, 1000)
+    const start = () => {
+      if (cancelled) return
+      // First prefetch waits for real idle + first paint, not boot.
+      if (typeof w.requestIdleCallback === "function") {
+        w.requestIdleCallback(pump, { timeout: 6000 })
+      } else {
+        timer = setTimeout(pump, 4000)
+      }
+    }
+    start()
+
+    return () => {
+      cancelled = true
+      clearTimeout(warmTimer)
+      if (timer !== undefined) clearTimeout(timer)
     }
   }, [router])
 }

@@ -84,33 +84,78 @@ export async function fetchWithCache<T>(
   }
 }
 
+// Coalesce concurrent identical fetches (cold boot fires /api/auth/me from
+// ThemeProvider + BottomNav + Feed + prewarm at the same tick). Same key shares
+// one network request; all callers get the same promise. Fail-open: never throws.
+const inflight = new Map<string, Promise<unknown>>()
+export function fetchDeduped<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const existing = inflight.get(key)
+  if (existing) return existing as Promise<T>
+  const p = fetcher().finally(() => {
+    if (inflight.get(key) === p) inflight.delete(key)
+  })
+  inflight.set(key, p)
+  return p
+}
+
 // Fire-and-forget warm of the 3 screens users open first.
 // Called after login/signup and on idle in RoutePrefetcher.
+// Deferred + cache-aware: never competes with the page's own critical fetch
+// on cold boot, and never refetches what a page just cached.
 let warming = false
+let prewarmedAt = 0
 export function prewarmAppData() {
   if (typeof window === "undefined" || warming) return
+  // Don't re-warm more than once every 2 minutes (e.g. signup -> feed nav).
+  if (Date.now() - prewarmedAt < 120_000) return
   warming = true
   const run = async () => {
     try {
-      const meRes = await fetch("/api/auth/me", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-      if (meRes?.user) setCached(cacheKeys.me, meRes, TTL.me)
+      if (document.hidden) return
+      // Skip anything the foreground page already cached — the page's own
+      // fetch is authoritative on cold boot, prewarm is only a backstop.
+      const needsMe = getCached(cacheKeys.me) === null
+      const needsFeed = getCached(cacheKeys.feed("campus")) === null
+      const needsNotif = getCached(cacheKeys.notificationsCount) === null
+      if (!needsMe && !needsFeed && !needsNotif) return
+      prewarmedAt = Date.now()
+      if (needsMe) {
+        const meRes = await fetchDeduped("GET /api/auth/me", () =>
+          fetch("/api/auth/me", { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        )
+        if (meRes && (meRes as { user?: unknown })?.user) setCached(cacheKeys.me, meRes, TTL.me)
+      }
       // Warm campus feed + lightweight counts in parallel; never throws
       await Promise.allSettled([
-        fetch("/api/posts?mode=campus", { credentials: "include" })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d) => { if (d?.posts) setCached(cacheKeys.feed("campus"), d, TTL.feed) }),
-        fetch("/api/notifications?limit=1", { credentials: "include" })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((d) => { if (d) setCached(cacheKeys.notificationsCount, d, TTL.misc) }),
+        needsFeed
+          ? fetchDeduped("GET /api/posts?mode=campus", () =>
+              fetch("/api/posts?mode=campus", { credentials: "include" })
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null)
+            ).then((d) => {
+              const data = d as { posts?: unknown } | null
+              if (data?.posts) setCached(cacheKeys.feed("campus"), data, TTL.feed)
+            })
+          : Promise.resolve(),
+        needsNotif
+          ? fetch("/api/notifications?limit=1", { credentials: "include" })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((d) => { if (d) setCached(cacheKeys.notificationsCount, d, TTL.misc) })
+              .catch(() => {})
+          : Promise.resolve(),
       ])
     } finally {
       warming = false
     }
   }
+  // Deferred well past first paint so the foreground page's own fetch wins
+  // the cold serverless/DB wake-up instead of contending with prewarm.
   if ("requestIdleCallback" in window) {
-    ;(window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(run)
+    ;(window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback(run, { timeout: 4000 })
   } else {
-    setTimeout(run, 800)
+    setTimeout(run, 2500)
   }
 }
 

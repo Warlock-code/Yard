@@ -8,7 +8,7 @@ import type { MeResponse } from "@/lib/api-types"
 import Avatar from "@/app/components/Avatar"
 import { useHoverPrefetch } from "@/lib/prefetch"
 import { prefetchDataFor } from "@/lib/prefetch"
-import { getCached, setCached, cacheKeys, TTL } from "@/lib/client-cache"
+import { getCached, setCached, cacheKeys, TTL, fetchDeduped } from "@/lib/client-cache"
 
 const TABS = [
   { href: "/feed", icon: "🏠", label: "feed" },
@@ -19,18 +19,32 @@ const TABS = [
   { href: "/notifications", icon: "🔔", label: "notifications" },
 ]
 
+const HIDE_ON = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin", "/download"]
+const HIDE_PREFIXES = ["/post/", "/admin/", "/u/", "/payment/"]
+
+function isNavHidden(pathname: string) {
+  return HIDE_ON.includes(pathname) || HIDE_PREFIXES.some((p) => pathname.startsWith(p))
+}
+
 export default function BottomNav() {
   const pathname = usePathname()
   const [unreadCount, setUnreadCount] = useState(0)
   const [authenticatedPath, setAuthenticatedPath] = useState<string | null>(null)
   const [avatarEmoji, setAvatarEmoji] = useState("👻")
-  const hideOn = ["/", "/login", "/signup", "/verify-email", "/compose", "/upgrade", "/admin", "/download"]
-  const hidePrefixes = ["/post/", "/admin/", "/u/", "/payment/"]
 
   useHoverPrefetch()
 
+  const navHidden = isNavHidden(pathname)
+
   useEffect(() => {
     let active = true
+    // Nav is hidden on auth/compose/post pages — skip all fetches there.
+    // Cold boot on /login or /signup must not fire /me + /notifications.
+    // (No state reset needed: render already returns null on hidden paths,
+    // and the next visible path re-runs refresh() below.)
+    if (isNavHidden(pathname)) {
+      return () => { active = false }
+    }
     // Instant badge from cache
     const cachedCount = getCached<{ unreadCount: number }>(cacheKeys.notificationsCount)
     if (cachedCount && typeof cachedCount.unreadCount === "number") setUnreadCount(cachedCount.unreadCount)
@@ -48,8 +62,11 @@ export default function BottomNav() {
     }
 
     async function refresh() {
+      if (document.hidden) return
       try {
-        const data = await apiGet<MeResponse>("/api/auth/me")
+        // Deduped: shares one in-flight /me with Feed + ThemeProvider +
+        // prewarm when they fire on the same cold-boot tick.
+        const data = await fetchDeduped("GET /api/auth/me", () => apiGet<MeResponse>("/api/auth/me"))
         if (!active) return
         setAuthenticatedPath(data.user ? pathname : null)
         if (!data.user) {
@@ -70,17 +87,21 @@ export default function BottomNav() {
     }
 
     refresh()
-    const interval = window.setInterval(refresh, 20_000)
+    // 60s (was 20s): badge/me freshness unchanged in practice, but cold
+    // radios and the DB no longer get hammered by every open tab.
+    const interval = window.setInterval(refresh, 60_000)
     return () => {
       active = false
       window.clearInterval(interval)
     }
   }, [pathname])
 
+  if (navHidden) return null
+
   if (
     authenticatedPath !== pathname ||
-    hideOn.includes(pathname) ||
-    hidePrefixes.some((p) => pathname.startsWith(p))
+    HIDE_ON.includes(pathname) ||
+    HIDE_PREFIXES.some((p) => pathname.startsWith(p))
   )
     return null
 

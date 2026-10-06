@@ -23,6 +23,7 @@ public class MainActivity extends BridgeActivity {
 	private static final String TAG = "YardPush";
 	private final Handler pushHandler = new Handler(Looper.getMainLooper());
 	private volatile boolean pushSyncActive;
+	private volatile int pushSyncAttempts;
 	private final Runnable pushSyncTask = this::syncPushToken;
 
 	@Override
@@ -58,6 +59,7 @@ public class MainActivity extends BridgeActivity {
 	private void startPushTokenSync() {
 		if (pushSyncActive) return;
 		pushSyncActive = true;
+		pushSyncAttempts = 0;
 		pushHandler.post(pushSyncTask);
 	}
 
@@ -81,7 +83,20 @@ public class MainActivity extends BridgeActivity {
 				Log.w(TAG, "FCM token sync attempt failed: " + error.getMessage());
 			}
 
-			if (pushSyncActive) pushHandler.postDelayed(pushSyncTask, 1000);
+			// Exponential backoff (1s, 2s, 4s … max 30s, max ~15 tries) instead of
+			// a fixed 1s hammer: the old loop contended with WebView cold boot
+			// for radio/CPU on every fresh open. Fail-open: giving up just
+			// means push registers on next foreground.
+			if (pushSyncActive) {
+				pushSyncAttempts++;
+				if (pushSyncAttempts >= 15) {
+					Log.i(TAG, "FCM token sync giving up after " + pushSyncAttempts + " attempts; will retry next foreground");
+					pushSyncActive = false;
+				} else {
+					long delayMs = Math.min(30000L, 1000L << Math.min(pushSyncAttempts, 5));
+					pushHandler.postDelayed(pushSyncTask, delayMs);
+				}
+			}
 		}).start();
 	}
 

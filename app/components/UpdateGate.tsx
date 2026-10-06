@@ -19,6 +19,7 @@ export default function UpdateGate() {
 
   useEffect(() => {
     let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     async function check() {
       try {
         const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
@@ -38,8 +39,16 @@ export default function UpdateGate() {
         // Updater must never break the app: fail open.
       }
     }
-    check()
-    return () => { cancelled = true }
+    // Deferred past first paint: update check is non-critical and must never
+    // contend with the feed's critical fetch on cold boot. UI/behavior
+    // unchanged — the banner/block just appears ~2s later. Fail-open kept.
+    const w = window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }
+    if (typeof w.requestIdleCallback === "function") {
+      w.requestIdleCallback(() => { if (!cancelled) void check() }, { timeout: 5000 })
+    } else {
+      timer = setTimeout(() => { if (!cancelled) void check() }, 2000)
+    }
+    return () => { cancelled = true; if (timer !== undefined) clearTimeout(timer) }
   }, [])
 
   if (info === null || build === null) return null

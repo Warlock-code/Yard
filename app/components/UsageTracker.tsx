@@ -54,7 +54,20 @@ export default function UsageTracker() {
         } catch {}
       }
 
-      void start()
+      // Deferred past first paint: session_start is analytics, it must never
+      // contend with the feed's critical fetch on cold boot.
+      const startTimer = window.setTimeout(() => {
+        if (!document.hidden) void start()
+        else {
+          const onVisible = () => {
+            if (!document.hidden) {
+              void start()
+              document.removeEventListener("visibilitychange", onVisible)
+            }
+          }
+          document.addEventListener("visibilitychange", onVisible)
+        }
+      }, 3000)
 
       const beat = () => {
         if (stopped || document.hidden || !sessionId) return
@@ -84,6 +97,7 @@ export default function UsageTracker() {
 
       return () => {
         stopped = true
+        window.clearTimeout(startTimer)
         window.clearInterval(iv)
         window.removeEventListener("pagehide", onHide)
         onHide()
