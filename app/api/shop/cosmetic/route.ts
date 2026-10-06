@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  const { cosmeticId } = await req.json()
+  const body = await req.json().catch(() => ({}))
+  const cosmeticId = typeof body.cosmeticId === "string" ? body.cosmeticId : ""
   const item = COSMETICS.find((c) => c.id === cosmeticId)
   if (!item) return NextResponse.json({ error: "invalid item." }, { status: 400 })
 
@@ -19,13 +20,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "already owned." }, { status: 400 })
   }
 
-  const body = await req.json().catch(() => ({}))
   const useCredits = body.useCredits === true
   const creditCost = Math.round(item.pricePesewas / 100) // Convert pesewas to credits (100 pesewas = 1 credit)
 
   if (useCredits) {
+    const reference = `cosmetic_${cosmeticId}_${user.id}_${Date.now()}`
     try {
-      const result = await creditUser(user.id, "COSMETIC_BUY", -creditCost, `cosmetic_${cosmeticId}_${user.id}_${Date.now()}`, { cosmeticId, emoji: item.emoji })
+      const result = await creditUser(user.id, "COSMETIC_BUY", -creditCost, reference, { cosmeticId, emoji: item.emoji })
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { ownedCosmetics: { push: cosmeticId } },
+        })
+      } catch {
+        // Grant failed after deduct — refund so the user never pays for nothing.
+        await creditUser(user.id, "COSMETIC_BUY", creditCost, `${reference}_refund`, { cosmeticId, refund: true }).catch(() => {})
+        return NextResponse.json({ error: "purchase failed, credits refunded. try again." }, { status: 500 })
+      }
       return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "cosmetic purchased with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })

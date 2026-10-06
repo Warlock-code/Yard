@@ -22,8 +22,20 @@ export async function POST(req: NextRequest) {
   const useCredits = body.useCredits === true
 
   if (useCredits) {
+    const reference = `restore_${user.id}_${Date.now()}`
     try {
-      const result = await creditUser(user.id, "STREAK_RESTORE", -RESTORE_CREDIT_COST, `restore_${user.id}_${Date.now()}`, {})
+      const result = await creditUser(user.id, "STREAK_RESTORE", -RESTORE_CREDIT_COST, reference, {})
+      try {
+        const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { lastStreakCount: true } })
+        if (!fresh?.lastStreakCount) throw new Error("streak no longer restorable")
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { streakCount: fresh.lastStreakCount, lastStreakCount: null, streakBrokenAt: null },
+        })
+      } catch {
+        await creditUser(user.id, "STREAK_RESTORE", RESTORE_CREDIT_COST, `${reference}_refund`, { refund: true }).catch(() => {})
+        return NextResponse.json({ error: "restore failed, credits refunded. try again." }, { status: 500 })
+      }
       return NextResponse.json({ success: true, creditsUsed: RESTORE_CREDIT_COST, newBalance: result.newBalance, message: "streak restored with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })

@@ -6,7 +6,7 @@ import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS, getAvatarPriceForTier, getRarityColor, getRarityGlow } from "@/lib/avatars"
 import { useTierTheme } from "@/app/components/ThemeProvider"
-import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
+import { THEMES, isThemeUnlocked, themeCosmeticId, type ThemeId } from "@/lib/themes"
 import { getAllPacks } from "@/lib/credits"
 import type { CreditPack } from "@/lib/credit-config"
 
@@ -37,14 +37,32 @@ function ThemesPicker({
 }) {
   const activeId: ThemeId = themeChoice && isThemeUnlocked(themeChoice, tier, ownedCosmetics) ? themeChoice : "default"
 
+  // One-time buys leave the shop once owned — use them from owned.
+  // Additive filter only: purchasable themes you already own are hidden,
+  // free / tier-perk themes stay visible so plus gating never changes.
+  const visibleThemes = THEMES.filter((theme) => {
+    if (theme.requiresTier === "PRIME") return false
+    if (theme.pricePesewas > 0 && ownedCosmetics.includes(themeCosmeticId(theme.id))) return false
+    return true
+  })
+
+  if (visibleThemes.length === 0) {
+    return (
+      <div className="mt-2 card p-5 text-center">
+        <p className="font-semibold text-sm">all themes owned 🎨</p>
+        <p className="text-white/40 text-xs mt-1">find everything in owned.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="mt-2">
       <p className="text-white/40 text-xs mb-3 px-1">
         default green is on for everyone. plus unlocks blue — all opt-in.
-        everyone can also buy extra colorways below.
+        everyone can also buy extra colorways below. owned themes live in owned.
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {THEMES.filter((theme) => theme.requiresTier !== "PRIME").map((theme) => {
+        {visibleThemes.map((theme) => {
           const isActive = activeId === theme.id
           const unlocked = isThemeUnlocked(theme.id, tier, ownedCosmetics)
           const isPaid = theme.pricePesewas > 0
@@ -154,12 +172,24 @@ export default function ShopPage() {
   async function buyWithCredits(endpoint: string, key: string, body: Record<string, unknown> = {}) {
     setLoading(key)
     try {
-      const data = await apiPost<{ status?: boolean; message?: string; error?: string }>(endpoint, body)
-      if (data.status === true || data.message) {
+      const data = await apiPost<{ status?: boolean; success?: boolean; message?: string; error?: string }>(endpoint, body)
+      if (data.status === true || data.success === true || data.message) {
         alert(data.message || "purchased!")
-        // Refresh credit balance
-        const bal = await apiGet<{ balance: number }>("/api/credits/balance")
-        setMe(prev => prev ? { ...prev, creditsBalance: bal.balance } : null)
+        // Refresh balance + owned items so buttons flip to "owned" immediately
+        try {
+          const [bal, fresh] = await Promise.all([
+            apiGet<{ balance: number }>("/api/credits/balance"),
+            apiGet<{ user: { tier: "FREE" | "PLUS"; ownedCosmetics: string[]; freeBoosts?: number } | null }>("/api/auth/me"),
+          ])
+          setMe(prev => {
+            const u = fresh.user
+            if (!u) return prev ? { ...prev, creditsBalance: bal.balance } : prev
+            return { tier: u.tier, ownedCosmetics: u.ownedCosmetics || [], freeBoosts: u.freeBoosts ?? prev?.freeBoosts ?? 0, creditsBalance: bal.balance }
+          })
+        } catch {
+          const bal = await apiGet<{ balance: number }>("/api/credits/balance").catch(() => null)
+          if (bal) setMe(prev => prev ? { ...prev, creditsBalance: bal.balance } : null)
+        }
       } else {
         alert(data.error || "failed")
       }
@@ -200,6 +230,10 @@ export default function ShopPage() {
 
       {category === "credits" && (
         <div className="space-y-3 mt-2">
+          <button className="card w-full p-3 flex items-center justify-between" onClick={() => router.push("/tips")}>
+            <span className="text-sm">🎁 tip someone with credits</span>
+            <span className="text-white/40 text-sm">→</span>
+          </button>
           <div className="grid grid-cols-2 gap-3">
             {getAllPacks().map((pack: CreditPack) => (
               <div key={pack.id} className="card p-4 text-center relative">
@@ -303,34 +337,52 @@ export default function ShopPage() {
         </div>
       )}
 
-      {category === "avatars" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-          {AVATARS.map((c) => {
-            const owned = me?.ownedCosmetics?.includes(c.id)
-            const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
-            const isFree = price === 0
-            const rarityClass = getRarityColor(c.rarity)
-            const rarityGlow = getRarityGlow(c.rarity)
-            return (
-              <div key={c.id} className={`card p-4 text-center ${owned || isFree ? `border-${rarityClass.replace("text-", "")}/30 ${rarityGlow}` : ""}`}>
-                <p className="text-3xl mb-2">{c.emoji}</p>
-                <p className="font-semibold text-sm">{c.name}</p>
-                <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
-                <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
-                  {owned ? "✓ owned" : isFree ? "free with plus" : `${price / 100} credits`}
-                </p>
-                <button
-                  className={`w-full text-sm ${owned || isFree ? "btn-ghost" : "btn-primary"}`}
-                  disabled={owned || isFree || loading === c.id}
-                  onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
-                >
-                  {owned ? "✓ owned" : isFree ? "✓ free" : loading === c.id ? "..." : `buy — ${price / 100} credits`}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {category === "avatars" && (() => {
+        // One-time avatars leave the shop once owned — find them in owned.
+        // Frontend-only filter; API still guards with "already owned".
+        const visibleAvatars = AVATARS.filter((c) => !(me?.ownedCosmetics?.includes(c.id)))
+        if (visibleAvatars.length === 0) {
+          return (
+            <div className="card p-5 mt-2 text-center">
+              <p className="font-semibold text-sm">all avatars owned 👻</p>
+              <p className="text-white/40 text-xs mt-1">find everything in owned.</p>
+              <button className="btn-ghost mt-3 text-sm" onClick={() => router.push("/owned")}>
+                go to owned →
+              </button>
+            </div>
+          )
+        }
+        return (
+          <div>
+            <p className="text-white/40 text-xs mb-3 px-1">owned avatars live in owned — they leave the shop once bought.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+              {visibleAvatars.map((c) => {
+                const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
+                const isFree = price === 0
+                const rarityClass = getRarityColor(c.rarity)
+                const rarityGlow = getRarityGlow(c.rarity)
+                return (
+                  <div key={c.id} className={`card p-4 text-center ${isFree ? `border-${rarityClass.replace("text-", "")}/30 ${rarityGlow}` : ""}`}>
+                    <p className="text-3xl mb-2">{c.emoji}</p>
+                    <p className="font-semibold text-sm">{c.name}</p>
+                    <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
+                    <p className={`text-xs mb-3 ${isFree ? "text-primary" : "text-white/40"}`}>
+                      {isFree ? "free with plus" : `${price / 100} credits`}
+                    </p>
+                    <button
+                      className={`w-full text-sm ${isFree ? "btn-ghost" : "btn-primary"}`}
+                      disabled={isFree || loading === c.id}
+                      onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
+                    >
+                      {isFree ? "✓ free" : loading === c.id ? "..." : `buy — ${price / 100} credits`}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {category === "identity" && (
         <div className="card p-4 mt-2">

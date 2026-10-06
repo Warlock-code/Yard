@@ -346,7 +346,7 @@ export default function LairPage() {
         className="card w-full p-4 mb-3 flex items-center justify-between"
         onClick={() => router.push("/owned")}
       >
-        <span className="font-semibold text-sm">🎭 owned — avatars & themes</span>
+        <span className="font-semibold text-sm">🎭 owned</span>
         <span className="text-white/40">→</span>
       </button>
 

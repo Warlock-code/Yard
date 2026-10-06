@@ -15,8 +15,18 @@ export async function POST(req: NextRequest) {
   const useCredits = body.useCredits === true
 
   if (useCredits) {
+    const reference = `freeze_${user.id}_${Date.now()}`
     try {
-      const result = await creditUser(user.id, "STREAK_FREEZE", -FREEZE_CREDIT_COST, `freeze_${user.id}_${Date.now()}`, {})
+      const result = await creditUser(user.id, "STREAK_FREEZE", -FREEZE_CREDIT_COST, reference, {})
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { streakFreezeUntil: new Date(Date.now() + 48 * 60 * 60 * 1000) },
+        })
+      } catch {
+        await creditUser(user.id, "STREAK_FREEZE", FREEZE_CREDIT_COST, `${reference}_refund`, { refund: true }).catch(() => {})
+        return NextResponse.json({ error: "purchase failed, credits refunded. try again." }, { status: 500 })
+      }
       return NextResponse.json({ success: true, creditsUsed: FREEZE_CREDIT_COST, newBalance: result.newBalance, message: "streak freeze purchased with credits" })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })

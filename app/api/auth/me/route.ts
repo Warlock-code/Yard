@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
       ghostCoins: user.ghostCoins,
       creditsBalance: user.creditsBalance,
       ownedCosmetics: user.ownedCosmetics,
+      // Owned-page consumables (additive — existing clients ignore new fields).
+      freeBoosts: user.freeBoosts,
+      streakFreezeUntil: user.streakFreezeUntil,
+      purchasedStorageMB: Math.max(0, user.storageLimit - 50),
       postCount,
       followersCount,
       followingCount,

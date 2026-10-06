@@ -193,6 +193,87 @@ function ReportButton({ postId }: { postId: string }) {
   )
 }
 
+const TIP_AMOUNTS = [50, 100, 200, 500]
+
+function TipButton({ postId }: { postId: string }) {
+  const [open, setOpen] = useState(false)
+  const [amount, setAmount] = useState(100)
+  const [balance, setBalance] = useState<number | null>(null)
+  const [sending, setSending] = useState(false)
+
+  async function toggle() {
+    setOpen((v) => !v)
+    if (balance === null) {
+      try {
+        const d = await apiGet<{ balance: number }>("/api/credits/balance")
+        setBalance(d.balance)
+      } catch {
+        // balance display is optional — sending still works
+      }
+    }
+  }
+
+  async function send() {
+    if (sending) return
+    setSending(true)
+    try {
+      const data = await apiPost<{ message?: string; newBalance?: number }>("/api/tips/send", { postId, amount })
+      if (typeof data.newBalance === "number") setBalance(data.newBalance)
+      alert(data.message || "tipped!")
+      setOpen(false)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "tip failed.")
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={toggle}
+        aria-label="tip author"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]"
+      >
+        🎁 tip
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-2 card p-3 min-w-[220px] shadow-lg border border-white/10 z-10">
+          <p className="text-xs font-semibold text-white/70 mb-2">
+            tip the author{balance !== null ? ` · you have ${balance.toLocaleString()}` : ""}
+          </p>
+          <div className="grid grid-cols-4 gap-1.5 mb-2">
+            {TIP_AMOUNTS.map((a) => (
+              <button
+                key={a}
+                onClick={() => setAmount(a)}
+                className={`text-xs font-bold px-2 py-2 rounded-lg border transition-colors ${amount === a ? "bg-[#baff39] text-black border-[#baff39]" : "border-white/10 text-white/60 hover:text-white"}`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-white/30 mb-2">10% fee · author gets the rest</p>
+          <button
+            onClick={send}
+            disabled={sending}
+            className="w-full rounded-xl bg-[#baff39] text-black text-sm font-bold py-2 hover:bg-[#d4ff70] disabled:opacity-50 transition-colors"
+          >
+            {sending ? "sending…" : `send ${amount} credits`}
+          </button>
+          <Link
+            href={`/tips?postId=${encodeURIComponent(postId)}`}
+            className="block text-center text-[11px] text-white/40 hover:text-white mt-2"
+          >
+            open full tips page →
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PostDetailClient({ postId }: { postId: string }) {
   const router = useRouter()
 
@@ -434,6 +515,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           {post.isOwn && !post.boosted && (
             <button onClick={handleBoost} className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]">🚀 boost</button>
           )}
+          {!post.isOwn && <TipButton postId={post.id} />}
           <ShareButton postId={post.id} postText={post.text || undefined} />
           <ReportButton postId={post.id} />
         </div>

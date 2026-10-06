@@ -14,11 +14,15 @@ type Me = {
   tier: Tier
   ownedCosmetics: string[]
   avatarEmoji: string
+  freeBoosts?: number
+  streakFreezeUntil?: string | null
+  purchasedStorageMB?: number
 }
 
 const CATEGORIES = [
   { key: "avatars", label: "avatars" },
   { key: "themes", label: "themes" },
+  { key: "extras", label: "extras" },
 ]
 
 const DEFAULT_AVATAR = { id: "default", name: "classic ghost", emoji: "👻", rarity: "common" as const }
@@ -80,7 +84,7 @@ export default function OwnedPage() {
       <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
         <div className="pt-5 pb-3">
           <h1 className="text-2xl font-black">owned</h1>
-          <p className="text-white/40 text-sm">everything you've unlocked.</p>
+          <p className="text-white/40 text-sm">everything you&apos;ve unlocked.</p>
         </div>
         <div className="card p-5 mt-2 animate-pulse">
           <div className="h-4 w-24 bg-white/10 rounded mb-2" />
@@ -100,11 +104,20 @@ export default function OwnedPage() {
   const ownedThemes = THEMES.filter((t) => isThemeUnlocked(t.id, tier, ownedCosmetics))
   const activeThemeId: ThemeId = themeChoice && isThemeUnlocked(themeChoice, tier, ownedCosmetics) ? themeChoice : "default"
 
+  // Consumables auto-leave owned when exhausted / expired — purely derived,
+  // no writes, so live-safe. Boosts: count-based. Freeze: time-based.
+  const boostCount = me.freeBoosts ?? 0
+  const freezeUntil = me.streakFreezeUntil ? new Date(me.streakFreezeUntil) : null
+  // eslint-disable-next-line react-hooks/purity -- expiry check must read the clock on render; re-evaluated on each load
+  const freezeActive = !!freezeUntil && !isNaN(freezeUntil.getTime()) && freezeUntil.getTime() > Date.now()
+  const extraStorageMB = me.purchasedStorageMB ?? 0
+  const hasExtras = boostCount > 0 || freezeActive || extraStorageMB > 0
+
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="pt-5 pb-3">
-        <h1 className="text-2xl font-black">owned</h1>
-        <p className="text-white/40 text-sm">everything you've unlocked — tap to use.</p>
+          <h1 className="text-2xl font-black">owned</h1>
+        <p className="text-white/40 text-sm">everything you&apos;ve unlocked — tap to use.</p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
@@ -163,7 +176,7 @@ export default function OwnedPage() {
             these are all the themes you own or have unlocked with your tier.
           </p>
           {ownedThemes.length === 0 ? (
-            <p className="text-white/40 text-sm px-1">you don't own any themes yet — check the shop.</p>
+            <p className="text-white/40 text-sm px-1">you don&apos;t own any themes yet — check the shop.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {ownedThemes.map((theme) => {
@@ -193,6 +206,65 @@ export default function OwnedPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {category === "extras" && (
+        <div className="mt-2">
+          <p className="text-white/40 text-xs mb-3 px-1">
+            boosts, freeze & storage you own. used-up things leave automatically.
+          </p>
+          {!hasExtras ? (
+            <div className="card p-5 text-center">
+              <p className="font-semibold text-sm">nothing here right now 👻</p>
+              <p className="text-white/40 text-xs mt-1">
+                boosts leave when you use them up, freeze leaves when it expires.
+              </p>
+              <button className="btn-ghost mt-3 text-sm" onClick={() => router.push("/shop")}>
+                go to shop →
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {boostCount > 0 && (
+                <div className="card p-4 text-center border-[#baff39]/20">
+                  <p className="text-3xl mb-2">🚀</p>
+                  <p className="font-semibold text-sm">boost credits</p>
+                  <p className="text-primary text-xs mb-1 font-bold">
+                    {boostCount} left
+                  </p>
+                  <p className="text-white/40 text-xs mb-3">use on your post — 24h each</p>
+                  <button className="btn-ghost w-full text-sm" onClick={() => router.push("/lair/activity")}>
+                    use on post →
+                  </button>
+                </div>
+              )}
+              {freezeActive && freezeUntil && (
+                <div className="card p-4 text-center border-sky-500/20">
+                  <p className="text-3xl mb-2">🧊</p>
+                  <p className="font-semibold text-sm">streak freeze</p>
+                  <p className="text-sky-300 text-xs mb-1 font-bold">active</p>
+                  <p className="text-white/40 text-xs mb-3">
+                    until {freezeUntil.toLocaleDateString()} {freezeUntil.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                  <button className="btn-ghost w-full text-sm" disabled>
+                    ✓ protecting streak
+                  </button>
+                </div>
+              )}
+              {extraStorageMB > 0 && (
+                <div className="card p-4 text-center">
+                  <p className="text-3xl mb-2">💾</p>
+                  <p className="font-semibold text-sm">extra storage</p>
+                  <p className="text-primary text-xs mb-1 font-bold">+{extraStorageMB} mb</p>
+                  <p className="text-white/40 text-xs mb-3">permanent — never expires</p>
+                  <button className="btn-ghost w-full text-sm" onClick={() => router.push("/lair")}>
+                    view in lair →
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
