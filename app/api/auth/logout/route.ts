@@ -10,6 +10,7 @@ export async function POST() {
     maxAge: 0,
     path: "/",
   })
-  response.cookies.set("yard_seen_welcome", "", { maxAge: 0, path: "/" })
+  // Preserve yard_seen_welcome so logout doesn't reset onboarding.
+  // (Delete-account clears it separately for a true fresh start.)
   return response
 }

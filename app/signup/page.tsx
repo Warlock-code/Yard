@@ -166,8 +166,9 @@ function SignupForm() {
       <p className="text-center text-white/30 text-xs mt-4 px-4">
         by signing up you agree to our{" "}
         <a href="/terms" className="underline">terms</a>,{" "}
-        <a href="/privacy" className="underline">privacy policy</a>, and{" "}
-        <a href="/guidelines" className="underline">community guidelines</a>.
+        <a href="/privacy" className="underline">privacy policy</a>,{" "}
+        <a href="/guidelines" className="underline">community guidelines</a>, and{" "}
+        <a href="/child-safety" className="underline">child safety</a>.
       </p>
       <IOSInstallPrompt />
     </main>

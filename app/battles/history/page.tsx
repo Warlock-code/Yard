@@ -43,6 +43,7 @@ export default function BattleHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<"all" | "won" | "entered">("all")
   const [expandedBattle, setExpandedBattle] = useState<string | null>(null)
+  const [myGhostId, setMyGhostId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +54,13 @@ export default function BattleHistoryPage() {
     } finally {
       setLoading(false)
     }
+    // Best-effort identity for won/entered filters. Never blocks history.
+    try {
+      const me = await apiGet<{ user: { ghostId: string } | null }>("/api/auth/me")
+      if (me.user?.ghostId) setMyGhostId(me.user.ghostId)
+    } catch {
+      /* logged-out: won/entered stay empty */
+    }
   }, [])
 
   useEffect(() => {
@@ -60,8 +68,8 @@ export default function BattleHistoryPage() {
   }, [load])
 
   const filteredBattles = battles.filter((battle) => {
-    if (filter === "won") return battle.winnerEntry?.user?.ghostId === "current-user"
-    if (filter === "entered") return battle.entries.some((e) => e.user.ghostId === "current-user")
+    if (filter === "won") return myGhostId != null && battle.winnerEntry?.user?.ghostId === myGhostId
+    if (filter === "entered") return myGhostId != null && battle.entries.some((e) => e.user.ghostId === myGhostId)
     return true
   })
 
@@ -71,6 +79,9 @@ export default function BattleHistoryPage() {
     <main className="min-h-screen max-w-lg mx-auto pb-24 px-4">
       <div className="flex items-center justify-between mt-4 mb-4">
         <h1 className="text-2xl font-black">⚔️ battle history</h1>
+        <Link href="/battles" className="text-xs font-bold text-white/50 hover:text-[#baff39]">
+          ← battles
+        </Link>
       </div>
 
       <div className="flex gap-2 mb-4" role="tablist">

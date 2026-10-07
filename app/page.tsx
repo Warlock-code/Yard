@@ -10,5 +10,13 @@ export default async function RootPage() {
     redirect("/feed")
   }
 
+  // First-visit onboarding gate: logged-out users without the welcome
+  // cookie see /welcome once. Returning users (cookie set) go to /signup.
+  // Logged-in users are never affected (handled above).
+  const seenWelcome = cookieStore.get("yard_seen_welcome")?.value
+  if (!seenWelcome) {
+    redirect("/welcome")
+  }
+
   redirect("/signup")
 }

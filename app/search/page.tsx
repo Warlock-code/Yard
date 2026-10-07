@@ -115,7 +115,7 @@ function PostCard({ post }: { post: Post }) {
         aria-label={`open post by ${post.user.ghostId}`}
         className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#baff39]"
       />
-      <div className="flex items-start gap-3 relative z-10">
+      <div className="flex items-start gap-3 relative z-10 pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} className="flex-shrink-0">
           <Avatar emoji={post.user.avatarEmoji} size={36} />
         </Link>

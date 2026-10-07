@@ -106,7 +106,12 @@ export default function BattlesClient() {
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-24 px-4">
-      <h1 className="text-2xl font-black mt-4 mb-1">⚔️ battles</h1>
+      <div className="flex items-center justify-between mt-4 mb-1">
+        <h1 className="text-2xl font-black">⚔️ battles</h1>
+        <Link href="/battles/history" className="text-xs font-bold text-white/50 hover:text-[#baff39]">
+          history →
+        </Link>
+      </div>
 
       {!prompt ? (
         <div className="text-center mt-14 px-8">

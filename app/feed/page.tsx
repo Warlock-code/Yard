@@ -575,9 +575,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
     } catch {}
-    // Also clear client-side welcome cookie that was set via document.cookie
+    // Preserve yard_seen_welcome so logout doesn't reset onboarding.
     document.cookie = "yard_token=; Max-Age=0; path=/"
-    document.cookie = "yard_seen_welcome=; Max-Age=0; path=/"
     router.push("/login")
   }
 

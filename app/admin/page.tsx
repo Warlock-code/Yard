@@ -36,7 +36,7 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Settings"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits" | "Settings"
 
 type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
 
@@ -48,7 +48,9 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Reports", label: "reports", icon: "⚑", desc: "flagged posts", group: "moderation" },
   { key: "Battles", label: "battles", icon: "⚔", desc: "create prompts", group: "moderation" },
   { key: "Announce", label: "announce", icon: "📢", desc: "pin posts & notify all", group: "moderation" },
+  { key: "Drafts", label: "drafts", icon: "✎", desc: "review ai posts", group: "moderation" },
   { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
+  { key: "Credits", label: "credits", icon: "🔥", desc: "treasury & balances", group: "finance" },
   { key: "Settings", label: "settings", icon: "⚙", desc: "keys & config", group: "system" },
 ]
 
@@ -203,6 +205,19 @@ export default function AdminPage() {
   const [bcSending, setBcSending] = useState(false)
   const [bcStatus, setBcStatus] = useState("")
 
+  type AiDraft = { id: string; text: string; status: string; createdAt: string }
+  const [drafts, setDrafts] = useState<AiDraft[]>([])
+  const [draftsLoading, setDraftsLoading] = useState(false)
+
+  type TreasuryStats = { totalMinted?: number; totalBurned?: number; circulating?: number; userCount?: number } & Record<string, unknown>
+  type CreditUser = { id: string; ghostId: string; email: string; tier: string; creditsBalance: number; creditsEarned: number; creditsPurchased: number; creditsWithdrawn: number; kycStatus: string }
+  const [treasury, setTreasury] = useState<TreasuryStats | null>(null)
+  const [creditUsers, setCreditUsers] = useState<CreditUser[]>([])
+  const [creditsLoading, setCreditsLoading] = useState(false)
+  const [mintUserId, setMintUserId] = useState("")
+  const [mintAmount, setMintAmount] = useState("")
+  const [mintReason, setMintReason] = useState("")
+
   const loadAll = useCallback((isCurrent: () => boolean = () => true) => {
     return Promise.all([
       adminFetch("/api/admin/stats"),
@@ -260,6 +275,41 @@ export default function AdminPage() {
       adminFetch(`/api/admin/payouts${q}`).then((d) => setPayouts(d.payouts || [])).catch(() => {})
     }
   }, [section, payoutTab])
+
+  // AI drafts fetch (on demand only — never blocks Overview).
+  // Loading flag is set in go() to avoid set-state-in-effect.
+  useEffect(() => {
+    if (section !== "Drafts") return
+    let active = true
+    adminFetch("/api/admin/ai-drafts")
+      .then((d) => {
+        if (!active) return
+        const list = (d as unknown as { drafts?: AiDraft[] }).drafts || []
+        setDrafts(list)
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setDraftsLoading(false) })
+    return () => { active = false }
+  }, [section])
+
+  // Credits treasury + balances (on demand only — never blocks Overview).
+  // Loading flag is set in go() to avoid set-state-in-effect.
+  useEffect(() => {
+    if (section !== "Credits") return
+    let active = true
+    Promise.all([
+      adminFetch("/api/admin/credits?action=treasury").catch(() => ({})),
+      adminFetch("/api/admin/credits?action=users").catch(() => ({})),
+    ])
+      .then(([t, u]) => {
+        if (!active) return
+        setTreasury((t as unknown as { stats?: TreasuryStats }).stats || null)
+        setCreditUsers((u as unknown as { users?: CreditUser[] }).users || [])
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setCreditsLoading(false) })
+    return () => { active = false }
+  }, [section])
 
   useEffect(() => {
     if (section !== "Insights") return
@@ -321,6 +371,19 @@ export default function AdminPage() {
     }
     if (section === "Posts") {
       try { const d = await adminFetch(`/api/admin/posts?search=${encodeURIComponent(postSearch)}`); setPosts(d.posts || []) } catch {}
+    }
+    if (section === "Drafts") {
+      try { const d = await adminFetch("/api/admin/ai-drafts") as unknown as { drafts?: AiDraft[] }; setDrafts(d.drafts || []) } catch {}
+    }
+    if (section === "Credits") {
+      try {
+        const [t, u] = await Promise.all([
+          adminFetch("/api/admin/credits?action=treasury").catch(() => ({})),
+          adminFetch("/api/admin/credits?action=users").catch(() => ({})),
+        ])
+        setTreasury((t as unknown as { stats?: TreasuryStats }).stats || null)
+        setCreditUsers((u as unknown as { users?: CreditUser[] }).users || [])
+      } catch {}
     }
     setRefreshing(false)
   }, [loadAll, section, userSearch, postSearch])
@@ -458,6 +521,42 @@ export default function AdminPage() {
     finally { setBusyId(null) }
   }
 
+  async function handleDraft(id: string, action: "publish" | "reject") {
+    if (busyId) return
+    if (action === "publish" && !confirm("publish this draft as CampusWire post?")) return
+    setBusyId(id)
+    try {
+      await adminFetch(`/api/admin/ai-drafts/${id}/${action}`, { method: "POST" })
+      setDrafts((prev) => prev.filter((d) => d.id !== id))
+    } catch (e: unknown) { alert(errMsg(e, `failed to ${action} draft`)) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleCreditAdjust(action: "mint" | "burn") {
+    if (!mintUserId.trim() || !mintAmount.trim() || !mintReason.trim()) { alert("user, amount and reason required"); return }
+    const amount = parseInt(mintAmount, 10)
+    if (!Number.isFinite(amount) || amount <= 0) { alert("amount must be a positive number"); return }
+    if (!confirm(`${action} ${amount} credits ${action === "mint" ? "to" : "from"} ${mintUserId.trim()}?`)) return
+    setBusyId("credits")
+    try {
+      await adminFetch("/api/admin/credits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: mintUserId.trim(), amount, reason: mintReason.trim() }),
+      })
+      alert(`credits ${action}ed.`)
+      setMintUserId(""); setMintAmount(""); setMintReason("")
+      try {
+        const [t, u] = await Promise.all([
+          adminFetch("/api/admin/credits?action=treasury").catch(() => ({})),
+          adminFetch("/api/admin/credits?action=users").catch(() => ({})),
+        ])
+        setTreasury((t as unknown as { stats?: TreasuryStats }).stats || null)
+        setCreditUsers((u as unknown as { users?: CreditUser[] }).users || [])
+      } catch {}
+    } catch (e: unknown) { alert(errMsg(e, `failed to ${action} credits`)) }
+    finally { setBusyId(null) }
+  }
+
   const freeCount = Math.max(0, stats ? stats.userCount - stats.plusCount : 0)
   const total = Math.max(1, stats?.userCount || 1)
   const paidTotal = stats?.plusCount || 0
@@ -492,7 +591,7 @@ export default function AdminPage() {
   }
 
   const activeMeta = NAV.find((n) => n.key === section)!
-  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } setSection(s); setDrawer(false) }
+  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } if (s === "Drafts") setDraftsLoading(true); if (s === "Credits") setCreditsLoading(true); setSection(s); setDrawer(false) }
 
   const sidebarNav = (
     <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
@@ -1264,6 +1363,104 @@ export default function AdminPage() {
                       <button disabled={bcSending} onClick={handleBroadcast} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{bcSending ? "sending…" : "notify all users"}</button>
                       {bcStatus && <p className="text-xs text-white/50">{bcStatus}</p>}
                     </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* ============ DRAFTS ============ */}
+              {section === "Drafts" && (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="pending ai drafts" sub={`${drafts.length} awaiting review · publish posts as CampusWire`} right={
+                      <button
+                        onClick={async () => {
+                          setDraftsLoading(true)
+                          try {
+                            const d = await adminFetch("/api/admin/ai-drafts") as unknown as { drafts?: AiDraft[] }
+                            setDrafts(d.drafts || [])
+                          } catch {}
+                          finally { setDraftsLoading(false) }
+                        }}
+                        className="text-xs font-bold text-[#baff39] hover:underline"
+                      >
+                        ↻ reload
+                      </button>
+                    } />
+                    <div className="p-4 space-y-2.5">
+                      {draftsLoading && <p className="text-xs text-white/40">loading drafts…</p>}
+                      {!draftsLoading && drafts.length === 0 && (
+                        <EmptyState icon="✎" title="no pending drafts" sub="cron creates drafts daily — check back after engagement runs." />
+                      )}
+                      {drafts.map((d) => (
+                        <div key={d.id} className="rounded-xl border border-white/10 bg-black/30 p-3.5">
+                          <p className="text-sm text-white/90 whitespace-pre-wrap">{d.text}</p>
+                          <p className="text-[11px] text-white/30 mt-1.5">{new Date(d.createdAt).toLocaleString()}</p>
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              disabled={busyId === d.id}
+                              onClick={() => handleDraft(d.id, "publish")}
+                              className="flex-1 rounded-xl bg-[#baff39] text-black text-xs font-black py-2.5 hover:bg-[#d4ff70] disabled:opacity-50 transition-colors"
+                            >
+                              {busyId === d.id ? "working…" : "publish"}
+                            </button>
+                            <button
+                              disabled={busyId === d.id}
+                              onClick={() => handleDraft(d.id, "reject")}
+                              className="flex-1 rounded-xl border border-white/15 text-xs font-bold py-2.5 text-white/60 hover:bg-white/5 disabled:opacity-50 transition-colors"
+                            >
+                              reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* ============ CREDITS ============ */}
+              {section === "Credits" && (
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    <StatCard label="circulating" value={String((treasury?.circulating as number) ?? "—")} sub="minted − burned" icon="🔥" accent="#baff39" />
+                    <StatCard label="minted" value={String((treasury?.totalMinted as number) ?? "—")} sub="all-time" icon="🪙" accent="#38bdf8" />
+                    <StatCard label="burned" value={String((treasury?.totalBurned as number) ?? "—")} sub="all-time" icon="🧯" accent="#f87171" />
+                  </div>
+                  <Card>
+                    <CardHeader title="mint / burn" sub="manual adjustment — reason is required and audited" />
+                    <div className="p-4 grid sm:grid-cols-4 gap-2">
+                      <input value={mintUserId} onChange={(e) => setMintUserId(e.target.value)} placeholder="user id" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono placeholder:text-white/25 placeholder:font-sans focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} placeholder="amount" inputMode="numeric" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={mintReason} onChange={(e) => setMintReason(e.target.value)} placeholder="reason — e.g. refund #123" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <div className="flex gap-2">
+                        <button disabled={busyId === "credits"} onClick={() => handleCreditAdjust("mint")} className="flex-1 rounded-xl bg-[#baff39] text-black text-xs font-black py-2.5 hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">mint</button>
+                        <button disabled={busyId === "credits"} onClick={() => handleCreditAdjust("burn")} className="flex-1 rounded-xl border border-red-500/30 text-xs font-bold py-2.5 text-red-300 hover:bg-red-500/10 disabled:opacity-50 transition-colors">burn</button>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="top balances" sub={`${creditUsers.length} users holding credits`} />
+                    {creditsLoading ? (
+                      <p className="p-5 text-xs text-white/40">loading balances…</p>
+                    ) : creditUsers.length === 0 ? (
+                      <div className="p-4"><EmptyState icon="🔥" title="no balances" sub="nobody holds credits right now." /></div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b border-white/[0.06]"><th className={th}>ghost</th><th className={th}>balance</th><th className={th}>earned</th><th className={th}>id</th></tr></thead>
+                          <tbody>
+                            {creditUsers.map((u) => (
+                              <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+                                <td className={td}><p className="font-bold">{u.ghostId}</p><p className="text-[11px] text-white/30 truncate max-w-[200px]">{u.email}</p></td>
+                                <td className={`${td} font-black text-[#baff39]`}>{u.creditsBalance}</td>
+                                <td className={`${td} text-white/60`}>{u.creditsEarned}</td>
+                                <td className={`${td} font-mono text-[11px] text-white/30 max-w-[140px] truncate`}>{u.id}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </Card>
                 </div>
               )}
