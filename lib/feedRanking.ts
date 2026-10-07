@@ -30,6 +30,7 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
   viewer: FeedRankingViewer,
   snapshotAt: Date,
   tieSeed?: string,
+  opts?: { authorPostCounts?: ReadonlyMap<string, number> },
 ): T[] {
   const snapshotTime = snapshotAt.getTime()
   if (!Number.isFinite(snapshotTime)) throw new RangeError("Invalid feed snapshot timestamp")
@@ -46,6 +47,14 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
     const programRelevance = viewer.programKey && candidate.campus === viewer.campus
       && candidate.programKey === viewer.programKey ? 1 : 0
     let score = (1 + engagement + followRelevance + programRelevance) / (1 + ageHours / 12) ** 1.5
+
+    // New-creator lift: authors with ≤3 total posts get 1.6x so their
+    // first posts actually get seen (churn guard). Missing count = no lift,
+    // so callers that don't supply counts behave exactly as before.
+    const postCount = opts?.authorPostCounts?.get(candidate.userId)
+    if (postCount !== undefined && postCount <= 3) {
+      score *= 1.6
+    }
 
     // Boost multiplier: active only if boostedUntil > snapshotAt (deterministic)
     const boostedUntil = candidate.boostedUntil

@@ -285,11 +285,29 @@ export async function GET(req: NextRequest) {
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
   })
 
-  const rankedPosts = rankFeedCandidates(posts, {
-    campus: user.campus,
-    programKey: user.programKey,
-    followingIds,
-  }, now, tieSeed)
+  const rankedPosts = await (async () => {
+    // New-creator lift: one batched count per author (best-effort — on
+    // failure ranking falls back to no lift, feed still works).
+    let authorPostCounts: Map<string, number> | undefined
+    try {
+      const authorIds = [...new Set(posts.map((p) => p.userId))]
+      if (authorIds.length > 0) {
+        const counts = await prisma.post.groupBy({
+          by: ["userId"],
+          where: { userId: { in: authorIds } },
+          _count: { _all: true },
+        })
+        authorPostCounts = new Map(counts.map((c) => [c.userId, c._count._all]))
+      }
+    } catch {
+      authorPostCounts = undefined
+    }
+    return rankFeedCandidates(posts, {
+      campus: user.campus,
+      programKey: user.programKey,
+      followingIds,
+    }, now, tieSeed, authorPostCounts ? { authorPostCounts } : undefined)
+  })()
 
   const unseenPosts = rankedPosts.filter((post) => !viewedPostIds.has(post.id))
   const seenPosts = rankedPosts.filter((post) => viewedPostIds.has(post.id))

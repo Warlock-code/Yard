@@ -337,6 +337,11 @@ export default function LairPage() {
             <p className="text-xs text-white/40 mt-1">
               share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} credits for you, {referralStats.stats.refereeReward} for them on verification
             </p>
+            {referralStats.stats.pendingReferrals > 0 && (
+              <p className="text-xs text-primary mt-1">
+                ⏳ {referralStats.stats.pendingReferrals} pending verification = {referralStats.stats.pendingReferrals * referralStats.stats.referrerReward} credits on the way
+              </p>
+            )}
           </div>
 
           {referralStats.referrals.length > 0 && (

@@ -594,6 +594,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         <span className="brand-mark font-black text-lg tracking-tight">
           YARD<span className="text-primary">.</span>
         </span>
+        {me != null && (
+          <button
+            onClick={() => router.push("/lair")}
+            aria-label={`${me.streakCount} day streak — open lair to freeze`}
+            title="streak — freeze it in the lair before it breaks"
+            className="absolute right-14 flex h-8 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 text-xs font-bold text-white/70 hover:text-white hover:border-[#baff39]/40"
+          >
+            <span aria-hidden="true">🔥</span>
+            <span>{me.streakCount}</span>
+          </button>
+        )}
         <Link href="/explore" aria-label="search" className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full text-lg text-white/60 hover:text-white">
           <span aria-hidden="true">🔍</span>
         </Link>

@@ -242,11 +242,12 @@ export async function evalUserNudges(userId: string) {
 
   const now = Date.now()
 
-  // 1. Streak at risk: streak >= 2, no post in 18h+, no freeze shield
+  // 1. Streak at risk: streak >= 2, no post in 12h+, no freeze shield.
+  // 12h (was 18h) so the freeze offer lands while they can still act.
   if (user.streakCount >= 2 && user.lastPostedAt) {
     const hoursSincePost = (now - new Date(user.lastPostedAt).getTime()) / 3_600_000
     const frozen = user.streakFreezeUntil && new Date(user.streakFreezeUntil) > new Date()
-    if (hoursSincePost >= 18 && !frozen) {
+    if (hoursSincePost >= 12 && !frozen) {
       await trySend("nudge_streak_freeze", { count: user.streakCount })
     }
   }
@@ -257,10 +258,11 @@ export async function evalUserNudges(userId: string) {
     await trySend("nudge_storage")
   }
 
-  // 3. Comeback: no post in 7+ days but had posted before
+  // 3. Comeback: no post in 3+ days but had posted before.
+  // 3d (was 7d) — a week silent is already churned, catch them earlier.
   if (user.lastPostedAt) {
     const daysSince = (now - new Date(user.lastPostedAt).getTime()) / 86_400_000
-    if (daysSince >= 7) await trySend("nudge_comeback")
+    if (daysSince >= 3) await trySend("nudge_comeback")
   }
 
   // 4. Plus: FREE user hitting paywalls (2+ hits in 7d)

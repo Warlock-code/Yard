@@ -36,7 +36,7 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits" | "Settings"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits"
 
 type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
 
@@ -51,10 +51,9 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Drafts", label: "drafts", icon: "✎", desc: "review ai posts", group: "moderation" },
   { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
   { key: "Credits", label: "credits", icon: "🔥", desc: "treasury & balances", group: "finance" },
-  { key: "Settings", label: "settings", icon: "⚙", desc: "keys & config", group: "system" },
 ]
 
-const GROUPS = ["general", "manage", "moderation", "finance", "system"]
+const GROUPS = ["general", "manage", "moderation", "finance"]
 
 const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
@@ -1465,9 +1464,6 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* ============ SETTINGS ============ */}
-              {section === "Settings" && <SettingsPanel />}
-
             </motion.div>
           </AnimatePresence>
         </main>
@@ -1483,126 +1479,3 @@ export default function AdminPage() {
   )
 }
 
-/* ===== SETTINGS (live server .env, masked) ===== */
-
-type KeyState = { set: boolean; chars: number; prefix: string | null; mode: "test" | "live" | null }
-type FlagState = { set: boolean; chars: number }
-
-type EnvStatus = {
-  source: string
-  paystack: {
-    publicKey: KeyState; secretKey: KeyState; webhookSecret: FlagState
-    plusPlan: string | null
-    plusPricePesewas: number
-  }
-  security: { payoutEncryption: FlagState; jwt: FlagState; adminJwt: FlagState; cron: FlagState }
-  services: { resend: FlagState; uploadthing: FlagState; openrouter: FlagState; firebase: FlagState; vapid: FlagState; database: FlagState }
-  env: { nodeEnv: string; appUrl: string }
-}
-
-function SetPill({ ok, label }: { ok: boolean; label?: string }) {
-  return (
-    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide ${ok ? "bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25" : "bg-red-500/15 text-red-400 border border-red-500/25"}`}>
-      {label || (ok ? "set" : "missing")}
-    </span>
-  )
-}
-
-function SettingsPanel() {
-  const [env, setEnv] = useState<EnvStatus | null>(null)
-  const [err, setErr] = useState("")
-
-  useEffect(() => {
-    adminFetch("/api/admin/env-status")
-      .then((d) => setEnv(d as unknown as EnvStatus))
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : "failed to load settings"))
-  }, [])
-
-  if (err) return <EmptyState icon="⚙" title="settings unavailable" sub={err} />
-  if (!env) {
-    return (
-      <div className="grid md:grid-cols-3 gap-4">
-        {[0, 1, 2].map((i) => <div key={i} className="h-[240px] rounded-2xl skeleton-shimmer" />)}
-      </div>
-    )
-  }
-
-  const keyVal = (k: KeyState) =>
-    k.set ? `${k.prefix || "••••"}… (${k.chars} chars)` : "not set"
-
-  return (
-    <div className="space-y-4">
-      <p className="text-xs text-white/35">source: <span className="text-white/70 font-mono font-bold">{env.source}</span> · secrets masked — full values never leave the server.</p>
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader title="paystack" sub="real money keys" right={
-            env.paystack.secretKey.mode
-              ? <span className={`text-[10px] font-black px-2 py-1 rounded-full uppercase ${env.paystack.secretKey.mode === "test" ? "bg-amber-500/15 text-amber-300 border border-amber-500/25" : "bg-red-500/15 text-red-400 border border-red-500/25"}`}>{env.paystack.secretKey.mode}</span>
-              : <SetPill ok={false} />
-          } />
-          <div className="p-4 space-y-2">
-            {[["public key", keyVal(env.paystack.publicKey), env.paystack.publicKey.set],
-              ["secret key", keyVal(env.paystack.secretKey), env.paystack.secretKey.set],
-              ["webhook secret", env.paystack.webhookSecret.set ? `set (${env.paystack.webhookSecret.chars} chars)` : "not set", env.paystack.webhookSecret.set],
-              ["plus plan", env.paystack.plusPlan || "not set", !!env.paystack.plusPlan],
-              ["plus price", ghs(env.paystack.plusPricePesewas), true],
-            ].map(([k, v, ok]) => (
-              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
-                <span className="flex items-center gap-2"><span className="text-xs font-mono text-white/70">{v}</span><SetPill ok={!!ok} /></span>
-              </div>
-            ))}
-            <p className="text-[11px] text-amber-300/70 pt-1">keys move real money. rotate quarterly.</p>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader title="security" sub="auth & encryption" />
-          <div className="p-4 space-y-2">
-            {[["PAYOUT_ENCRYPTION_KEY", env.security.payoutEncryption.set],
-              ["JWT_SECRET", env.security.jwt.set],
-              ["ADMIN_JWT_SECRET", env.security.adminJwt.set],
-              ["CRON_SECRET", env.security.cron.set],
-            ].map(([k, ok]) => (
-              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
-                <SetPill ok={!!ok} />
-              </div>
-            ))}
-            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">algorithm</span>
-              <span className="text-xs font-mono text-white/70">aes-256-gcm</span>
-            </div>
-            <p className="text-[11px] text-amber-300/70 pt-1">encrypts bank / momo details at rest.</p>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader title="services & env" sub="integrations" />
-          <div className="p-4 space-y-2">
-            {[["resend (email)", env.services.resend.set],
-              ["uploadthing", env.services.uploadthing.set],
-              ["openrouter (ai)", env.services.openrouter.set],
-              ["firebase (push)", env.services.firebase.set],
-              ["vapid (web push)", env.services.vapid.set],
-              ["database", env.services.database.set],
-            ].map(([k, ok]) => (
-              <div key={k as string} className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">{k}</span>
-                <SetPill ok={!!ok} />
-              </div>
-            ))}
-            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">NODE_ENV</span>
-              <span className="text-xs font-mono text-white/70">{env.env.nodeEnv}</span>
-            </div>
-            <div className="rounded-xl bg-black/30 border border-white/[0.06] px-3 py-2.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-white/35 uppercase tracking-wide">APP_URL</span>
-              <span className="text-xs font-mono text-white/70 truncate max-w-[160px]">{env.env.appUrl}</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-  )
-}
