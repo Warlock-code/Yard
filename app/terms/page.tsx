@@ -19,7 +19,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">payments and subscriptions</h2>
-          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement and may request payouts to MoMo/bank (minimum GHS 20, 20% fee, admin approval) — payouts are processed via paystack and may take a few days.</p>
+          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement. cash payouts to MoMo/bank are currently paused — balances remain saved and payouts will reopen once compliance review is complete.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">account actions</h2>

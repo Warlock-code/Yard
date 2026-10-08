@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
           title: "Your Yard tier ended",
           body:
             tier === "PRIME"
-              ? "Your PRIME expired. Renew at yardapp.me/upgrade to keep gold perks & payouts."
+              ? "Your PRIME expired. Renew at yardapp.me/upgrade to keep gold perks & earnings."
               : "Your Plus expired. Renew at yardapp.me/upgrade to keep your perks.",
           href: "/upgrade",
         },

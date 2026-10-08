@@ -95,15 +95,8 @@ export default function LairPage() {
   const [copied, setCopied] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
-  type Bank = { name: string; code: string }
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
-  const [withdrawAmount, setWithdrawAmount] = useState("")
-  const [withdrawBankCode, setWithdrawBankCode] = useState("")
-  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("")
-  const [withdrawAccountName, setWithdrawAccountName] = useState("")
-  const [banks, setBanks] = useState<Bank[]>([])
-  const [withdrawing, setWithdrawing] = useState(false)
 
   const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ credits: { creditsBalance: number; creditsEarned: number; creditsWithdrawn: number } | null }>("/api/credits/withdraw")
@@ -115,47 +108,8 @@ export default function LairPage() {
   }, [])
 
   async function openWithdrawModal() {
-    if (banks.length === 0) {
-      try {
-        const data = await apiGet<{ banks: Bank[] }>("/api/banks")
-        setBanks(data.banks || [])
-      } catch {
-        setBanks([])
-      }
-    }
-    setShowWithdrawModal(true)
-  }
-
-  async function handleWithdraw() {
-    if (!withdrawAmount || !withdrawBankCode || !withdrawAccountNumber || !withdrawAccountName) {
-      alert("fill in all withdrawal details.")
-      return
-    }
-    const credits = parseInt(withdrawAmount, 10)
-    if (!Number.isFinite(credits) || credits < 2000) {
-      alert("minimum withdrawal is 2,000 credits (GHS 20).")
-      return
-    }
-    setWithdrawing(true)
-    try {
-      await apiPost("/api/credits/withdraw", {
-        creditsAmount: credits,
-        bankCode: withdrawBankCode,
-        accountNumber: withdrawAccountNumber,
-        accountName: withdrawAccountName,
-      })
-      alert("withdrawal requested — pending admin approval (20% fee deducted).")
-      setShowWithdrawModal(false)
-      setWithdrawAmount("")
-      setWithdrawBankCode("")
-      setWithdrawAccountNumber("")
-      setWithdrawAccountName("")
-      loadWallet()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "withdrawal failed.")
-    } finally {
-      setWithdrawing(false)
-    }
+    // Withdrawals paused — never collect bank details while paused.
+    alert("withdrawals are currently paused. your balance is safe — check back soon.")
   }
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
@@ -359,17 +313,17 @@ export default function LairPage() {
               <p className="text-xs text-white/40">withdrawn</p>
             </div>
           </div>
-          <button className="btn-primary w-full" onClick={openWithdrawModal}>
-            withdraw to MoMo / bank
+          <button className="btn-primary w-full opacity-40" onClick={openWithdrawModal}>
+            withdrawals paused
           </button>
-          <p className="text-xs text-white/40 mt-2 text-center">min 2,000 credits (GHS 20) • 20% fee • admin approval</p>
+          <p className="text-xs text-white/40 mt-2 text-center">withdrawals are currently paused. your balance is safe — check back soon.</p>
         </div>
       ) : (
         <button
           className="card w-full p-4 mb-4 flex items-center justify-between border-[#facc15]/20"
           onClick={() => router.push("/upgrade")}
         >
-          <span className="font-semibold text-sm">💰 earnings + payouts</span>
+          <span className="font-semibold text-sm">💰 earnings <span className="text-white/40 font-normal">(withdrawals paused)</span></span>
           <span className="text-xs font-bold text-[#facc15]">👑 prime →</span>
         </button>
       )}
@@ -553,7 +507,7 @@ export default function LairPage() {
       {me.tier === "PLUS" && (
         <div className="card p-4 mb-3 border-[#facc15]/25">
           <p className="font-semibold mb-1">👑 go prime</p>
-          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts, earnings + payouts.</p>
+          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts and earnings (payouts currently paused).</p>
           <button className="w-full rounded-xl border border-[#facc15]/40 text-[#facc15] font-bold py-2.5 text-sm hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             prime — ghs 20/mo
           </button>
@@ -580,21 +534,9 @@ export default function LairPage() {
       {showWithdrawModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
           <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">withdraw earnings</h3>
-            <p className="text-white/50 text-sm mb-4">min 2,000 credits (GHS 20) • 20% fee • goes to pending until admin approves.</p>
-            <input className="input mb-3" inputMode="numeric" placeholder="credits (min 2000)" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
-            <select className="input mb-3 w-full" value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)}>
-              <option value="">select bank / MoMo</option>
-              {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
-            </select>
-            <input className="input mb-3" placeholder="account / MoMo number" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} />
-            <input className="input mb-3" placeholder="account name" value={withdrawAccountName} onChange={(e) => setWithdrawAccountName(e.target.value)} />
-            <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowWithdrawModal(false)}>cancel</button>
-              <button className="btn-primary flex-1" onClick={handleWithdraw} disabled={withdrawing}>
-                {withdrawing ? "sending..." : "request"}
-              </button>
-            </div>
+            <h3 className="font-bold text-lg mb-1">withdrawals paused</h3>
+            <p className="text-white/50 text-sm mb-4">withdrawals are currently paused. your balance is safe — check back soon.</p>
+            <button className="btn-ghost w-full" onClick={() => setShowWithdrawModal(false)}>close</button>
           </div>
         </div>
       )}

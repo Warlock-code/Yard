@@ -81,19 +81,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "approve_payout") {
-    const { payoutId } = body
-    if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 })
-
-    const payout = await prisma.creditPayout.findUnique({ where: { id: payoutId } })
-    if (!payout) return NextResponse.json({ error: "payout not found" }, { status: 404 })
-    if (payout.status !== "pending") return NextResponse.json({ error: "already processed" }, { status: 400 })
-
-    await prisma.creditPayout.update({
-      where: { id: payoutId },
-      data: { status: "approved", adminNotes: body.notes },
-    })
-
-    return NextResponse.json({ success: true })
+    // Withdrawals paused: approvals disabled (would mark payable). Reject
+    // path below still works so pending users can be refunded.
+    return NextResponse.json({ error: "withdrawals are currently paused. approval disabled." }, { status: 403 })
   }
 
   if (action === "reject_payout") {
