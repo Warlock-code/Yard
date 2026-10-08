@@ -194,6 +194,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
   const [poppingId, setPoppingId] = useState<string | null>(null)
   const pendingVotes = useRef(new Set<string>())
+  // Live posts queue as a tap-to-load pill (no feed jump while reading).
+  const [pendingPosts, setPendingPosts] = useState<Post[]>([])
 
   const { connected, on } = useSocket()
 
@@ -222,6 +224,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   function loadFeed() {
     setLoading(true)
     setLoadingMore(false)
+    setPendingPosts([])
     setRefreshSeed(newRefreshSeed())
     setFeedVersion((version) => version + 1)
   }
@@ -230,8 +233,20 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     if (nextMode === mode) return
     setLoading(true)
     setLoadingMore(false)
+    setPendingPosts([])
     setRefreshSeed(newRefreshSeed())
     setMode(nextMode)
+  }
+
+  function showNewPosts() {
+    const fresh = pendingPosts
+    setPendingPosts([])
+    if (fresh.length === 0) return
+    setPosts((prev) => {
+      const ids = new Set(prev.map((p) => p.id))
+      return [...fresh.filter((p) => !ids.has(p.id)), ...prev]
+    })
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   useEffect(() => {
@@ -346,7 +361,8 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     if (!connected) return
     const unsubNewPost = on("new_post", (post: Post & { campus: string }) => {
       if (mode === "campus" && post.campus === me?.campus) {
-        setPosts((prev) => [post, ...prev])
+        // Queue behind a pill instead of prepending — reading never jumps.
+        setPendingPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev].slice(0, 20)))
       }
     })
     const unsubVote = on("vote_update", ({ postId, yeahs }: { postId: string; yeahs: number }) => {
@@ -630,6 +646,16 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           </div>
         </div>
       )}
+      {!loading && pendingPosts.length > 0 && (
+        <div className="fixed top-16 left-0 right-0 z-30 flex justify-center pointer-events-none">
+          <button
+            onClick={showNewPosts}
+            className="pointer-events-auto bg-primary text-black text-xs font-bold rounded-full px-4 py-2 shadow-lg hover:brightness-110 active:scale-95 transition-transform"
+          >
+            ↑ {pendingPosts.length} new gist{pendingPosts.length !== 1 ? "s" : ""} — tap to load
+          </button>
+        </div>
+      )}
 
       {!loading && <SmartNudge />}
       {!loading && me && me.cohortYear == null && (
@@ -891,6 +917,18 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           })}
           {loadingMore && <p className="text-center text-white/30 text-sm py-4">loading more...</p>}
           {nextCursor && <div ref={loadMoreRef} className="h-8" aria-hidden="true" />}
+          {!loadingMore && !nextCursor && (
+            <div className="text-center px-8 py-10">
+              <p className="text-3xl mb-2">👻</p>
+              <p className="font-bold text-white/80 text-sm">you&apos;re all caught up</p>
+              <p className="text-white/40 text-xs mt-1 mb-4">fresh gist lands all day — check battles or start one.</p>
+              <div className="flex gap-2 justify-center">
+                <button onClick={() => router.push("/battles")} className="btn-ghost text-xs">⚔️ battles</button>
+                <button onClick={() => router.push("/explore")} className="btn-ghost text-xs">🔥 trending</button>
+                <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-4">+ gist</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

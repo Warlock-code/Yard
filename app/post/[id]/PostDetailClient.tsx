@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
+import RichText from "@/app/components/RichText"
 import { shareContent, getShareTargets } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
 import OptimizedImage from "@/app/components/OptimizedImage"
@@ -491,7 +492,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           </div>
         </div>
 
-        {post.text && <p className="post-mono text-white/90 mb-3 whitespace-pre-wrap leading-relaxed">{post.text}</p>}
+        {post.text && <p className="post-mono text-white/90 mb-3 whitespace-pre-wrap leading-relaxed"><RichText text={post.text} /></p>}
         {post.imageUrl && (
           <div className="relative w-full mb-3 rounded-xl overflow-hidden bg-white/5 border border-white/10">
             <OptimizedImage
@@ -515,6 +516,12 @@ export default function PostDetailClient({ postId }: { postId: string }) {
           <ShareButton postId={post.id} postText={post.text || undefined} />
           <ReportButton postId={post.id} />
         </div>
+        <Link
+          href={`/u/${encodeURIComponent(post.user.ghostId)}`}
+          className="block mt-3 text-xs font-semibold text-white/40 hover:text-primary"
+        >
+          more from @{post.user.ghostId} →
+        </Link>
       </div>
 
       <div className="px-4">

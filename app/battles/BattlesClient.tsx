@@ -30,6 +30,7 @@ export default function BattlesClient() {
   const [entryText, setEntryText] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
 
   const { connected, on, joinBattle, leaveBattle } = useSocket()
 
@@ -51,6 +52,13 @@ export default function BattlesClient() {
     load(() => active)
     return () => { active = false }
   }, [load])
+
+  // Tick the countdown while a battle is live (cheap 30s interval, page-only).
+  useEffect(() => {
+    if (!prompt) return
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [prompt])
 
   useEffect(() => {
     if (!prompt?.id) return
@@ -124,6 +132,7 @@ export default function BattlesClient() {
             <div>
               <p className="text-xs text-white/40 mb-1">today&apos;s prompt</p>
               <p className="post-mono font-semibold">{prompt.text}</p>
+              <BattleCountdown endsAt={prompt.endsAt} now={now} />
             </div>
             <BattleShareButton onClick={() => setShowShareMenu(true)} />
           </div>
@@ -179,6 +188,21 @@ export default function BattlesClient() {
         </React.Fragment>
       )}
     </main>
+  )
+}
+
+function BattleCountdown({ endsAt, now }: { endsAt: string; now: number }) {
+  const diff = new Date(endsAt).getTime() - now
+  if (!Number.isFinite(diff) || diff <= 0) {
+    return <p className="text-xs font-bold text-red-400 mt-1">ends now — last votes!</p>
+  }
+  const mins = Math.floor(diff / 60_000)
+  const label = mins < 60 ? `ends in ${mins}m` : mins < 1440 ? `ends in ${Math.floor(mins / 60)}h ${mins % 60}m` : `ends in ${Math.floor(mins / 1440)}d`
+  const urgent = diff < 6 * 60 * 60 * 1000
+  return (
+    <p className={`text-xs mt-1 font-semibold ${urgent ? "text-amber-300 animate-pulse" : "text-white/40"}`}>
+      {urgent ? `🔥 ${label} — vote now` : `⏳ ${label}`}
+    </p>
   )
 }
 
