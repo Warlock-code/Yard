@@ -32,9 +32,8 @@ function ThemesPicker({
 }) {
   // Anything you already have — bought or included with your tier — lives
   // in owned, never in the shop. Only locked themes show here: paid ones
-  // you can buy, tier ones as a plus upsell.
+  // you can buy, tier ones as an upsell.
   const visibleThemes = THEMES.filter((theme) => {
-    if (theme.requiresTier === "PRIME") return false
     if (isThemeUnlocked(theme.id, tier, ownedCosmetics)) return false
     return true
   })
@@ -66,7 +65,7 @@ function ThemesPicker({
               />
               <p className="font-semibold text-sm">{theme.name}</p>
               <p className="text-xs mb-3 text-white/40">
-                {isPaid ? theme.description : "plus perk"}
+                {isPaid ? theme.description : `${theme.requiresTier === "PRIME" ? "prime" : "plus"} perk`}
               </p>
               {isPaid ? (
                 <button
@@ -78,7 +77,7 @@ function ThemesPicker({
                 </button>
               ) : (
                 <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
-                  🔒 plus only
+                  🔒 {theme.requiresTier === "PRIME" ? "prime" : "plus"} only
                 </button>
               )}
             </div>
@@ -233,11 +232,28 @@ export default function ShopPage() {
       {category === "tier" && !me && (
         <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
       )}
-      {category === "tier" && (me?.tier === "PLUS" || me?.tier === "PRIME") && (
-        <div className="card p-5 mt-2 border-sky-500/30 bg-sky-500/5 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-500" />
-          <p className="text-xs text-sky-300 uppercase mb-1 font-bold">✓ plus</p>
+      {category === "tier" && me?.tier === "PRIME" && (
+        <div className="card p-5 mt-2 border-[#facc15]/30 bg-[#facc15]/5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-amber-500" />
+          <p className="text-xs text-[#facc15] uppercase mb-1 font-bold">👑 prime</p>
           <p className="font-semibold text-sm text-white/70">you&apos;re on the highest plan — no further upgrade.</p>
+        </div>
+      )}
+      {category === "tier" && me?.tier === "PLUS" && (
+        <div className="space-y-3 mt-2">
+          <div className="card p-5 relative overflow-hidden border-[#facc15]/25">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-transparent" />
+            <p className="text-xs text-[#facc15] uppercase mb-1">prime — ghs 20</p>
+            <p className="font-bold text-lg mb-2">gold, 2x boosts, earnings + payouts</p>
+            <p className="text-white/50 text-sm mb-3">compare plans, then checkout.</p>
+            <button
+              className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading !== null}
+              onClick={() => router.push("/upgrade")}
+            >
+              compare plans →
+            </button>
+          </div>
         </div>
       )}
       {category === "tier" && me?.tier === "FREE" && (
@@ -247,6 +263,19 @@ export default function ShopPage() {
             <p className="text-xs text-white/40 uppercase mb-1">plus — ghs 10</p>
             <p className="font-bold text-lg mb-2">more perks, more style</p>
             <p className="text-white/50 text-sm mb-3">compare free vs plus, then checkout.</p>
+            <button
+              className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading !== null}
+              onClick={() => router.push("/upgrade")}
+            >
+              compare plans →
+            </button>
+          </div>
+          <div className="card p-5 relative overflow-hidden border-[#facc15]/25">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-transparent" />
+            <p className="text-xs text-[#facc15] uppercase mb-1">prime — ghs 20</p>
+            <p className="font-bold text-lg mb-2">gold, 2x boosts, earnings + payouts</p>
+            <p className="text-white/50 text-sm mb-3">for creators who want real money.</p>
             <button
               className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading !== null}

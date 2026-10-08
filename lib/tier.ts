@@ -31,6 +31,7 @@ export async function extendTierInTx(
 
 export function getTierPriority(tier: AccountTier): number {
   switch (tier) {
+    case "PRIME": return 3
     case "PLUS": return 2
     default: return 1
   }
@@ -39,6 +40,7 @@ export function getTierPriority(tier: AccountTier): number {
 export function canAccessAvatar(tier: AccountTier, avatarRarity: AvatarRarity): boolean {
   if (tier === "FREE") return false
   if (tier === "PLUS") return avatarRarity === "common" || avatarRarity === "rare"
+  if (tier === "PRIME") return avatarRarity === "common" || avatarRarity === "rare"
   return false
 }
 
@@ -49,6 +51,7 @@ export function getTierAvatars(tier: AccountTier) {
 
 export function getWeeklyBoostGrant(tier: AccountTier): number {
   switch (tier) {
+    case "PRIME": return 2
     case "PLUS": return 1
     default: return 0
   }
@@ -63,6 +66,7 @@ export function getMonthlyFreezeGrant(tier: AccountTier): number {
 
 export function getTierStorageBonusMB(tier: AccountTier): number {
   switch (tier) {
+    case "PRIME": return 200
     case "PLUS": return 100
     default: return 0
   }
@@ -126,6 +130,26 @@ export const TIER_CONFIG = {
       "Can buy epic/legendary avatars and shop items",
       "Can buy custom ghost name",
       "100 MB storage bonus",
+    ],
+  },
+  PRIME: {
+    pricePesewas: 2000,
+    badge: "Prime",
+    color: "text-[#facc15]",
+    bgColor: "bg-[#facc15]/10",
+    borderColor: "border-[#facc15]/30",
+    perks: [
+      "Everything in Plus",
+      "All common & rare avatars unlocked free",
+      "Gold checkmark + Prime badge on profile and posts",
+      "Highest feed + battle priority",
+      "Real GHS earnings from votes, referrals, streaks",
+      "Request payouts to MoMo/bank (min GHS 20)",
+      "Full analytics dashboard",
+      "2 free post boosts per week",
+      "1 free streak freeze per month",
+      "200 MB storage bonus",
+      "Gold theme",
     ],
   },
 } as const

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet } from "@/lib/useApi"
 import {
@@ -9,7 +9,6 @@ import {
   EarningsPieChart,
   FollowerGrowthChart,
   ActiveHoursChart,
-  ComparisonBarChart,
   StatCard,
   DateRangePicker,
 } from "@/lib/chart"
@@ -102,6 +101,11 @@ export default function AnalyticsPage() {
     fetchData()
   }, [range])
 
+  const topPosts = useMemo(
+    () => [...(posts?.posts || [])].sort((a, b) => (b.yeahs + b.comments) - (a.yeahs + a.comments)).slice(0, 5),
+    [posts]
+  )
+
   if (loading) {
     return (
       <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
@@ -116,29 +120,12 @@ export default function AnalyticsPage() {
     )
   }
 
-  const currentWeekEarnings =
-    earnings?.breakdown.posts
-      .filter((p) => new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-      .reduce((s, p) => s + p.amount, 0) || 0
-
-  const lastWeekEarnings =
-    earnings?.breakdown.posts
-      .filter((p) => {
-        const d = new Date(p.createdAt)
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-        return d > twoWeeksAgo && d <= weekAgo
-      })
-      .reduce((s, p) => s + p.amount, 0) || 0
-
   const earningsSources = Object.entries(earnings?.bySource || {})
     .map(([name, value]) => ({
       name: name.replace("_", " ").replace(/\b\w/g, (c) => c.toLowerCase()),
       value,
     }))
     .filter((s) => s.value > 0)
-
-  const topPosts = posts?.posts.slice(0, 5) || []
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
@@ -180,24 +167,19 @@ export default function AnalyticsPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <StatCard
-              label="total earnings"
-              value={earnings ? `₵${(earnings.totalEarned / 100).toFixed(2)}` : "₵0.00"}
-              change={
-                lastWeekEarnings
-                  ? `${currentWeekEarnings > lastWeekEarnings ? "+" : ""}${((currentWeekEarnings - lastWeekEarnings) / 100).toFixed(2)} vs last week`
-                  : undefined
-              }
-              trend={currentWeekEarnings >= lastWeekEarnings ? "up" : "down"}
-            />
-            <StatCard
-              label="total views"
+              label="impressions"
               value={posts?.summary.totalViews.toLocaleString() || "0"}
               change={posts?.summary.totalPosts ? `${posts.summary.totalPosts} posts` : undefined}
             />
             <StatCard
-              label="followers"
-              value={audience?.summary.totalFollowers.toLocaleString() || "0"}
-              change={audience?.summary.newFollowers ? `+${audience.summary.newFollowers} this period` : undefined}
+              label="engagements"
+              value={((posts?.summary.totalYeahs || 0) + (posts?.summary.totalComments || 0)).toLocaleString()}
+              change="yeahs + comments"
+            />
+            <StatCard
+              label="new followers"
+              value={audience?.summary.newFollowers.toLocaleString() || "0"}
+              change={audience?.summary.totalFollowers ? `${audience.summary.totalFollowers.toLocaleString()} total` : undefined}
               trend={audience?.summary.newFollowers && audience.summary.newFollowers > 0 ? "up" : "neutral"}
             />
             <StatCard
@@ -207,32 +189,12 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-4">earnings over time</h3>
+            <h3 className="text-sm font-semibold mb-4">performance over time</h3>
             <EarningsLineChart data={earnings?.byDate || []} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-              <h3 className="text-sm font-semibold mb-3">earnings sources</h3>
-              <EarningsPieChart data={earningsSources} />
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-              <h3 className="text-sm font-semibold mb-3">top posts by earnings</h3>
-              <PostPerformanceBarChart data={posts?.posts || []} />
-            </div>
-          </div>
-
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3">this week vs last week</h3>
-            <ComparisonBarChart
-              current={[currentWeekEarnings]}
-              previous={[lastWeekEarnings]}
-              labels={["earnings"]}
-            />
-          </div>
-
-          <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3">best performing posts</h3>
+            <h3 className="text-sm font-semibold mb-3">top posts</h3>
             {topPosts.length === 0 ? (
               <p className="text-white/40 text-center py-4">no posts yet</p>
             ) : (

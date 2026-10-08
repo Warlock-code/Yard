@@ -78,6 +78,8 @@ function errMsg(e: unknown, fallback: string) {
 
 function TierBadge({ tier }: { tier: string }) {
   const t = tier?.toUpperCase() || "FREE"
+  if (t === "PRIME")
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#facc15]/10 border border-[#facc15]/30 text-[#facc15]">👑 prime</span>
   if (t === "PLUS")
     return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300">★ plus</span>
   return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-white/50">free</span>

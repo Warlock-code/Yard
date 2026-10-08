@@ -71,7 +71,14 @@ export async function POST(req: NextRequest) {
         const amount: number | undefined = event.data?.amount
         const subCode: string | undefined =
           event.data?.subscription?.subscription_code || event.data?.subscription_code
-        const expectedAmount = Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000)
+        const plusCode = process.env.PAYSTACK_PLUS_PLAN_CODE
+        const primeCode = process.env.PAYSTACK_PRIME_PLAN_CODE
+        const plusAmount = Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000)
+        const primeAmount = Number(process.env.PAYSTACK_PRIME_PRICE_PESEWAS || 2000)
+        const matchedTier =
+          planCode === plusCode && amount === plusAmount ? "PLUS"
+          : planCode === primeCode && amount === primeAmount ? "PRIME"
+          : null
         const isValidRenewal =
           event.data?.status === "success" &&
           event.data?.currency === "GHS" &&
@@ -79,8 +86,7 @@ export async function POST(req: NextRequest) {
           typeof planCode === "string" &&
           typeof amount === "number" &&
           Number.isSafeInteger(amount) &&
-          amount === expectedAmount &&
-          planCode === process.env.PAYSTACK_PLUS_PLAN_CODE
+          matchedTier !== null
 
         if (isValidRenewal) {
           const user = await prisma.user.findUnique({ where: { email } })
@@ -88,11 +94,11 @@ export async function POST(req: NextRequest) {
             await prisma.transaction.create({
               data: {
                 userId: user.id,
-                kind: "plus",
+                kind: matchedTier === "PRIME" ? "prime" : "plus",
                 reference,
                 amount,
                 status: "success",
-                metadata: { tier: "plus", paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
+                metadata: { tier: matchedTier === "PRIME" ? "prime" : "plus", paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
               },
             })
             await prisma.$transaction(async (db) => {
@@ -100,7 +106,7 @@ export async function POST(req: NextRequest) {
               const base = Math.max(Date.now(), current?.tierExpiresAt?.getTime() ?? 0)
               await db.user.update({
                 where: { id: user.id },
-                data: { tier: "PLUS", tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000) },
+                data: { tier: matchedTier as "PLUS" | "PRIME", tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000) },
               })
             })
           }
@@ -111,6 +117,7 @@ export async function POST(req: NextRequest) {
   if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
     const trRef = event.data?.reference || ""
     if (typeof trRef === "string" && trRef.startsWith("payout_")) {
+      // Legacy payouts table (kept for history).
       const payout = await prisma.payout.findUnique({ where: { providerTransferRef: trRef } })
       if (payout && (payout.status === "approved" || payout.status === "processing")) {
         if (event.event === "transfer.success") {
@@ -121,6 +128,16 @@ export async function POST(req: NextRequest) {
         }
       } else if (payout && payout.status === "paid" && event.event === "transfer.failed") {
         // ignore late failure after paid
+      }
+      // Current credit payouts flow.
+      const creditPayout = await prisma.creditPayout.findUnique({ where: { providerRef: trRef } })
+      if (creditPayout && (creditPayout.status === "approved" || creditPayout.status === "processing")) {
+        if (event.event === "transfer.success") {
+          await prisma.creditPayout.update({ where: { id: creditPayout.id }, data: { status: "paid", processedAt: new Date() } })
+        } else {
+          // failed/reversed -> terminal, keep ref for audit. Refund credits manually via admin Credits if needed.
+          await prisma.creditPayout.update({ where: { id: creditPayout.id }, data: { status: "rejected" } })
+        }
       }
     }
   }

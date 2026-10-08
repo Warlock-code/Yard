@@ -6,10 +6,12 @@ import { reportServerError } from "@/lib/errorAlerts"
 
 const PLANS: Record<string, string> = {
   plus: process.env.PAYSTACK_PLUS_PLAN_CODE!,
+  prime: process.env.PAYSTACK_PRIME_PLAN_CODE!,
 }
 
 const PLAN_PRICE_PESEWAS: Record<string, number> = {
   plus: Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000), // GHS 10
+  prime: Number(process.env.PAYSTACK_PRIME_PRICE_PESEWAS || 2000), // GHS 20
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ tier: string }> }) {
@@ -19,10 +21,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
 
   const tier = tierParam.toLowerCase()
   const planCode = PLANS[tier]
-  if (!planCode) return NextResponse.json({ error: "invalid tier. Only 'plus' is available." }, { status: 400 })
+  if (!planCode) return NextResponse.json({ error: "invalid tier. Only 'plus' and 'prime' are available." }, { status: 400 })
 
   // Server guard — frontend also blocks but we enforce here
-  if (tier === "plus" && user.tier === "PLUS") return NextResponse.json({ error: "already on Plus." }, { status: 400 })
+  if (tier === "plus" && (user.tier === "PLUS" || user.tier === "PRIME")) return NextResponse.json({ error: "already on Plus or higher." }, { status: 400 })
+  if (tier === "prime" && user.tier === "PRIME") return NextResponse.json({ error: "already on Prime." }, { status: 400 })
 
   const reference = `sub_${tier}_${user.id}_${Date.now()}`
   const amount = PLAN_PRICE_PESEWAS[tier]

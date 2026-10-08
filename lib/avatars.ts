@@ -58,11 +58,13 @@ export const PLUS_AVATAR_IDS = COMMON_AVATAR_IDS
 
 export function getAvatarsForTier(tier: "FREE" | "PLUS" | "PRIME"): AvatarItem[] {
   if (tier === "FREE") return []
+  if (tier === "PRIME") return AVATARS.filter((a) => a.rarity === "common" || a.rarity === "rare")
   return AVATARS.filter((a) => a.rarity === "common")
 }
 
 export function getAvatarPriceForTier(tier: "FREE" | "PLUS" | "PRIME", avatar: AvatarItem): number {
-  if (tier === "PRIME" && avatar.rarity === "common") return 0
+  if (tier === "PRIME" && (avatar.rarity === "common" || avatar.rarity === "rare")) return 0
+  if (tier === "PLUS" && avatar.rarity === "common") return 0
   return avatar.pricePesewas
 }
 
@@ -70,6 +72,7 @@ export function isAvatarUnlockedForTier(tier: "FREE" | "PLUS" | "PRIME", avatarI
   if (tier === "FREE") return false
   const avatar = AVATAR_MAP[avatarId]
   if (!avatar) return false
+  if (tier === "PRIME") return avatar.rarity === "common" || avatar.rarity === "rare"
   return avatar.rarity === "common"
 }
 

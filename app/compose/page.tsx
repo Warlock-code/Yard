@@ -271,6 +271,7 @@ export default function ComposePage() {
                   <div className="flex items-center gap-2 flex-wrap text-sm">
                     <span className="font-semibold">{quota?.ghostId || "yourghost"}</span>
                     {quota?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
+                    {quota?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}
                     <ChampionTrophies trophies={quota?.championTrophies} className="text-[10px] leading-none" />
                     <span className="text-white/30">· now</span>
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/10 text-white/30">

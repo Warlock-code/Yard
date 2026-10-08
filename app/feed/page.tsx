@@ -701,6 +701,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         {post.user.ghostId}
                       </Link>
                       {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+                      {post.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                       <ChampionTrophies trophies={post.user.championTrophies} />
                       {post.boosted && <span className="badge badge-boosted">boosted</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
@@ -847,6 +848,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                                       <div className="flex items-center gap-2">
                                         <span className="font-semibold text-xs">{c.user?.ghostId || c.ghostId}</span>
                                         {c.user?.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
+                                        {c.user?.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}
                                         <ChampionTrophies trophies={c.user?.championTrophies} className="text-[10px] leading-none" />
                                         <span className="text-[11px] text-white/40">{timeAgo(c.createdAt)}</span>
                                       </div>
@@ -908,7 +910,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                   <Avatar emoji={me.avatarEmoji} size={56} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
+                  <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}{me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
                   {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
                 </div>
@@ -920,10 +922,18 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <div className="ml-auto flex items-center gap-1 text-xs text-white/30"><span>🔥 {me.streakCount}</span></div>
               </div>
 
+              {me.tier === "PRIME" && (
+                <div className="card p-3 mb-3 border-[#facc15]/25 bg-[#facc15]/[0.06]">
+                  <p className="text-[10px] font-bold tracking-widest text-[#facc15]/80 uppercase mb-1">👑 prime</p>
+                  <p className="text-xs text-white/60 mb-2">gold everything + earnings. enjoy!</p>
+                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
+                </div>
+              )}
               {me.tier === "PLUS" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">plus</p>
-                  <p className="text-xs text-white/60 mb-2">you have edits, avatars & priority. enjoy!</p>
+                  <p className="text-xs text-white/60 mb-2">you have edits, avatars & priority. prime adds gold + earnings.</p>
+                  <button className="w-full text-xs font-bold text-[#facc15] border border-[#facc15]/30 rounded-xl py-2 hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>go prime — ghs 20/mo</button>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>
               )}

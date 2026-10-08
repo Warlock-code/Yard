@@ -160,6 +160,7 @@ export default function BattlesClient() {
                       {entry.user.ghostId}
                     </Link>
                     {entry.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+                    {entry.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                     <ChampionTrophies trophies={entry.user.championTrophies} />
                   </div>
                   <p className="post-mono text-white/90 mb-3">{entry.text}</p>

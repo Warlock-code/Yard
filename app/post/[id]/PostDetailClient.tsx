@@ -57,6 +57,7 @@ function CommentThread({
               {comment.user.ghostId}
             </Link>
             {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
+            {comment.user.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}
             <ChampionTrophies trophies={comment.user.championTrophies} className="text-[10px] leading-none" />
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
@@ -483,6 +484,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
                 {post.user.ghostId}
               </Link>
               {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+            {post.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
               <ChampionTrophies trophies={post.user.championTrophies} />
             </div>
             <span className="text-xs text-white/40">{timeAgo(post.createdAt)}</span>

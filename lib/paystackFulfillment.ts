@@ -195,8 +195,15 @@ export async function fulfillPaidTransaction(reference: string) {
         await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: next } })
         break
       }
-      case "prime":
-        throw new Error("Prime tier is no longer supported.")
+      case "prime": {
+        const tier = "PRIME" as const
+        // Extend from max(now, current expiry) so early renewal doesn't lose days
+        const u = await db.user.findUnique({ where: { id: userId }, select: { tierExpiresAt: true } })
+        const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
+        const next = new Date(base + 31 * 24 * 60 * 60 * 1000)
+        await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: next } })
+        break
+      }
       default:
         throw new Error("Unsupported transaction kind.")
     }

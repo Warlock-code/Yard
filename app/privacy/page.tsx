@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">payments & banking</h2>
-          <p>payments are processed by paystack. we do not store your card or mobile money details — paystack handles that directly and shares only transaction status with us. there are no cash payouts or earnings withdrawals.</p>
+          <p>payments are processed by paystack. we do not store your card details — paystack handles checkout directly and shares only transaction status with us. if you request a prime payout, we store your encrypted bank/MoMo details until the transfer completes, then keep them for records and fraud review.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">push notifications</h2>

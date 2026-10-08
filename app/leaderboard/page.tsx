@@ -49,6 +49,7 @@ export default function LeaderboardPage() {
                     {r.ghostId}
                   </Link>
                   {r.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+                  {r.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                   <ChampionTrophies trophies={r.championTrophies} className="text-[10px] leading-none" />
                 </div>
               </div>
@@ -73,6 +74,7 @@ export default function LeaderboardPage() {
                   {me.ghostId}
                 </Link>
                 {me.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+                {me.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                 <ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" />
               </div>
             </div>

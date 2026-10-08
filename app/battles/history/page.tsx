@@ -155,6 +155,7 @@ export default function BattleHistoryPage() {
                           <span className="text-lg">{battle.winnerEntry.user.avatarEmoji}</span>
                           <span className="font-semibold">{battle.winnerEntry.user.ghostId}</span>
                           {battle.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
+                           {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                           <ChampionTrophies trophies={battle.winnerEntry.user.championTrophies} />
                         </div>
                         <p className="text-white/80 text-sm mt-2">
@@ -179,6 +180,7 @@ export default function BattleHistoryPage() {
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-sm truncate min-w-0">{entry.user.ghostId}</p>
                               {entry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px] flex-shrink-0">✓ plus</span>}
+                              {entry.user.tier === "PRIME" && <span className="badge badge-prime text-[10px] flex-shrink-0">👑 prime</span>}
                               <ChampionTrophies trophies={entry.user.championTrophies} className="text-[10px] leading-none" />
                             </div>
                             <p className="text-white/60 text-xs truncate">
@@ -212,6 +214,7 @@ export default function BattleHistoryPage() {
                                   <span className="text-lg">{round.winnerEntry.user.avatarEmoji}</span>
                                   <span className="text-white/60 text-sm">{round.winnerEntry.user.ghostId}</span>
                                   {round.winnerEntry.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
+                                   {round.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}
                                   <ChampionTrophies trophies={round.winnerEntry.user.championTrophies} className="text-[10px] leading-none" />
                                   <span className="font-bold text-primary">🔥 {round.winnerEntry.votes}</span>
                                 </div>
