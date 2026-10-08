@@ -12,6 +12,7 @@ import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import SmartNudge from "@/app/components/SmartNudge"
+import { getRushStatus } from "@/lib/rush"
 import { logPaywallHit } from "@/lib/logPaywall"
 import { getCached, setCached, cacheKeys, TTL, fetchDeduped } from "@/lib/client-cache"
 
@@ -197,6 +198,14 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const pendingVotes = useRef(new Set<string>())
   // Live posts queue as a tap-to-load pill (no feed jump while reading).
   const [pendingPosts, setPendingPosts] = useState<Post[]>([])
+  // Live tick for rush-hour banner countdown (cheap 60s interval).
+  const [rushNow, setRushNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setRushNow(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  const rushStatus = getRushStatus(new Date(rushNow))
+  const rushMinsLeft = rushStatus.live ? Math.max(1, Math.ceil((rushStatus.endsAt.getTime() - rushNow) / 60_000)) : 0
 
   const { connected, on } = useSocket()
 
@@ -659,6 +668,16 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       )}
 
       {!loading && <SmartNudge />}
+      {rushStatus.live && (
+        <div className="mx-4 mt-3 rounded-xl border border-[#facc15]/40 bg-[#facc15]/[0.07] p-3 flex items-center gap-3 animate-pulse">
+          <span className="text-xl">🔥</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-[#facc15]">rush hour — votes earn 2x</p>
+            <p className="text-xs text-white/50">ends in {rushMinsLeft}m • post + vote now</p>
+          </div>
+          <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-3 py-1.5 shrink-0">post</button>
+        </div>
+      )}
       {!loading && me && me.cohortYear == null && (
         <CohortPrompt
           onSaved={(year) => {

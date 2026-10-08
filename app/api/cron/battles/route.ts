@@ -4,6 +4,7 @@ import { recordBattleWin } from "@/lib/champions"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 import { sendPush } from "@/lib/sendPush"
+import { createNotification } from "@/lib/notifications"
 
 export const dynamic = "force-dynamic"
 
@@ -107,19 +108,26 @@ export async function GET(req: NextRequest) {
           data: { wonRound: true },
         })
 
-        // Credit reward for bracket round winners
+        // Round-advancer prize: +1 free boost each (non-cash).
+        // Credit path kept but guarded — EARN of 0 throws in creditUser.
         for (const w of winners) {
           const winnerUser = await prisma.user.findUnique({ where: { id: w.userId } })
           if (winnerUser) {
             const tier = getEffectiveTier(winnerUser)
             const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
             const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * multiplier)
-            await creditUser(w.userId, "BATTLE_WIN", winReward, prompt.id, { 
-              promptId: prompt.id, 
-              entryId: w.id,
-              battleType: "bracket_round",
-              round: prompt.roundNumber,
-              tier 
+            if (winReward > 0) {
+              await creditUser(w.userId, "BATTLE_WIN", winReward, prompt.id, {
+                promptId: prompt.id,
+                entryId: w.id,
+                battleType: "bracket_round",
+                round: prompt.roundNumber,
+                tier
+              })
+            }
+            await prisma.user.update({
+              where: { id: w.userId },
+              data: { freeBoosts: { increment: 1 } },
             })
           }
         }
@@ -173,20 +181,22 @@ export async function GET(req: NextRequest) {
 
         await updateBattleStats(winner.userId, true)
         await recordBattleWin(winner.userId, prompt.campus)
-        await createWinNotification(winner)
+        await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
-        // Credit reward for BRACKET FINAL win
+        // Credit reward for BRACKET FINAL win (guarded — 0 throws).
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
           const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
           const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * multiplier)
-          await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, { 
-            promptId: prompt.id, 
-            entryId: winner.id,
-            battleType: "bracket_final",
-            tier 
-          })
+          if (winReward > 0) {
+            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+              promptId: prompt.id,
+              entryId: winner.id,
+              battleType: "bracket_final",
+              tier
+            })
+          }
         }
 
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
@@ -218,20 +228,22 @@ export async function GET(req: NextRequest) {
 
         await updateBattleStats(winner.userId, true)
         await recordBattleWin(winner.userId, prompt.campus)
-        await createWinNotification(winner)
+        await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
-        // Credit reward for single battle win
+        // Credit reward for single battle win (guarded — 0 throws).
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
           const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
           const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
-          await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, { 
-            promptId: prompt.id, 
-            entryId: winner.id,
-            battleType: "single",
-            tier 
-          })
+          if (winReward > 0) {
+            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+              promptId: prompt.id,
+              entryId: winner.id,
+              battleType: "single",
+              tier
+            })
+          }
         }
 
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
@@ -263,7 +275,7 @@ export async function GET(req: NextRequest) {
         data: { status: "COMPLETED", winnerEntryId: winner.id },
       })
       await recordBattleWin(winner.userId, prompt.campus)
-      await createWinNotification(winner)
+      await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
     }
   }
 
@@ -328,27 +340,25 @@ async function createStartingSoonNotifications(prompt: { id: string; text: strin
   }
 }
 
-async function createWinNotification(winner: { id: string; userId: string; text: string | null; prompt: { id: string; text: string; campus: string } }) {
-  const user = await prisma.user.findUnique({
-    where: { id: winner.userId },
-    select: { pushToken: true, deviceTokens: { select: { token: true } } },
+/** Winner prize: free boosts (non-cash) + in-app/push/socket win alert.
+ * Idempotent per prompt — reruns never double-grant. */
+async function grantWinPrize(userId: string, promptId: string, promptText: string, boosts: number) {
+  const existing = await prisma.notification.findFirst({
+    where: { userId, type: "battle_win", href: `/battles/${promptId}` },
+    select: { id: true },
   })
-
-  if (!user) return
-
-  const tokens = new Set([
-    ...user.deviceTokens.map(d => d.token),
-    user.pushToken,
-  ].filter((t): t is string => Boolean(t)))
-
-  for (const token of tokens) {
-    await sendPush(
-      token,
-      "🏆 You Won the Battle!",
-      `Your entry "${winner.text?.slice(0, 50)}..." won!`,
-      `/battles/${winner.prompt.id}`
-    )
-  }
+  if (existing) return
+  await prisma.user.update({
+    where: { id: userId },
+    data: { freeBoosts: { increment: boosts } },
+  })
+  await createNotification({
+    userId,
+    type: "battle_win",
+    title: "🏆 you won the battle!",
+    body: `your take won — +${boosts} free boosts added. spend them in feed.`,
+    href: `/battles/${promptId}`,
+  }).catch(() => {})
 }
 
 async function updateBattleStats(userId: string, won: boolean) {

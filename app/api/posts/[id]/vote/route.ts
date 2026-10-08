@@ -8,6 +8,7 @@ import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitVoteUpdate } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
+import { isRushLive, RUSH_MULTIPLIER } from "@/lib/rush"
 
 const MILESTONES = [10, 50, 100, 500, 1000]
 const MILESTONE_BONUS_PESEWAS: Record<number, number> = { 10: 50, 50: 200, 100: 500, 500: 2000, 1000: 5000 }
@@ -39,16 +40,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const tier = getEffectiveTier(owner)
     const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 0
     if (multiplier > 0) {
-      const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier)
-      
-      await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier })
+      // Rush hour: votes pay double (free tier still earns 0 — no farming).
+      const rush = isRushLive()
+      const rushMult = rush ? RUSH_MULTIPLIER : 1
+      const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier * rushMult)
+
+      await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier, rush })
       
       if (MILESTONES.includes(post.yeahs)) {
-        const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier)
+        const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier * rushMult)
         await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, { 
           postId: post.id, 
           milestone: post.yeahs,
-          tier 
+          tier,
+          rush,
         })
       }
     }

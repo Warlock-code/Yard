@@ -1,6 +1,40 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { createNotification } from "@/lib/notifications"
+
+// Non-cash board prizes: free boosts (no credit/cash liability).
+const WEEKLY_BOOSTS = [2, 1, 1]
+const MONTHLY_BOOSTS = [3, 2, 2]
+
+/** Idempotent prize grant — reruns in the same period never double-grant. */
+async function grantBoardPrize(
+  userId: string,
+  rank: number,
+  boosts: number,
+  period: "weekly" | "monthly",
+  campus: string,
+  periodStart: Date,
+) {
+  const type = period === "weekly" ? "leaderboard_weekly" : "leaderboard_monthly"
+  const existing = await prisma.notification.findFirst({
+    where: { userId, type, createdAt: { gte: periodStart } },
+    select: { id: true },
+  })
+  if (existing) return false
+  await prisma.user.update({
+    where: { id: userId },
+    data: { freeBoosts: { increment: boosts } },
+  })
+  await createNotification({
+    userId,
+    type,
+    title: rank === 1 ? `👑 you rule ${campus}` : `🏆 ${period} board #${rank}`,
+    body: `you placed #${rank} on the ${campus} ${period} board — +${boosts} free boosts added.`,
+    href: "/leaderboard",
+  }).catch(() => {})
+  return true
+}
 
 export const dynamic = "force-dynamic"
 
@@ -92,6 +126,10 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
       })
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
     }
+
+    // Board prize every week regardless of credit config (non-cash).
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, WEEKLY_BOOSTS[i] ?? 1, "weekly", campus, weekStart)
+    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: WEEKLY_BOOSTS[i] ?? 1, campus })
   }
 
   return rewards
@@ -152,6 +190,10 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
       })
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
     }
+
+    // Board prize every month regardless of credit config (non-cash).
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, MONTHLY_BOOSTS[i] ?? 2, "monthly", campus, monthStart)
+    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: MONTHLY_BOOSTS[i] ?? 2, campus })
   }
 
   return rewards

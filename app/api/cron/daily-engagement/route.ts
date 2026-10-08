@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
 import { battleCountdownText } from "@/lib/battle-countdown"
+import { GET as battlesCron } from "@/app/api/cron/battles/route"
+import { GET as leaderboardCron } from "@/app/api/cron/leaderboard/route"
 
 export const dynamic = "force-dynamic"
 
@@ -13,6 +15,23 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now()
   const results: Record<string, unknown> = {}
+
+  // 0. Run battle finalization + board prizes. Those two crons have no
+  // Vercel schedule of their own, so they piggyback here daily at 9am
+  // ("morning results" ritual). Fully isolated — failures never touch
+  // engagement work below. Both are idempotent per period/prompt.
+  try {
+    const cronReq = () =>
+      new NextRequest(new URL("http://localhost/api/cron/piggyback"), {
+        headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+      })
+    const [battlesRes, boardsRes] = await Promise.allSettled([battlesCron(cronReq()), leaderboardCron(cronReq())])
+    results.battles = battlesRes.status === "fulfilled" ? await battlesRes.value.json().catch(() => ({})) : { error: "failed" }
+    results.leaderboards = boardsRes.status === "fulfilled" ? await boardsRes.value.json().catch(() => ({})) : { error: "failed" }
+  } catch {
+    results.battles = { error: "failed" }
+    results.leaderboards = { error: "failed" }
+  }
 
   // 1. Return reminder
   let sent = 0
