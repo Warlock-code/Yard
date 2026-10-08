@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!user || user.status !== "ACTIVE") return NextResponse.json({ user: null })
 
   // Parallel fan-out: was 6 sequential round-trips, now 1 wave
-  const [postCount, followersCount, followingCount, earningsSum, paidOutSum, pendingPayout, trophiesMap] = await Promise.all([
+  const [postCount, followersCount, followingCount, earningsSum, paidOutSum, pendingPayout, trophiesMap, paidSub] = await Promise.all([
     prisma.post.count({ where: { userId: user.id } }),
     prisma.follow.count({ where: { followingId: user.id } }),
     prisma.follow.count({ where: { followerId: user.id } }),
@@ -25,12 +25,16 @@ export async function GET(req: NextRequest) {
     prisma.payout.aggregate({ where: { userId: user.id, status: { in: ["approved", "paid"] } }, _sum: { amount: true } }),
     prisma.payout.findFirst({ where: { userId: user.id, status: "pending" }, select: { id: true } }),
     getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>()),
+    prisma.transaction.findFirst({ where: { userId: user.id, kind: { in: ["plus", "prime"] }, status: "success" }, select: { id: true } }),
   ])
 
   const totalEarned = earningsSum._sum.amount || 0
   const totalPaidOut = paidOutSum._sum.amount || 0
   const effectiveTier = getEffectiveTier(user)
   const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
+  // Trial = holding a paid tier with no successful paid subscription.
+  // Paying once flips this off permanently (copy switches to auto-renew).
+  const isTrial = effectiveTier !== "FREE" && !paidSub
   const effectiveStorageLimit = getEffectiveStorageLimitMB(user)
   const championTrophies = trophiesMap.get(user.id) ?? 0
 
@@ -47,6 +51,7 @@ export async function GET(req: NextRequest) {
       rawTier: user.tier,
       tierExpiresAt: user.tierExpiresAt,
       tierDaysLeft: daysLeft,
+      isTrial,
       streakCount: user.streakCount,
       ghostCoins: user.ghostCoins,
       creditsBalance: user.creditsBalance,

@@ -81,6 +81,7 @@ type Me = {  id: string
   rawTier?: string
   tierExpiresAt?: string | null
   tierDaysLeft?: number | null
+  isTrial?: boolean
   streakCount: number
   followersCount: number
   followingCount: number
@@ -950,7 +951,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <div className="flex-1 min-w-0">
                   <p className="font-bold truncate flex items-center gap-1.5">{me.ghostId} {me.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}{me.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}<ChampionTrophies trophies={me.championTrophies} className="text-[10px] leading-none" /></p>
                   <p className="text-xs text-white/40 truncate">{me.campus}</p>
-                  {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.tierDaysLeft}d left • auto-renew on</p>}
+                  {me.tier !== "FREE" && me.tierDaysLeft != null && <p className="text-[11px] text-white/30">{me.isTrial ? `trial — ${me.tierDaysLeft}d left` : `${me.tierDaysLeft}d left • auto-renew on`}</p>}
                 </div>
               </div>
 
@@ -969,10 +970,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
               )}
               {me.tier === "PLUS" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
-                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">plus</p>
-                  <p className="text-xs text-white/60 mb-2">you have edits, avatars & priority. prime adds gold + earnings.</p>
-                  <button className="w-full text-xs font-bold text-[#facc15] border border-[#facc15]/30 rounded-xl py-2 hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>go prime — ghs 20/mo</button>
-                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
+                  <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">{me.isTrial ? "plus trial" : "plus"}</p>
+                  <p className="text-xs text-white/60 mb-2">{me.isTrial ? "free week — enjoy the checkmark while it lasts." : "you have edits, avatars & priority. prime adds gold + earnings."}</p>
+                  <button className="w-full text-xs font-bold text-[#facc15] border border-[#facc15]/30 rounded-xl py-2 hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>{me.isTrial ? "keep plus — ghs 10/mo" : "go prime — ghs 20/mo"}</button>
+                  <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.isTrial ? "trial — " : ""}${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>
               )}
               {me.tier === "FREE" && (

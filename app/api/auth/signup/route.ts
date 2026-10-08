@@ -89,6 +89,9 @@ export async function POST(req: NextRequest) {
           emailVerified: true,
           inviteCode,
           referredBy: validatedReferralCode,
+          // 7-day free Plus trial for every new account.
+          tier: "PLUS",
+          tierExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       })
     )
@@ -127,6 +130,23 @@ export async function POST(req: NextRequest) {
   }
 
   const referralMeta = referralCode && !validatedReferralCode ? { referralInvalid: true } : {}
+
+  // Record the free trial grant (best-effort — never fails signup).
+  // isTrial elsewhere = paid-tier account with no successful paid subscription.
+  try {
+    await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        kind: "trial",
+        reference: `trial_${user.id}_${Date.now()}`,
+        amount: 0,
+        status: "success",
+        metadata: { tier: "plus", trial: true, daysGranted: 7 },
+      },
+    })
+  } catch (e) {
+    console.error("[signup] trial record failed", e)
+  }
 
   // Issue JWT immediately since email is auto-verified
   const token = signToken(user.id)
