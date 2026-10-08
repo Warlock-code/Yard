@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { getEffectiveTier } from "@/lib/tier"
 import { createNotification } from "@/lib/notifications"
 
 // Non-cash board prizes: free boosts (no credit/cash liability).
@@ -81,6 +82,7 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
       id: true,
       ghostId: true,
       tier: true,
+      tierExpiresAt: true,
       posts: {
         where: { createdAt: { gte: weekStart } },
         select: { yeahs: true },
@@ -95,7 +97,7 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
   const ranked = users
     .map((u) => ({
       id: u.id,
-      tier: u.tier,
+      tier: getEffectiveTier(u),
       score: u.posts.reduce((s, p) => s + p.yeahs, 0) + u.battleEntries.reduce((s, e) => s + e.votes, 0),
     }))
     .filter((u) => u.score > 0)
@@ -107,7 +109,7 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
   for (let i = 0; i < ranked.length; i++) {
     const user = ranked[i]
     const tier = user.tier
-    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 1
+    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn ?? 1
     
     let reward = 0
     if (i === 0) reward = CREDIT_CONFIG.EARN.LEADERBOARD_WEEKLY_1
@@ -145,6 +147,7 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
       id: true,
       ghostId: true,
       tier: true,
+      tierExpiresAt: true,
       posts: {
         where: { createdAt: { gte: monthStart, lt: monthEnd } },
         select: { yeahs: true },
@@ -159,7 +162,7 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
   const ranked = users
     .map((u) => ({
       id: u.id,
-      tier: u.tier,
+      tier: getEffectiveTier(u),
       score: u.posts.reduce((s, p) => s + p.yeahs, 0) + u.battleEntries.reduce((s, e) => s + e.votes, 0),
     }))
     .filter((u) => u.score > 0)
@@ -171,7 +174,7 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
   for (let i = 0; i < ranked.length; i++) {
     const user = ranked[i]
     const tier = user.tier
-    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 1
+    const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn ?? 1
     
     let reward = 0
     if (i === 0) reward = CREDIT_CONFIG.EARN.LEADERBOARD_MONTHLY_1

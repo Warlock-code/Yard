@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     prompt: { connect: { id: promptId } },
     user: { connect: { id: user.id } },
     campus: user.campus,
-    isPrime: effectiveTier === "PLUS",
+    isPrime: effectiveTier === "PRIME",
     entryType,
     roundNumber: prompt.roundNumber,
   }

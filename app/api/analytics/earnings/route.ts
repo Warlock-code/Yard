@@ -54,9 +54,9 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const effectiveTier = getEffectiveTier(user)
-  if (effectiveTier !== "PLUS") {
+  if (effectiveTier !== "PRIME") {
     void prisma.paywallHit.create({ data: { userId: user?.id ?? null, feature: "analytics", pathname: req.nextUrl?.pathname ?? null } }).catch(()=>{})
-    return NextResponse.json({ error: "plus subscription required." }, { status: 403 })
+    return NextResponse.json({ error: "analytics is prime exclusive — upgrade to prime to unlock it." }, { status: 403 })
   }
 
   const { startDate, endDate, range } = parseDateRange(new URL(req.url).searchParams)

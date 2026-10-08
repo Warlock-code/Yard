@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { CREDIT_CONFIG } from "@/lib/credit-config"
+import { getEffectiveTier } from "@/lib/tier"
 import { Prisma } from "@prisma/client"
 
 export { CREDIT_CONFIG } from "@/lib/credit-config"
@@ -85,6 +86,7 @@ export async function withdrawCredits(
       creditsWithdrawn: true,
       createdAt: true,
       tier: true,
+      tierExpiresAt: true,
     },
   })
   if (!user) throw new Error("User not found")
@@ -104,7 +106,7 @@ export async function withdrawCredits(
     throw new Error(`Must earn at least ${CREDIT_CONFIG.LIMITS.MIN_EARNED_CREDITS_TO_WITHDRAW} credits before withdrawal`)
   }
 
-  const tierConfig = CREDIT_CONFIG.TIER_MULTIPLIER[user.tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER] || CREDIT_CONFIG.TIER_MULTIPLIER.FREE
+  const tierConfig = CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(user) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER] || CREDIT_CONFIG.TIER_MULTIPLIER.FREE
   const feePct = tierConfig.withdrawalFee
   const ghsAmount = Math.floor((creditsAmount / CREDIT_CONFIG.CREDITS_PER_GHS) * 100) // pesewas
   const feeAmount = Math.floor(ghsAmount * feePct / 100)

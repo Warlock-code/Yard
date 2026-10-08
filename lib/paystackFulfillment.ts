@@ -179,7 +179,7 @@ export async function fulfillPaidTransaction(reference: string) {
         await db.user.update({
           where: { id: userId },
           data: {
-            streakFreezeUntil: new Date(base + 48 * 60 * 60 * 1000),
+            streakFreezeUntil: new Date(base + count * 48 * 60 * 60 * 1000),
             freeStreakFreezeMonthly: { increment: count },
             lastFreeFreezeGrant: new Date(),
           },

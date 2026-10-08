@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
@@ -33,17 +34,18 @@ export async function POST(req: NextRequest) {
 
   const author = await prisma.user.findUnique({
     where: { id: post.userId },
-    select: { id: true, tier: true, status: true },
+    select: { id: true, tier: true, tierExpiresAt: true, status: true },
   })
   if (!author || author.status !== "ACTIVE") {
     return NextResponse.json({ error: "author is unavailable." }, { status: 400 })
   }
 
-  // Receiving is an earning: gated by tier like votes/battles (FREE earns 0).
+  // Receiving is an earning: gated by effective tier like votes/battles
+  // (FREE earns 0, PLUS 1x, PRIME 2x).
   const multiplier =
-    CREDIT_CONFIG.TIER_MULTIPLIER[author.tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.tipReceived ?? 0
+    CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(author) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.tipReceived ?? 0
   if (multiplier <= 0) {
-    return NextResponse.json({ error: "author needs plus to receive tips." }, { status: 400 })
+    return NextResponse.json({ error: "author needs plus or prime to receive tips." }, { status: 400 })
   }
 
   // Daily caps (sender side).

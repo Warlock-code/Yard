@@ -507,7 +507,7 @@ export default function LairPage() {
       {me.tier === "PLUS" && (
         <div className="card p-4 mb-3 border-[#facc15]/25">
           <p className="font-semibold mb-1">👑 go prime</p>
-          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts and earnings (payouts currently paused).</p>
+          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts, 2x earnings, 2 freezes a month + full analytics (payouts currently paused).</p>
           <button className="w-full rounded-xl border border-[#facc15]/40 text-[#facc15] font-bold py-2.5 text-sm hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             prime — ghs 20/mo
           </button>

@@ -75,6 +75,7 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>("overview")
   const [range, setRange] = useState("30d")
   const [loading, setLoading] = useState(true)
+  const [locked, setLocked] = useState(false)
   const [earnings, setEarnings] = useState<EarningsData | null>(null)
   const [posts, setPosts] = useState<PostsData | null>(null)
   const [audience, setAudience] = useState<AudienceData | null>(null)
@@ -87,10 +88,12 @@ export default function AnalyticsPage() {
         apiGet<PostsData>(`/api/analytics/posts?range=${range}`),
         apiGet<AudienceData>(`/api/analytics/audience?range=${range}`),
       ])
+      setLocked(false)
       setEarnings(e)
       setPosts(p)
       setAudience(a)
     } catch (err) {
+      if (err instanceof Error && err.message.includes("prime exclusive")) setLocked(true)
       console.error(err)
     } finally {
       setLoading(false)
@@ -135,6 +138,17 @@ export default function AnalyticsPage() {
         </button>
         <h1 className="text-xl font-bold">analytics</h1>
       </div>
+
+      {locked && !earnings && !posts && !audience && (
+        <div className="card p-6 mt-4 text-center border-[#facc15]/25 bg-[#facc15]/[0.06]">
+          <p className="text-3xl mb-2">👑</p>
+          <p className="font-bold text-lg mb-1">analytics is prime exclusive</p>
+          <p className="text-sm text-white/50 mb-4">impressions, earnings breakdown, audience growth — plus 2x credit earnings, gold everything and 2 freezes a month.</p>
+          <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
+            go prime — ghs 20/mo
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-1 mb-4 overflow-x-auto pb-2">
         {(["overview", "earnings", "posts", "audience"] as Tab[]).map((t) => (

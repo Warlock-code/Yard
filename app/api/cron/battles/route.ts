@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
           const winnerUser = await prisma.user.findUnique({ where: { id: w.userId } })
           if (winnerUser) {
             const tier = getEffectiveTier(winnerUser)
-            const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+            const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
             const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * multiplier)
             if (winReward > 0) {
               await creditUser(w.userId, "BATTLE_WIN", winReward, prompt.id, {
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
-          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
           const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * multiplier)
           if (winReward > 0) {
             await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
-          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle || 1
+          const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
           const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
           if (winReward > 0) {
             await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {

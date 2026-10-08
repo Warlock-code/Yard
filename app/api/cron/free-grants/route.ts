@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Monthly freeze grant (PLUS) — extends, never clobbers a live freeze.
+    // Monthly freeze grant — extends, never clobbers a live freeze.
+    // PLUS gets 1 freeze (48h), PRIME gets 2 (96h).
     if (shouldGrantMonthlyFreeze(user)) {
       const count = getMonthlyFreezeGrant(effectiveTier)
       if (count > 0) {
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            streakFreezeUntil: new Date(base + 48 * 60 * 60 * 1000),
+            streakFreezeUntil: new Date(base + count * 48 * 60 * 60 * 1000),
             freeStreakFreezeMonthly: { increment: count },
             lastFreeFreezeGrant: now,
           },
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
             userId: n.userId,
             type: "monthly_freeze_grant",
             title: "Monthly streak freeze granted!",
-            body: "Your free streak freeze for this month is ready.",
+            body: "Your free streak freeze(s) for this month are ready — prime gets 2.",
             href: "/shop",
           },
         })

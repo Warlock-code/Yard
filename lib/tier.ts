@@ -59,6 +59,7 @@ export function getWeeklyBoostGrant(tier: AccountTier): number {
 
 export function getMonthlyFreezeGrant(tier: AccountTier): number {
   switch (tier) {
+    case "PRIME": return 2
     case "PLUS": return 1
     default: return 0
   }
@@ -143,10 +144,10 @@ export const TIER_CONFIG = {
       "All common & rare avatars unlocked free",
       "Gold checkmark + Prime badge on profile and posts",
       "Highest feed + battle priority",
-      "Real GHS earnings from votes, referrals, streaks (cash payouts currently paused — credits spendable in-app)",
-      "Full analytics dashboard",
+      "2x credit earnings from votes, tips, referrals, streaks (cash payouts currently paused — credits spendable in-app)",
+      "Full analytics dashboard (prime exclusive)",
       "2 free post boosts per week",
-      "1 free streak freeze per month",
+      "2 free streak freezes per month",
       "100 MB storage bonus (150 MB total)",
       "Gold theme",
     ],
