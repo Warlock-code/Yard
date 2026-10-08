@@ -42,6 +42,16 @@
   --accent-rainbow-strong: #7928ca;
   --accent-rainbow-soft: rgba(255, 0, 128, 0.14);
   --accent-rainbow-glow: rgba(121, 40, 202, 0.3);
+
+  --accent-midnight: #fafafa;
+  --accent-midnight-strong: #ffffff;
+  --accent-midnight-soft: rgba(255, 255, 255, 0.10);
+  --accent-midnight-glow: rgba(255, 255, 255, 0.22);
+
+  --accent-arctic: #141414;
+  --accent-arctic-strong: #000000;
+  --accent-arctic-soft: rgba(0, 0, 0, 0.08);
+  --accent-arctic-glow: rgba(0, 0, 0, 0.16);
 }
 
 .theme-default {
@@ -91,6 +101,29 @@
   --accent-strong: var(--accent-rainbow-strong);
   --accent-soft: var(--accent-rainbow-soft);
   --accent-glow: var(--accent-rainbow-glow);
+}
+
+.theme-midnight {
+  --accent: var(--accent-midnight);
+  --accent-strong: var(--accent-midnight-strong);
+  --accent-soft: var(--accent-midnight-soft);
+  --accent-glow: var(--accent-midnight-glow);
+}
+
+.theme-midnight body {
+  background: #000000;
+}
+
+.theme-arctic {
+  --accent: var(--accent-arctic);
+  --accent-strong: var(--accent-arctic-strong);
+  --accent-soft: var(--accent-arctic-soft);
+  --accent-glow: var(--accent-arctic-glow);
+  --foreground: #161616;
+  --muted: rgba(22, 22, 22, 0.55);
+  --card: #ffffff;
+  --card-hover: rgba(0, 0, 0, 0.03);
+  --border: rgba(0, 0, 0, 0.12);
 }
 
 .theme-rainbow .btn-primary {
@@ -628,3 +661,70 @@ button, a {
 .admin-dense .text-xl { font-size: 1.125rem; }
 .admin-dense .text-2xl { font-size: 1.25rem; }
 .admin-dense .text-4xl { font-size: 1.5rem; }
+
+/* ---- Arctic White (full light mode) ----
+ * The app is built dark, so light mode remaps the shared white-ink
+ * utilities to dark ink. Exact `text-white` is left alone: it is only
+ * used on explicitly dark surfaces (lime/red pills, dark admin cards).
+ */
+.theme-arctic body {
+  background: #ffffff;
+  color: var(--foreground);
+}
+
+.theme-arctic .card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.theme-arctic .input {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-arctic .btn-primary {
+  color: #ffffff;
+}
+
+.theme-arctic .btn-primary:hover {
+  background: var(--accent-strong);
+}
+
+.theme-arctic .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.05) 25%,
+    rgba(0, 0, 0, 0.10) 50%,
+    rgba(0, 0, 0, 0.05) 75%
+  );
+  background-size: 800px 100%;
+}
+
+.theme-arctic .text-white\/90 { color: rgba(22, 22, 22, 0.9); }
+.theme-arctic .text-white\/85 { color: rgba(22, 22, 22, 0.85); }
+.theme-arctic .text-white\/80 { color: rgba(22, 22, 22, 0.8); }
+.theme-arctic .text-white\/70 { color: rgba(22, 22, 22, 0.7); }
+.theme-arctic .text-white\/60 { color: rgba(22, 22, 22, 0.6); }
+.theme-arctic .text-white\/55 { color: rgba(22, 22, 22, 0.55); }
+.theme-arctic .text-white\/50 { color: rgba(22, 22, 22, 0.5); }
+.theme-arctic .text-white\/40 { color: rgba(22, 22, 22, 0.4); }
+.theme-arctic .text-white\/35 { color: rgba(22, 22, 22, 0.35); }
+.theme-arctic .text-white\/30 { color: rgba(22, 22, 22, 0.3); }
+.theme-arctic .text-white\/25 { color: rgba(22, 22, 22, 0.25); }
+.theme-arctic .text-white\/20 { color: rgba(22, 22, 22, 0.2); }
+.theme-arctic .hover\:text-white:hover { color: #161616; }
+
+.theme-arctic .border-white\/15 { border-color: rgba(0, 0, 0, 0.15); }
+.theme-arctic .border-white\/10 { border-color: rgba(0, 0, 0, 0.1); }
+.theme-arctic .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
+
+.theme-arctic .bg-white\/\[0\.07\] { background-color: rgba(0, 0, 0, 0.07); }
+.theme-arctic .bg-white\/\[0\.06\] { background-color: rgba(0, 0, 0, 0.06); }
+.theme-arctic .bg-white\/\[0\.05\] { background-color: rgba(0, 0, 0, 0.05); }
+.theme-arctic .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.03); }
+.theme-arctic .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+.theme-arctic .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.05); }
+.theme-arctic .hover\:bg-white\/\[0\.05\]:hover { background-color: rgba(0, 0, 0, 0.05); }
+
+/* Solid black surfaces (modal cards, drawers) become white in arctic.
+ * Translucent veils (bg-black/60+) are left dark — they dim correctly. */
+.theme-arctic .bg-black { background-color: #ffffff; }
+.theme-arctic .text-black { color: #ffffff; }
