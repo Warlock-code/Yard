@@ -39,7 +39,7 @@ export function getTierPriority(tier: AccountTier): number {
 
 export function canAccessAvatar(tier: AccountTier, avatarRarity: AvatarRarity): boolean {
   if (tier === "FREE") return false
-  if (tier === "PLUS") return avatarRarity === "common" || avatarRarity === "rare"
+  if (tier === "PLUS") return avatarRarity === "common"
   if (tier === "PRIME") return avatarRarity === "common" || avatarRarity === "rare"
   return false
 }
@@ -66,8 +66,8 @@ export function getMonthlyFreezeGrant(tier: AccountTier): number {
 
 export function getTierStorageBonusMB(tier: AccountTier): number {
   switch (tier) {
-    case "PRIME": return 200
-    case "PLUS": return 100
+    case "PRIME": return 100
+    case "PLUS": return 50
     default: return 0
   }
 }
@@ -122,14 +122,14 @@ export const TIER_CONFIG = {
     borderColor: "border-sky-500/30",
     perks: [
       "Edit own posts",
-      "Unlocks common & rare avatars (Snake, Alien, Cat, Dog, Panda, Frog, Owl, Penguin, Octopus, Wolf, Bat, Rat, Toad, Newt, Moth, Beetle, Spider)",
+      "Unlocks common avatars free (Snake, Alien, Cat, Dog, Panda, Frog, Owl, Penguin, Octopus)",
       "Blue checkmark on profile and posts",
       "Higher battle priority",
       "1 free post boost per week",
       "1 free streak freeze per month",
-      "Can buy epic/legendary avatars and shop items",
+      "Can buy rare/epic/legendary avatars and shop items",
       "Can buy custom ghost name",
-      "100 MB storage bonus",
+      "50 MB storage bonus (100 MB total)",
     ],
   },
   PRIME: {
@@ -148,7 +148,7 @@ export const TIER_CONFIG = {
       "Full analytics dashboard",
       "2 free post boosts per week",
       "1 free streak freeze per month",
-      "200 MB storage bonus",
+      "100 MB storage bonus (150 MB total)",
       "Gold theme",
     ],
   },
