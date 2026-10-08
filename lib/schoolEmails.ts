@@ -51,6 +51,8 @@ export const CAMPUS_DOMAINS: Record<string, string> = {
   "tipep.edu.gh": "TIPEP",
   "tset.edu.gh": "TSET",
   "wcsc.edu.gh": "WCSC",
+  "aamusted.edu.gh": "AAMUSTED",
+  "st.aamusted.edu.gh": "AAMUSTED",
 }
 
 export function getCampusFromEmail(email: string): string | null {

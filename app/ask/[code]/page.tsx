@@ -1,8 +1,42 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import AskForm from "./AskForm"
 
 export const dynamic = "force-dynamic"
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  const { code } = await params
+  const clean = (code || "").trim().toUpperCase()
+  let ghostId = "a ghost"
+  try {
+    const person = await prisma.user.findUnique({
+      where: { inviteCode: clean },
+      select: { ghostId: true },
+    })
+    if (person) ghostId = person.ghostId
+  } catch {}
+
+  const title = `ask ${ghostId} anything — anonymously`
+  const description = "send an anonymous question on yard. they will never know it was you."
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      url: `https://yardapp.me/ask/${clean}`,
+      title,
+      description,
+      images: [{ url: `/ask/${clean}/opengraph-image`, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`/ask/${clean}/opengraph-image`],
+    },
+  }
+}
 
 export default async function AskPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params

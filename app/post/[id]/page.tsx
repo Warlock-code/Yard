@@ -30,7 +30,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const postText = post.text || "A post on Yard"
   const truncatedText = postText.length > 100 ? postText.slice(0, 100) + "..." : postText
-  const imageUrl = post.imageUrl || "/og-image.svg"
+  // Stylish dynamic card (answers render as Q&A). Falls back to the
+  // uploader image when the post itself has one.
+  const imageUrl = post.imageUrl || `/post/${post.id}/opengraph-image`
   const postUrl = `https://yardapp.me/post/${post.id}`
 
   return {
@@ -53,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       authors: [post.user.ghostId],
     },
     twitter: {
-      card: post.imageUrl ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title: `${post.user.ghostId} on Yard`,
       description: truncatedText,
       images: [imageUrl],

@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiGet, apiPost } from "@/lib/useApi"
+import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -13,6 +13,7 @@ type Me = {
   ghostId: string
   avatarEmoji: string
   campus: string
+  cohortYear: number | null
   tier: string
   championTrophies?: number
   streakCount: number
@@ -96,6 +97,13 @@ export default function LairPage() {
   const [askCopied, setAskCopied] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
+  const [showYearModal, setShowYearModal] = useState(false)
+  const [yearDraft, setYearDraft] = useState("")
+  const [yearSaving, setYearSaving] = useState(false)
+  const admissionYears = useMemo(() => {
+    const current = new Date().getFullYear() + 1
+    return Array.from({ length: 12 }, (_, i) => current - i)
+  }, [])
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   type AskQ = { id: string; text: string; status: string; answer: string | null; createdAt: string }
@@ -287,6 +295,20 @@ export default function LairPage() {
     }
   }
 
+  async function handleYearSave() {
+    if (!yearDraft || yearSaving) return
+    setYearSaving(true)
+    try {
+      const data = await apiPatch<{ cohortYear: number }>("/api/profile/cohort", { cohortYear: Number(yearDraft) })
+      setMe((current) => current ? { ...current, cohortYear: data.cohortYear } : current)
+      setShowYearModal(false)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "could not save. try again.")
+    } finally {
+      setYearSaving(false)
+    }
+  }
+
   if (loading || !me) return <p className="text-center text-white/40 mt-10">entering the den...</p>
 
   return (
@@ -308,6 +330,13 @@ export default function LairPage() {
           {me.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
           <ChampionTrophies trophies={me.championTrophies} />
         </div>
+        <button
+          onClick={() => { setYearDraft(me.cohortYear != null ? String(me.cohortYear) : ""); setShowYearModal(true) }}
+          className="mt-1.5 text-xs text-white/40 hover:text-white/70 flex items-center gap-1"
+          aria-label="edit admission year"
+        >
+          {me.cohortYear != null ? `class of ${me.cohortYear}` : "set your admission year"} <span aria-hidden="true">✏️</span>
+        </button>
 
         <div className="flex gap-5 mt-3 text-sm">
           <button onClick={() => router.push("/lair/activity")} className="text-center">
@@ -646,6 +675,32 @@ export default function LairPage() {
             <h3 className="font-bold text-lg mb-1">withdrawals paused</h3>
             <p className="text-white/50 text-sm mb-4">withdrawals are currently paused. your balance is safe — check back soon.</p>
             <button className="btn-ghost w-full" onClick={() => setShowWithdrawModal(false)}>close</button>
+          </div>
+        </div>
+      )}
+
+      {showYearModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="card p-5 w-full max-w-sm bg-black">
+            <h3 className="font-bold text-lg mb-1">admission year</h3>
+            <p className="text-white/50 text-sm mb-4">which year were you admitted? this puts you in the right class feed.</p>
+            <select
+              className="input mb-3"
+              value={yearDraft}
+              onChange={(e) => setYearDraft(e.target.value)}
+              aria-label="admission year"
+            >
+              <option value="" disabled>year</option>
+              {admissionYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button className="btn-ghost flex-1" onClick={() => setShowYearModal(false)}>cancel</button>
+              <button className="btn-primary flex-1 disabled:opacity-50" onClick={handleYearSave} disabled={!yearDraft || yearSaving}>
+                {yearSaving ? "saving..." : "save"}
+              </button>
+            </div>
           </div>
         </div>
       )}
