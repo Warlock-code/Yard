@@ -59,10 +59,20 @@ type Post = {
   yeahs: number
   commentsCount: number
   boosted: boolean
+  pinned?: boolean
+  pinnedUntil?: string | null
   isFollowing: boolean
   seen?: boolean
   createdAt: string
   user: { id: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
+}
+
+type PostHints = {
+  views: number
+  heats: number
+  byProgram?: { program: string; views: number; heats: number }[]
+  byYear?: { cohortYear: number; views: number; heats: number }[]
+  followerContext?: { followingYou: number; youFollow: number }
 }
 
 type InlineComment = {
@@ -199,6 +209,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const pendingVotes = useRef(new Set<string>())
   // Live posts queue as a tap-to-load pill (no feed jump while reading).
   const [pendingPosts, setPendingPosts] = useState<Post[]>([])
+  // Hints panel (own posts): who viewed/voted, tiered breakdowns.
+  const [hintsOpenId, setHintsOpenId] = useState<string | null>(null)
+  const [hintsData, setHintsData] = useState<Record<string, PostHints>>({})
+  const [hintsLoading, setHintsLoading] = useState<Record<string, boolean>>({})
   // Live tick for rush-hour banner countdown (cheap 60s interval).
   const [rushNow, setRushNow] = useState(() => Date.now())
   useEffect(() => {
@@ -494,6 +508,35 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     }
   }
 
+  async function handlePin(postId: string) {
+    if (!confirm("pin this post to the top of campus for 1hr — 1000 credits?")) return
+    try {
+      await apiPost(`/api/shop/pin`, { postId })
+      alert("pinned 📌 — top of campus for 1hr!")
+      loadFeed()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "something went wrong.")
+    }
+  }
+
+  async function toggleHints(postId: string) {
+    if (hintsOpenId === postId) {
+      setHintsOpenId(null)
+      return
+    }
+    setHintsOpenId(postId)
+    if (hintsData[postId]) return
+    setHintsLoading((s) => ({ ...s, [postId]: true }))
+    try {
+      const data = await apiGet<PostHints>(`/api/posts/${postId}/hints`)
+      setHintsData((s) => ({ ...s, [postId]: data }))
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setHintsLoading((s) => ({ ...s, [postId]: false }))
+    }
+  }
+
   async function handleFollow(targetUserId: string) {
     if (!me || pendingFollowRequests.current.has(targetUserId)) return
     pendingFollowRequests.current.add(targetUserId)
@@ -756,6 +799,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       {post.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                       <ChampionTrophies trophies={post.user.championTrophies} />
                       {post.boosted && <span className="badge badge-boosted">boosted</span>}
+                      {post.pinned && <span className="badge badge-boosted">📌 pinned</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>
                     </div>
 
@@ -834,8 +878,24 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         💬 {post.commentsCount}
                       </button>
                       {isOwn && (
-                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-primary touch-manipulation">
+                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-primary touch-manipulation" title="boost 24h">
                           🚀
+                        </button>
+                      )}
+                      {isOwn && !post.pinned && (
+                        <button onClick={(e) => { e.stopPropagation(); handlePin(post.id) }} className="hover:text-primary touch-manipulation" title="pin top of campus for 1hr — 1000 credits">
+                          📌
+                        </button>
+                      )}
+                      {isOwn && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleHints(post.id) }}
+                          aria-expanded={hintsOpenId === post.id}
+                          aria-label="who viewed and voted"
+                          className="hover:text-primary gap-1 touch-manipulation"
+                          title="who is watching 👀"
+                        >
+                          👀
                         </button>
                       )}
                       {!isOwn && (
@@ -869,6 +929,47 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         </button>
                       )}
                     </div>
+
+                    {isOwn && hintsOpenId === post.id && (
+                      <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-3" onClick={(e) => e.stopPropagation()}>
+                        {hintsLoading[post.id] ? (
+                          <p className="text-xs text-white/30">reading the room...</p>
+                        ) : !hintsData[post.id] ? (
+                          <p className="text-xs text-white/30">couldn't load hints.</p>
+                        ) : (
+                          <div>
+                            <p className="text-xs text-white/60 mb-2">
+                              👁 {hintsData[post.id].views} views · 🔥 {hintsData[post.id].heats} heats
+                            </p>
+                            {hintsData[post.id].byProgram ? (
+                              <div className="space-y-1 mb-1">
+                                {hintsData[post.id].byProgram!.slice(0, 5).map((r) => (
+                                  <p key={r.program} className="text-xs text-white/50">
+                                    {r.program} — 👁 {r.views} · 🔥 {r.heats}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-white/30 mb-1">plus shows which programs are watching.</p>
+                            )}
+                            {hintsData[post.id].byYear && (
+                              <div className="space-y-1 mb-1">
+                                {hintsData[post.id].byYear!.slice(0, 5).map((r) => (
+                                  <p key={r.cohortYear} className="text-xs text-white/50">
+                                    class of {r.cohortYear} — 👁 {r.views} · 🔥 {r.heats}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {hintsData[post.id].followerContext && (
+                              <p className="text-xs text-white/40">
+                                {hintsData[post.id].followerContext!.followingYou} follow you · you follow {hintsData[post.id].followerContext!.youFollow}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <AnimatePresence initial={false}>
                       {expanded && (

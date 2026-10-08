@@ -32,6 +32,7 @@ export const CREDIT_CONFIG = {
   SPEND: {
     BOOST_24H: 300,
     BOOST_7D: 1_500,
+    PIN_1H: 1_000,
     CUSTOM_NAME: 500,
     AVATAR_PACK: 500,
     THEME: 400,

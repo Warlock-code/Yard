@@ -349,12 +349,37 @@ export async function GET(req: NextRequest) {
     ...announcements.map((post) => ({ ...post, isFollowing: false, seen: false })),
     ...page.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId), seen: viewedPostIds.has(post.id) })),
   ]
+
+  // Pinned campus spotlight: paid 1hr pins, newest pin first, max 3.
+  // Best-effort (empty until the pinnedUntil migration is deployed).
+  try {
+    if (!cursor) {
+      const pinnedRows = await prisma.post.findMany({
+        where: { campus: user.campus, archived: false, pinnedUntil: { gt: now } },
+        orderBy: [{ pinnedUntil: "desc" }],
+        take: 3,
+        include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
+      })
+      const seenIds = new Set(fullPage.map((p) => p.id))
+      const freshPins = pinnedRows.filter((p) => !seenIds.has(p.id))
+      if (freshPins.length > 0) {
+        const withMeta = freshPins.map((post) => ({
+          ...post,
+          boosted: false,
+          isFollowing: followingIds.has(post.userId),
+          seen: viewedPostIds.has(post.id),
+        }))
+        fullPage.unshift(...withMeta)
+      }
+    }
+  } catch {}
   await attachChampionTrophies(fullPage)
 
   return NextResponse.json({
     posts: fullPage.map((post) => ({
       ...post,
       boosted: Boolean(post.boostedUntil && post.boostedUntil > now),
+      pinned: Boolean(post.pinnedUntil && new Date(post.pinnedUntil).getTime() > now.getTime()),
     })),
     nextCursor,
   }, { headers: { "Cache-Control": "private, no-store" } })

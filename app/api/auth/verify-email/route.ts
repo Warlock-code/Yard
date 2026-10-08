@@ -84,8 +84,10 @@ export async function POST(req: NextRequest) {
     data: { emailVerified: true, verifyCode: null },
   })
 
-  // Apply referral reward if user was referred
+  // Apply referral reward if user was referred. Fail-open: referral money
+  // must never break verification (user is already verified above).
   if (user.referredBy) {
+    try {
     const referrer = await prisma.user.findUnique({
       where: { inviteCode: user.referredBy },
       select: { id: true, ghostId: true, inviteCode: true },
@@ -129,8 +131,9 @@ export async function POST(req: NextRequest) {
           referrerId: referrer.id, 
           type: "referee" 
         })
-        // Update referral record
-        await prisma.referral.update({
+        // Update referral record (updateMany: no-throw if the signup-time
+        // row is missing for any reason — credits above still stand).
+        await prisma.referral.updateMany({
           where: { referredId: userId },
           data: {
             status: "completed",
@@ -152,11 +155,14 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // Daily cap reached - mark referral as pending but don't reward
-        await prisma.referral.update({
+        await prisma.referral.updateMany({
           where: { referredId: userId },
           data: { status: "completed", rewardStatus: "none", rewardAmount: 0 },
         })
       }
+    }
+    } catch (err) {
+      console.error("[verify-email] referral reward failed (verification kept)", err)
     }
   }
 

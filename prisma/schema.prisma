@@ -98,6 +98,7 @@ model User {
   uploads            MediaUpload[]
   referrals          Referral[]   @relation("ReferrerReferrals")
   referredByReferral Referral?    @relation("ReferredReferrals")
+  askQuestions       AskQuestion[]
   battleStats        BattleStats?
   searchHistory      SearchHistory[]
   savedSearches      SavedSearch[]
@@ -157,6 +158,7 @@ model Post {
 
   boosted      Boolean   @default(false)
   boostedUntil DateTime?
+  pinnedUntil  DateTime?
   isPrime      Boolean   @default(false)
 
   createdAt DateTime @default(now())
@@ -616,6 +618,24 @@ model CampusBattleWin {
 
   @@unique([userId, campus])
   @@index([campus, wins])
+}
+
+// --- Ask-box (NGL-style anonymous questions). Additive table; all
+// readers/writers must try/catch so the app works before the migration
+// 20261009_ask_box_pins is deployed.
+model AskQuestion {
+  id          String  @id @default(cuid())
+  recipientId String
+  recipient   User    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  text        String
+  senderId    String?
+  status      String  @default("pending") // pending | answered | dismissed
+  answer      String?
+  answerPostId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientId, status, createdAt])
 }
 
 // --- Usage tracking (additive, live-safe). Tables may not exist until

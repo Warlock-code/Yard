@@ -16,6 +16,7 @@ const ROWS: { label: string; free: string; plus: string; prime: string; primeWin
   { label: "Free post boost", free: "—", plus: "1 / week", prime: "2 / week", primeWin: true },
   { label: "Streak freeze", free: "—", plus: "1 / month", prime: "2 / month", primeWin: true },
   { label: "Credit earnings", free: "—", plus: "1x", prime: "2x", primeWin: true },
+  { label: "Post hints (who's watching)", free: "counts", plus: "programs", prime: "programs + years", primeWin: true },
   { label: "Storage", free: "50 MB", plus: "50 + 50 MB", prime: "50 + 100 MB", primeWin: true },
   { label: "Theme", free: "default green", plus: "+ plus blue", prime: "+ gold", primeWin: true },
   { label: "Earnings + payouts", free: "—", plus: "—", prime: "paused", primeWin: false },

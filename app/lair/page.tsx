@@ -93,10 +93,16 @@ export default function LairPage() {
     }>
   } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [askCopied, setAskCopied] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  type AskQ = { id: string; text: string; status: string; answer: string | null; createdAt: string }
+  const [questions, setQuestions] = useState<AskQ[]>([])
+  const [inboxLoading, setInboxLoading] = useState(true)
+  const [answerDraft, setAnswerDraft] = useState<Record<string, string>>({})
+  const [answering, setAnswering] = useState<string | null>(null)
 
   const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ credits: { creditsBalance: number; creditsEarned: number; creditsWithdrawn: number } | null }>("/api/credits/withdraw")
@@ -183,14 +189,51 @@ export default function LairPage() {
       .catch(console.error)
   }, [])
 
+  const loadInbox = useCallback((isCurrent: () => boolean = () => true) => {
+    return apiGet<{ questions: AskQ[] }>("/api/ask/inbox")
+      .then((data) => {
+        if (!isCurrent()) return
+        setQuestions(data.questions || [])
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isCurrent()) setInboxLoading(false)
+      })
+  }, [])
+
   useEffect(() => {
     let active = true
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
     loadWallet(() => active)
+    loadInbox(() => active)
     return () => { active = false }
-  }, [load, loadStorage, loadReferral, loadWallet])
+  }, [load, loadStorage, loadReferral, loadWallet, loadInbox])
+
+  async function handleAnswer(qid: string) {
+    const text = (answerDraft[qid] || "").trim()
+    if (!text || answering) return
+    setAnswering(qid)
+    try {
+      await apiPost(`/api/ask/${qid}/answer`, { answer: text })
+      setAnswerDraft((s) => ({ ...s, [qid]: "" }))
+      loadInbox()
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "couldn't post answer.")
+    } finally {
+      setAnswering(null)
+    }
+  }
+
+  async function handleDismissAsk(qid: string) {
+    try {
+      await apiPost(`/api/ask/${qid}/dismiss`, {})
+      setQuestions((qs) => qs.filter((q) => q.id !== qid))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "couldn't dismiss.")
+    }
+  }
 
   async function handleLogout() {
     document.cookie = "yard_token=; Max-Age=0; path=/"
@@ -327,6 +370,72 @@ export default function LairPage() {
           <span className="text-xs font-bold text-[#facc15]">👑 prime →</span>
         </button>
       )}
+
+      <div className="card p-4 mb-4 border-primary/20">
+        <div className="flex items-center justify-between mb-1">
+          <p className="font-semibold">📮 ask me anonymously</p>
+          {!inboxLoading && questions.filter((q) => q.status === "pending").length > 0 && (
+            <span className="text-xs font-bold text-primary">
+              {questions.filter((q) => q.status === "pending").length} new
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-white/50 mb-3">share your link on status — questions land here. answer to post them to campus.</p>
+        {referralStats && (
+          <div className="flex gap-2 mb-3">
+            <input
+              className="input flex-1 text-sm"
+              readOnly
+              value={`${typeof window !== "undefined" ? window.location.origin : ""}/ask/${referralStats.code}`}
+            />
+            <button
+              className="btn-primary px-4"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(`${window.location.origin}/ask/${referralStats.code}`)
+                  setAskCopied(true)
+                  setTimeout(() => setAskCopied(false), 1500)
+                } catch {}
+              }}
+            >
+              {askCopied ? "✓ copied" : "copy"}
+            </button>
+          </div>
+        )}
+        {inboxLoading ? (
+          <p className="text-xs text-white/40">loading inbox...</p>
+        ) : questions.filter((q) => q.status === "pending").length === 0 ? (
+          <p className="text-xs text-white/40">no questions yet — share your link.</p>
+        ) : (
+          <ul className="space-y-3 mt-1">
+            {questions.filter((q) => q.status === "pending").slice(0, 10).map((q) => (
+              <li key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="post-mono text-sm text-white/90 mb-2">{q.text}</p>
+                <div className="flex gap-2">
+                  <input
+                    className="input flex-1 h-9 text-sm"
+                    placeholder="write your answer..."
+                    value={answerDraft[q.id] || ""}
+                    onChange={(e) => setAnswerDraft((s) => ({ ...s, [q.id]: e.target.value.toLowerCase() }))}
+                    onKeyDown={(e) => e.key === "Enter" && handleAnswer(q.id)}
+                    maxLength={2000}
+                  />
+                  <button
+                    className="btn-primary px-4 h-9 text-sm disabled:opacity-50"
+                    onClick={() => handleAnswer(q.id)}
+                    disabled={answering === q.id || !(answerDraft[q.id] || "").trim()}
+                  >
+                    {answering === q.id ? "..." : "post"}
+                  </button>
+                </div>
+                <button className="text-[11px] text-white/30 hover:text-white/50 mt-1.5" onClick={() => handleDismissAsk(q.id)}>
+                  dismiss
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="card p-4 mb-4">
         <p className="font-semibold">✏️ ghost name</p>
