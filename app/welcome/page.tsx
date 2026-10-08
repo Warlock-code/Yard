@@ -1,9 +1,15 @@
 "use client"
 
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { signalContentReady } from "@/app/components/BootGate"
 
 export default function WelcomePage() {
   const router = useRouter()
+
+  useEffect(() => {
+    signalContentReady()
+  }, [])
 
   function handleContinue() {
     document.cookie = "yard_seen_welcome=1; path=/; max-age=" + 60 * 60 * 24 * 365

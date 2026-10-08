@@ -12,6 +12,7 @@ import AndroidBackHandler from "@/app/components/AndroidBackHandler"
 import PushNotificationsSetup from "@/app/components/PushNotifications"
 import UpdateGate from "@/app/components/UpdateGate"
 import { RoutePrefetcher } from "@/app/components/RoutePrefetcher"
+import BootGate from "@/app/components/BootGate"
 import { ThemeProvider } from "@/app/components/ThemeProvider"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 import SWRegistration from "@/app/components/SWRegistration"
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-startup-image" href="/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body style={{ backgroundColor: "#050505", color: "#f5f5f5" }}>
+        <BootGate />
         <UpdateGate />
         <PushNotificationsSetup />
         <RoutePrefetcher />

@@ -15,6 +15,7 @@ import SmartNudge from "@/app/components/SmartNudge"
 import { getRushStatus } from "@/lib/rush"
 import { logPaywallHit } from "@/lib/logPaywall"
 import { getCached, setCached, cacheKeys, TTL, fetchDeduped } from "@/lib/client-cache"
+import { signalContentReady } from "@/app/components/BootGate"
 
 function PostSkeleton() {
   return (
@@ -267,6 +268,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     loadMe(() => active)
     return () => { active = false }
   }, [loadMe])
+
+  // Tell BootGate the waking screen can leave: first content painted.
+  useEffect(() => {
+    if (!loading) signalContentReady()
+  }, [loading])
 
   useEffect(() => {
     let active = true

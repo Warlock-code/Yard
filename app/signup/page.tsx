@@ -1,14 +1,19 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
 import { prewarmAppData } from "@/lib/client-cache"
 import { Suspense } from "react"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
+import { signalContentReady } from "@/app/components/BootGate"
 
 function SignupForm() {
   const router = useRouter()
+
+  useEffect(() => {
+    signalContentReady()
+  }, [])
   const searchParams = useSearchParams()
   const referralCode = searchParams.get("ref")?.trim() || searchParams.get("referralCode")?.trim() || ""
   const [email, setEmail] = useState("")

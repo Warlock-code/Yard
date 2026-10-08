@@ -1,13 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { prewarmAppData } from "@/lib/client-cache"
+import { signalContentReady } from "@/app/components/BootGate"
 
 
 export default function LoginPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    signalContentReady()
+  }, [])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)

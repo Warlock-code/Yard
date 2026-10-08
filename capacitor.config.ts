@@ -26,7 +26,12 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1200,
+      // Holds splash until BootGate calls hide() on first web paint.
+      // launchAutoHide stays true as a native backstop: even if the web
+      // never loads (dead network/CDN), the OS clears splash at 10s so
+      // existing users can never get stuck on it.
+      launchShowDuration: 10000,
+      launchAutoHide: true,
       backgroundColor: "#050505",
       showSpinner: false
     },

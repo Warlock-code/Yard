@@ -120,6 +120,7 @@
 }
 
 html {
+  background-color: #050505;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
