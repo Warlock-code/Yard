@@ -17,6 +17,8 @@ export default function AskForm({ code, ghostId, avatarEmoji, campus }: {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [imageSaving, setImageSaving] = useState(false)
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -95,6 +97,60 @@ export default function AskForm({ code, ghostId, avatarEmoji, campus }: {
             {sending ? "sending..." : "send anonymously 👻"}
           </button>
           <p className="text-[11px] text-white/25 mt-3">100% anonymous • be kind-ish: no threats, no doxxing</p>
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <p className="text-xs text-white/40 mb-2">is this your link? share it to status</p>
+            <div className="flex gap-2">
+              <button
+                className="btn-ghost flex-1 text-sm"
+                onClick={async () => {
+                  const link = `https://yardapp.me/ask/${code}`
+                  const shareText = `ask ${ghostId} anything — anonymously 👀\n${link}`
+                  try {
+                    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> }
+                    if (nav.share) {
+                      await nav.share({ title: "ask me anonymously", text: shareText, url: link })
+                      return
+                    }
+                    throw new Error("no native share")
+                  } catch {
+                    try {
+                      await navigator.clipboard.writeText(shareText)
+                      setLinkCopied(true)
+                      setTimeout(() => setLinkCopied(false), 1500)
+                    } catch {}
+                  }
+                }}
+              >
+                {linkCopied ? "✓ copied" : "share 📤"}
+              </button>
+              <button
+                className="btn-ghost flex-1 text-sm disabled:opacity-50"
+                disabled={imageSaving}
+                onClick={async () => {
+                  if (imageSaving) return
+                  setImageSaving(true)
+                  try {
+                    const res = await fetch(`/ask/${code}/opengraph-image`)
+                    if (!res.ok) throw new Error("couldn't fetch image.")
+                    const blob = await res.blob()
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement("a")
+                    a.href = url
+                    a.download = "yard-ask-story.png"
+                    document.body.appendChild(a)
+                    a.click()
+                    a.remove()
+                    setTimeout(() => URL.revokeObjectURL(url), 5000)
+                  } catch {}
+                  finally {
+                    setImageSaving(false)
+                  }
+                }}
+              >
+                {imageSaving ? "saving..." : "story image 🖼️"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

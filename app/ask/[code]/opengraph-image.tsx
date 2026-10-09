@@ -8,17 +8,22 @@ export const contentType = "image/png"
 
 // NGL-style share card: this is what unfurls on WhatsApp status when
 // someone shares their ask link. Pure text/shapes (no emoji — font-safe).
+// Fail-open: crawlers get a generic card even if the DB is slow.
 export default async function Image({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const clean = (code || "").trim().toUpperCase()
 
   let ghostId = "a ghost"
+  let campus = "your campus"
   try {
     const person = await prisma.user.findUnique({
       where: { inviteCode: clean },
-      select: { ghostId: true },
+      select: { ghostId: true, campus: true },
     })
-    if (person) ghostId = person.ghostId
+    if (person) {
+      ghostId = person.ghostId
+      if (person.campus) campus = person.campus
+    }
   } catch {}
 
   return new ImageResponse(
@@ -53,8 +58,11 @@ export default async function Image({ params }: { params: Promise<{ code: string
         >
           ask {ghostId} anything
         </div>
-        <div style={{ display: "flex", marginTop: 28, fontSize: 34, color: "rgba(255,255,255,0.55)" }}>
-          100% anonymous — yardapp.me
+        <div style={{ display: "flex", marginTop: 16, fontSize: 32, color: "rgba(186,255,57,0.9)" }}>
+          {campus}
+        </div>
+        <div style={{ display: "flex", marginTop: 20, fontSize: 34, color: "rgba(255,255,255,0.55)" }}>
+          100% anonymous — tap the link to ask
         </div>
       </div>
     ),

@@ -19,21 +19,25 @@ export async function generateMetadata({ params }: { params: Promise<{ code: str
 
   const title = `ask ${ghostId} anything — anonymously`
   const description = "send an anonymous question on yard. they will never know it was you."
+  // Absolute URLs: WhatsApp / IG crawlers ignore relative og:image.
+  const pageUrl = `https://yardapp.me/ask/${clean}`
+  const imageUrl = `https://yardapp.me/ask/${clean}/opengraph-image`
   return {
     title,
     description,
     openGraph: {
       type: "website",
-      url: `https://yardapp.me/ask/${clean}`,
+      url: pageUrl,
+      siteName: "yard",
       title,
       description,
-      images: [{ url: `/ask/${clean}/opengraph-image`, width: 1200, height: 630, alt: title }],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [`/ask/${clean}/opengraph-image`],
+      images: [imageUrl],
     },
   }
 }

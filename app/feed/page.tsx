@@ -1115,6 +1115,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/lair") }}>👻 my lair <span className="ml-auto text-white/20">›</span></button>
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/shop") }}>🛍️ shop <span className="ml-auto text-white/20">›</span></button>
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/leaderboard") }}>🏆 leaderboard <span className="ml-auto text-white/20">›</span></button>
+                <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); router.push("/settings") }}>⚙️ settings <span className="ml-auto text-white/20">›</span></button>
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={() => { setShowDrawer(false); setShowNameModal(true) }}>✏️ edit ghost name</button>
                 <button className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2" onClick={openAvatarModal}>🎭 edit avatar</button>
               </div>

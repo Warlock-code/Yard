@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
+import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -95,15 +95,10 @@ export default function LairPage() {
   } | null>(null)
   const [copied, setCopied] = useState(false)
   const [askCopied, setAskCopied] = useState(false)
+  const [askShared, setAskShared] = useState(false)
+  const [storySaving, setStorySaving] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
-  const [showYearModal, setShowYearModal] = useState(false)
-  const [yearDraft, setYearDraft] = useState("")
-  const [yearSaving, setYearSaving] = useState(false)
-  const admissionYears = useMemo(() => {
-    const current = new Date().getFullYear() + 1
-    return Array.from({ length: 12 }, (_, i) => current - i)
-  }, [])
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   type AskQ = { id: string; text: string; status: string; answer: string | null; createdAt: string }
@@ -295,17 +290,55 @@ export default function LairPage() {
     }
   }
 
-  async function handleYearSave() {
-    if (!yearDraft || yearSaving) return
-    setYearSaving(true)
+  function askLink(code: string | undefined) {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      // Prefer the live domain for shares — preview/localhost origins break unfurls.
+      const origin = window.location.origin.includes("localhost") ? "https://yardapp.me" : window.location.origin
+      if (code) return `${origin}/ask/${code}`
+    }
+    return code ? `https://yardapp.me/ask/${code}` : ""
+  }
+
+  async function handleAskShare(code: string | undefined) {
+    const link = askLink(code)
+    if (!link) return
+    const text = `ask ${me?.ghostId || "me"} anything — anonymously 👀\n${link}`
     try {
-      const data = await apiPatch<{ cohortYear: number }>("/api/profile/cohort", { cohortYear: Number(yearDraft) })
-      setMe((current) => current ? { ...current, cohortYear: data.cohortYear } : current)
-      setShowYearModal(false)
+      const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> }
+      if (nav.share) {
+        await nav.share({ title: "ask me anonymously", text, url: link })
+        return
+      }
+      throw new Error("no native share")
+    } catch {
+      // User-cancelled share throws too — only fall back when clipboard works.
+      try {
+        await navigator.clipboard.writeText(text)
+        setAskShared(true)
+        setTimeout(() => setAskShared(false), 1500)
+      } catch {}
+    }
+  }
+
+  async function handleStorySave(code: string | undefined) {
+    if (!code || storySaving) return
+    setStorySaving(true)
+    try {
+      const res = await fetch(`/ask/${code}/opengraph-image`)
+      if (!res.ok) throw new Error("couldn't fetch story image.")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "yard-ask-story.png"
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "could not save. try again.")
+      alert(err instanceof Error ? err.message : "couldn't save image.")
     } finally {
-      setYearSaving(false)
+      setStorySaving(false)
     }
   }
 
@@ -331,11 +364,11 @@ export default function LairPage() {
           <ChampionTrophies trophies={me.championTrophies} />
         </div>
         <button
-          onClick={() => { setYearDraft(me.cohortYear != null ? String(me.cohortYear) : ""); setShowYearModal(true) }}
+          onClick={() => router.push("/settings")}
           className="mt-1.5 text-xs text-white/40 hover:text-white/70 flex items-center gap-1"
-          aria-label="edit admission year"
+          aria-label="open settings to edit admission year"
         >
-          {me.cohortYear != null ? `class of ${me.cohortYear}` : "set your admission year"} <span aria-hidden="true">✏️</span>
+          {me.cohortYear != null ? `class of ${me.cohortYear}` : "set your admission year"} <span aria-hidden="true">⚙️</span>
         </button>
 
         <div className="flex gap-5 mt-3 text-sm">
@@ -411,24 +444,42 @@ export default function LairPage() {
         </div>
         <p className="text-sm text-white/50 mb-3">share your link on status — questions land here. answer to post them to campus.</p>
         {referralStats && (
-          <div className="flex gap-2 mb-3">
-            <input
-              className="input flex-1 text-sm"
-              readOnly
-              value={`${typeof window !== "undefined" ? window.location.origin : ""}/ask/${referralStats.code}`}
-            />
-            <button
-              className="btn-primary px-4"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(`${window.location.origin}/ask/${referralStats.code}`)
-                  setAskCopied(true)
-                  setTimeout(() => setAskCopied(false), 1500)
-                } catch {}
-              }}
-            >
-              {askCopied ? "✓ copied" : "copy"}
-            </button>
+          <div className="mb-3">
+            <div className="flex gap-2 mb-2">
+              <input
+                className="input flex-1 text-sm"
+                readOnly
+                value={askLink(referralStats.code)}
+              />
+              <button
+                className="btn-primary px-4"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(askLink(referralStats.code))
+                    setAskCopied(true)
+                    setTimeout(() => setAskCopied(false), 1500)
+                  } catch {}
+                }}
+              >
+                {askCopied ? "✓ copied" : "copy"}
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn-ghost flex-1 text-sm"
+                onClick={() => handleAskShare(referralStats.code)}
+              >
+                {askShared ? "✓ link ready — paste it" : "share to status 📤"}
+              </button>
+              <button
+                className="btn-ghost flex-1 text-sm disabled:opacity-50"
+                disabled={storySaving}
+                onClick={() => handleStorySave(referralStats.code)}
+              >
+                {storySaving ? "saving..." : "save story image 🖼️"}
+              </button>
+            </div>
+            <p className="text-[11px] text-white/30 mt-2">tip: post the image to status, then add your link as a sticker — like ngl.</p>
           </div>
         )}
         {inboxLoading ? (
@@ -675,32 +726,6 @@ export default function LairPage() {
             <h3 className="font-bold text-lg mb-1">withdrawals paused</h3>
             <p className="text-white/50 text-sm mb-4">withdrawals are currently paused. your balance is safe — check back soon.</p>
             <button className="btn-ghost w-full" onClick={() => setShowWithdrawModal(false)}>close</button>
-          </div>
-        </div>
-      )}
-
-      {showYearModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">admission year</h3>
-            <p className="text-white/50 text-sm mb-4">which year were you admitted? this puts you in the right class feed.</p>
-            <select
-              className="input mb-3"
-              value={yearDraft}
-              onChange={(e) => setYearDraft(e.target.value)}
-              aria-label="admission year"
-            >
-              <option value="" disabled>year</option>
-              {admissionYears.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => setShowYearModal(false)}>cancel</button>
-              <button className="btn-primary flex-1 disabled:opacity-50" onClick={handleYearSave} disabled={!yearDraft || yearSaving}>
-                {yearSaving ? "saving..." : "save"}
-              </button>
-            </div>
           </div>
         </div>
       )}
