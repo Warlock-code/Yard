@@ -305,6 +305,16 @@ h1, h2, h3 {
   color: var(--accent);
 }
 
+.badge-heating {
+  background: rgba(251, 146, 60, 0.14);
+  color: #fdba74;
+}
+
+.badge-fresh {
+  background: rgba(52, 211, 153, 0.14);
+  color: #6ee7b7;
+}
+
 .prime-banner {
   background: linear-gradient(135deg, var(--gold-soft) 0%, rgba(250, 204, 21, 0.08) 100%);
   border: 1px solid var(--gold);

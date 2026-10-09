@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
@@ -42,14 +42,16 @@ function CommentThread({
   onReply,
   onHeat,
   topReplyId,
+  flashId,
 }: {
   comment: Comment
   onReply: (parentId: string, ghostId: string) => void
   onHeat: (commentId: string) => void
   topReplyId?: string | null
+  flashId?: string | null
 }) {
   return (
-    <div className="mt-3">
+    <div className={`mt-3 scroll-mt-24 rounded-xl transition-shadow ${flashId === comment.id ? "ring-2 ring-[#baff39] shadow-[0_0_24px_rgba(186,255,57,0.25)]" : ""}`} id={`comment-${comment.id}`}>
       <div className="flex gap-2">
         <Link href={`/u/${encodeURIComponent(comment.user.ghostId)}`} aria-label={`view ${comment.user.ghostId}'s profile`} className="focus-visible:outline-[#baff39]">
           <Avatar emoji={comment.user.avatarEmoji} size={32} />
@@ -87,7 +89,7 @@ function CommentThread({
       {comment.replies?.length > 0 && (
         <div className="ml-10 border-l border-white/10 pl-3 mt-2">
           {comment.replies.map((reply) => (
-            <CommentThread key={reply.id} comment={reply} onReply={onReply} onHeat={onHeat} topReplyId={topReplyId} />
+            <CommentThread key={reply.id} comment={reply} onReply={onReply} onHeat={onHeat} topReplyId={topReplyId} flashId={flashId} />
           ))}
         </div>
       )}
@@ -290,6 +292,37 @@ export default function PostDetailClient({ postId }: { postId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [commentSort, setCommentSort] = useState<"top" | "latest">("top")
   const [topReplyId, setTopReplyId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [flashId, setFlashId] = useState<string | null>(null)
+  const [replyPulse, setReplyPulse] = useState(false)
+  const nudgeHandled = useRef(false)
+
+  // Nudge deep-links (?nudge=reply | ?nudge=topreply): focus the reply box
+  // or scroll-flash the crowned reply. Runs once per page open.
+  useEffect(() => {
+    if (nudgeHandled.current) return
+    const nudge = searchParams.get("nudge")
+    if (nudge !== "reply" && nudge !== "topreply") return
+    nudgeHandled.current = true
+    if (nudge === "reply") {
+      const t = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 450)
+      setReplyPulse(true)
+      const c = window.setTimeout(() => setReplyPulse(false), 3000)
+      return () => { window.clearTimeout(t); window.clearTimeout(c) }
+    }
+  }, [searchParams])
+
+  // Top-reply flash waits until the crown id has loaded.
+  useEffect(() => {
+    if (!nudgeHandled.current || searchParams.get("nudge") !== "topreply" || !topReplyId) return
+    const t = window.setTimeout(() => {
+      document.getElementById(`comment-${topReplyId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+      setFlashId(topReplyId)
+    }, 350)
+    const c = window.setTimeout(() => setFlashId(null), 3000)
+    return () => { window.clearTimeout(t); window.clearTimeout(c) }
+  }, [searchParams, topReplyId])
 
   const { connected, on } = useSocket()
 
@@ -557,6 +590,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               onReply={(id, ghostId) => setReplyingTo({ id, ghostId })}
               onHeat={handleHeatComment}
               topReplyId={topReplyId}
+              flashId={flashId}
             />
           ))
         )}
@@ -571,7 +605,8 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         )}
         <div className="flex gap-2">
           <input
-            className="input flex-1"
+            ref={inputRef}
+            className={`input flex-1 transition-shadow ${replyPulse ? "ring-2 ring-[#baff39] shadow-[0_0_24px_rgba(186,255,57,0.25)]" : ""}`}
             placeholder="add a comment..."
             value={commentText}
             onChange={(e) => setCommentText(e.target.value.toLowerCase())}

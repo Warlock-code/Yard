@@ -197,6 +197,10 @@ export default function AdminPage() {
   const [promptText, setPromptText] = useState("")
   const [campus, setCampus] = useState("")
 
+  type BattleDraft = { id: string; text: string; campus: string; type: string; startsAt: string; createdAt: string; _count: { entries: number } }
+  const [battleDrafts, setBattleDrafts] = useState<BattleDraft[]>([])
+  const [battleDraftsLoading, setBattleDraftsLoading] = useState(false)
+
   const [annText, setAnnText] = useState("")
   const [annCampus, setAnnCampus] = useState("ALL")
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
@@ -276,6 +280,21 @@ export default function AdminPage() {
       adminFetch(`/api/admin/payouts${q}`).then((d) => setPayouts(d.payouts || [])).catch(() => {})
     }
   }, [section, payoutTab])
+
+  // Battle drafts (dormant UPCOMING prompts — hall packs, exam szn).
+  // Loading flag is set in go() to avoid set-state-in-effect.
+  useEffect(() => {
+    if (section !== "Battles") return
+    let active = true
+    adminFetch("/api/admin/battles/drafts")
+      .then((d) => {
+        if (!active) return
+        setBattleDrafts((d as unknown as { drafts?: BattleDraft[] }).drafts || [])
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setBattleDraftsLoading(false) })
+    return () => { active = false }
+  }, [section])
 
   // AI drafts fetch (on demand only — never blocks Overview).
   // Loading flag is set in go() to avoid set-state-in-effect.
@@ -522,6 +541,39 @@ export default function AdminPage() {
     finally { setBusyId(null) }
   }
 
+  async function loadBattleDrafts() {
+    try {
+      const d = await adminFetch("/api/admin/battles/drafts") as unknown as { drafts?: BattleDraft[] }
+      setBattleDrafts(d.drafts || [])
+    } catch {}
+  }
+
+  async function handleLaunchBattle(id: string) {
+    if (busyId) return
+    if (!confirm("launch this battle NOW? campus gets notified.")) return
+    setBusyId(id)
+    try {
+      await adminFetch("/api/admin/battles/launch", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      alert("battle is live ⚔")
+      setBattleDrafts((prev) => prev.filter((b) => b.id !== id))
+    } catch (e: unknown) { alert(errMsg(e, "failed to launch battle.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleDeleteBattleDraft(id: string) {
+    if (busyId) return
+    if (!confirm("delete this draft for good?")) return
+    setBusyId(id)
+    try {
+      await adminFetch(`/api/admin/battles/drafts?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setBattleDrafts((prev) => prev.filter((b) => b.id !== id))
+    } catch (e: unknown) { alert(errMsg(e, "failed to delete draft.")) }
+    finally { setBusyId(null) }
+  }
+
   async function handleDraft(id: string, action: "publish" | "reject") {
     if (busyId) return
     if (action === "publish" && !confirm("publish this draft as CampusWire post?")) return
@@ -592,7 +644,7 @@ export default function AdminPage() {
   }
 
   const activeMeta = NAV.find((n) => n.key === section)!
-  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } if (s === "Drafts") setDraftsLoading(true); if (s === "Credits") setCreditsLoading(true); setSection(s); setDrawer(false) }
+  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } if (s === "Drafts") setDraftsLoading(true); if (s === "Credits") setCreditsLoading(true); if (s === "Battles") setBattleDraftsLoading(true); setSection(s); setDrawer(false) }
 
   const sidebarNav = (
     <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
@@ -1323,6 +1375,55 @@ export default function AdminPage() {
                           <div key={l} className="rounded-xl border border-white/[0.07] bg-black/30 py-3"><p>{i}</p><p className="text-[11px] font-bold text-white/50 mt-1">{l}</p></div>
                         ))}
                       </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
+              {section === "Battles" && (
+                <div className="mt-4">
+                  <Card>
+                    <CardHeader title="dormant drafts" sub={`${battleDrafts.length} ready to launch · hall packs + exam szn`} right={
+                      <button
+                        onClick={async () => {
+                          setBattleDraftsLoading(true)
+                          await loadBattleDrafts()
+                          setBattleDraftsLoading(false)
+                        }}
+                        className="text-xs font-bold text-[#baff39] hover:underline"
+                      >
+                        ↻ reload
+                      </button>
+                    } />
+                    <div className="p-4 space-y-2.5">
+                      {battleDraftsLoading && <p className="text-xs text-white/40">loading drafts…</p>}
+                      {!battleDraftsLoading && battleDrafts.length === 0 && (
+                        <EmptyState icon="⚔" title="no dormant drafts" sub="create one above or re-run scripts/seed-campus-battles.js." />
+                      )}
+                      {battleDrafts.map((d) => (
+                        <div key={d.id} className="rounded-xl border border-white/10 bg-black/30 p-3.5 flex items-start gap-3">
+                          <span className="text-xl">⚔</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-white/90">{d.text}</p>
+                            <p className="text-[11px] text-white/35 mt-1">{d.campus} · {d.type.toLowerCase()} · {d._count.entries} entries</p>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              disabled={busyId === d.id}
+                              onClick={() => handleLaunchBattle(d.id)}
+                              className="rounded-lg bg-[#baff39] text-black text-xs font-black px-3 py-2 hover:bg-[#d4ff70] disabled:opacity-50 transition-colors"
+                            >
+                              {busyId === d.id ? "…" : "launch now"}
+                            </button>
+                            <button
+                              disabled={busyId === d.id}
+                              onClick={() => handleDeleteBattleDraft(d.id)}
+                              className="text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50 px-1"
+                            >
+                              delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </Card>
                 </div>

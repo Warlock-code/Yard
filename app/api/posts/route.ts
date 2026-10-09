@@ -285,8 +285,12 @@ export async function GET(req: NextRequest) {
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
   })
 
-  const rankedPosts = await (async () => {
-    // New-creator lift: one batched count per author (best-effort — on
+  // Heating + fresh-love flags for feed badges. Filled during ranking;
+  // read when shaping the response. Empty = no badges, never breaks.
+  const heatingIds = new Set<string>()
+  let lovedId: string | null = null
+
+  const rankedPosts = await (async () => {    // New-creator lift: one batched count per author (best-effort — on
     // failure ranking falls back to no lift, feed still works).
     let authorPostCounts: Map<string, number> | undefined
     try {
@@ -326,6 +330,9 @@ export async function GET(req: NextRequest) {
         recentCommentCounts = new Map(
           recent.map((r) => [r.postId, r._count._all]).filter((e): e is [string, number] => e[0] !== null)
         )
+        for (const [pid, count] of recentCommentCounts) {
+          if (count >= 3) heatingIds.add(pid)
+        }
         reportCounts = new Map(
           reports.map((r) => [r.postId, r._count._all]).filter((e): e is [string, number] => e[0] !== null)
         )
@@ -368,6 +375,7 @@ export async function GET(req: NextRequest) {
     if (loved > 3) {
       const [slot] = combinedPosts.splice(loved, 1)
       combinedPosts.splice(3, 0, slot)
+      lovedId = slot.id
     }
   }
 
@@ -438,6 +446,8 @@ export async function GET(req: NextRequest) {
       ...post,
       boosted: Boolean(post.boostedUntil && post.boostedUntil > now),
       pinned: Boolean(post.pinnedUntil && new Date(post.pinnedUntil).getTime() > now.getTime()),
+      heating: heatingIds.has(post.id),
+      freshLove: lovedId !== null && post.id === lovedId,
     })),
     nextCursor,
   }, { headers: { "Cache-Control": "private, no-store" } })

@@ -15,6 +15,8 @@ type Nudge = {
 
 function ctaFor(nudge: Nudge): { label: string; href: string } {
   if (nudge.type === "nudge_boost_popping") return { label: "boost post", href: nudge.href }
+  if (nudge.type === "nudge_post_heating") return { label: "jump in 💬", href: nudge.href }
+  if (nudge.type === "nudge_top_reply") return { label: "view reply 🏆", href: nudge.href }
   if (nudge.type === "nudge_avatar") return { label: "pick avatar", href: "/shop" }
   if (nudge.type === "nudge_streak_freeze") return { label: "freeze streak", href: "/shop" }
   if (nudge.type === "nudge_plus") return { label: "go plus", href: "/upgrade" }
@@ -23,6 +25,15 @@ function ctaFor(nudge: Nudge): { label: string; href: string } {
   if (nudge.type === "nudge_storage") return { label: "get space", href: "/shop" }
   if (nudge.type === "nudge_comeback") return { label: "post now", href: "/compose" }
   return { label: "open", href: nudge.href }
+}
+
+function iconFor(nudge: Nudge): string {
+  if (nudge.type === "nudge_post_heating") return "🔥"
+  if (nudge.type === "nudge_top_reply") return "🏆"
+  if (nudge.type === "nudge_boost_popping") return "🚀"
+  if (nudge.type === "nudge_streak_freeze") return "🧊"
+  if (nudge.type === "nudge_comeback") return "👻"
+  return "✨"
 }
 
 function postIdFromHref(href: string): string | null {
@@ -88,7 +99,7 @@ export default function SmartNudge({ compact = false }: { compact?: boolean }) {
             key={nudge.id}
             className="rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-3 flex items-start gap-3"
           >
-            <span className="text-xl leading-none mt-0.5">✨</span>
+            <span className="text-xl leading-none mt-0.5">{iconFor(nudge)}</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm">{nudge.title}</p>
               <p className="text-[13px] text-white/60 mt-0.5 leading-snug">{nudge.body}</p>
