@@ -125,10 +125,10 @@ html.theme-arctic {
 }
 
 .theme-arctic {
-  --accent: var(--accent-arctic);
-  --accent-strong: var(--accent-arctic-strong);
-  --accent-soft: var(--accent-arctic-soft);
-  --accent-glow: var(--accent-arctic-glow);
+  --accent: var(--accent-free);
+  --accent-strong: var(--accent-free-strong);
+  --accent-soft: rgba(186, 255, 57, 0.2);
+  --accent-glow: rgba(132, 204, 22, 0.35);
   --foreground: #161616;
   --muted: rgba(22, 22, 22, 0.55);
   --card: #ffffff;
@@ -673,11 +673,11 @@ button, a {
 .admin-dense .text-2xl { font-size: 1.25rem; }
 .admin-dense .text-4xl { font-size: 1.5rem; }
 
-/* ---- Arctic White (full light mode): exact inverse of midnight ----
- * The app is built dark (white ink on near-black), so light mode remaps
- * the shared white-ink utilities to dark ink and flips the near-black
- * surfaces to white. Solid `text-white` IS remapped: in the main app it
- * sits on light surfaces (cards, page bg), not only on dark pills.
+/* ---- Arctic White (full light mode) ----
+ * Writings black, background white, accents stay BRIGHT lime (fills) so
+ * they pop on white. Note: `*-primary` utilities have no Tailwind output
+ * in this codebase, so the rules below define them for arctic only —
+ * dark themes are untouched.
  */
 .theme-arctic {
   --background: #ffffff;
@@ -700,20 +700,65 @@ button, a {
   background: rgba(0, 0, 0, 0.04);
 }
 
+/* Bright lime button, black writing — same as dark mode. */
 .theme-arctic .btn-primary {
-  color: #ffffff;
+  background: #baff39;
+  color: #050505;
 }
 
 .theme-arctic .btn-primary:hover {
   background: var(--accent-strong);
 }
 
-/* bg-primary is near-black in arctic, so any text sitting on it must be
- * white (covers filter pills / FAB that pair bg-primary with text-black).
- * Plain text-black elsewhere stays black on white. */
-.theme-arctic .bg-primary {
-  color: #ffffff;
-}
+/* Primary fills stay bright lime with black writing (FAB, pills,
+ * filter chips, active segments). */
+.theme-arctic .bg-primary { background-color: #baff39; color: #050505; }
+.theme-arctic .bg-primary\/10 { background-color: rgba(132, 204, 22, 0.14); color: #161616; }
+.theme-arctic .bg-primary\/15 { background-color: rgba(132, 204, 22, 0.18); color: #161616; }
+.theme-arctic .bg-primary\/20 { background-color: rgba(132, 204, 22, 0.22); color: #161616; }
+.theme-arctic .bg-primary\/\[0\.06\] { background-color: rgba(132, 204, 22, 0.1); }
+.theme-arctic .hover\:bg-primary\/10:hover { background-color: rgba(132, 204, 22, 0.14); }
+.theme-arctic .hover\:bg-primary\/20:hover { background-color: rgba(132, 204, 22, 0.22); }
+
+/* Primary borders stay visible lime. */
+.theme-arctic .border-primary { border-color: #84cc16; }
+.theme-arctic .border-primary\/20 { border-color: rgba(132, 204, 22, 0.35); }
+.theme-arctic .border-primary\/30 { border-color: rgba(132, 204, 22, 0.45); }
+.theme-arctic .border-primary\/40 { border-color: rgba(132, 204, 22, 0.55); }
+.theme-arctic .border-primary\/50 { border-color: rgba(132, 204, 22, 0.65); }
+.theme-arctic .hover\:border-primary\/30:hover { border-color: rgba(132, 204, 22, 0.45); }
+.theme-arctic .hover\:border-primary\/50:hover { border-color: rgba(132, 204, 22, 0.65); }
+.theme-arctic .ring-primary { --tw-ring-color: #65a30d; }
+.theme-arctic .focus-visible\:ring-primary:focus-visible { --tw-ring-color: #65a30d; }
+.theme-arctic .outline-primary { outline-color: #65a30d; }
+
+/* Accent writing is black in light mode (lime text on white is unreadable). */
+.theme-arctic .text-primary { color: #161616; }
+.theme-arctic .text-primary\/70 { color: rgba(22, 22, 22, 0.7); }
+.theme-arctic .text-primary\/80 { color: rgba(22, 22, 22, 0.8); }
+.theme-arctic .hover\:text-primary:hover { color: #161616; }
+.theme-arctic .group:hover .group-hover\:text-primary { color: #161616; }
+
+/* Hardcoded lime writing becomes deep green so it stays visible. */
+.theme-arctic .text-\[\#baff39\] { color: #4d7c0f; }
+.theme-arctic .text-\[\#baff39\]\/80 { color: rgba(77, 124, 15, 0.8); }
+.theme-arctic .hover\:text-\[\#baff39\]:hover { color: #4d7c0f; }
+.theme-arctic .group:hover .group-hover\:text-\[\#baff39\] { color: #4d7c0f; }
+.theme-arctic .focus-visible\:outline-\[\#baff39\]:focus-visible { outline-color: #65a30d; }
+
+/* Gold writing becomes deep amber so prime/earnings stay readable. */
+.theme-arctic .text-\[\#facc15\] { color: #b45309; }
+.theme-arctic .text-\[\#facc15\]\/80 { color: rgba(180, 83, 9, 0.8); }
+.theme-arctic .badge-prime { background: #fef9c3; color: #854d0e; }
+
+/* Pastel shop accents deepen so they read on white. */
+.theme-arctic .text-purple-300 { color: #9333ea; }
+.theme-arctic .text-rose-300 { color: #e11d48; }
+.theme-arctic .text-teal-300 { color: #0d9488; }
+.theme-arctic .text-sky-300 { color: #0284c7; }
+.theme-arctic input:focus-visible,
+.theme-arctic button:focus-visible,
+.theme-arctic a:focus-visible { outline-color: rgba(77, 124, 15, 0.6); }
 
 .theme-arctic .skeleton-shimmer {
   background: linear-gradient(
@@ -783,9 +828,13 @@ button, a {
  * bg-black/70) are left dark — they overlay correctly on light content. */
 .theme-arctic .bg-black\/80 { background-color: rgba(255, 255, 255, 0.85); }
 .theme-arctic .bg-black\/90 { background-color: rgba(255, 255, 255, 0.9); }
+
+/* Bottom nav: ash grey pill, black icons/writing. */
 .theme-arctic nav[aria-label="primary"] > div {
-  background-color: rgba(255, 255, 255, 0.85);
-  border-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(22, 22, 22, 0.07);
+  border-color: rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Solid black surfaces (modal cards, drawers) become white in arctic.
