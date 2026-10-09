@@ -11,6 +11,8 @@ export const MIN_GAP_MINUTES = 30
 
 export type NudgeType =
   | "nudge_boost_popping"
+  | "nudge_post_heating"
+  | "nudge_top_reply"
   | "nudge_avatar"
   | "nudge_streak_freeze"
   | "nudge_plus"
@@ -19,9 +21,11 @@ export type NudgeType =
   | "nudge_storage"
   | "nudge_comeback"
 
-// Per-type cooldowns (hours). Boost is per-post, rest are per-user.
+// Per-type cooldowns (hours). Boost/heating/top-reply are per-post, rest are per-user.
 export const NUDGE_COOLDOWN_HOURS: Record<NudgeType, number> = {
   nudge_boost_popping: 6,
+  nudge_post_heating: 6,
+  nudge_top_reply: 24,
   nudge_avatar: 24,
   nudge_streak_freeze: 20,
   nudge_plus: 48,
@@ -49,6 +53,20 @@ export function getNudgeCopy(
         body: `your post is popping with ${opts.count ?? "lots of"} heat — boost it for 24h with credits.`,
         href: opts.postId ? `/post/${opts.postId}?nudge=boost` : "/feed?nudge=boost",
         icon: "🚀",
+      }
+    case "nudge_post_heating":
+      return {
+        title: "your post is heating up 🔥",
+        body: `${opts.count ?? "several"} replies in the last 30 min — jump in before it cools.`,
+        href: opts.postId ? `/post/${opts.postId}?nudge=reply` : "/feed?nudge=reply",
+        icon: "🔥",
+      }
+    case "nudge_top_reply":
+      return {
+        title: "your reply is top 🏆",
+        body: `your reply is the top comment${opts.name ? ` on ${opts.name}'s post` : ""} — the yard is feeling you.`,
+        href: opts.postId ? `/post/${opts.postId}?nudge=topreply` : "/feed?nudge=topreply",
+        icon: "🏆",
       }
     case "nudge_avatar":
       return {
@@ -136,12 +154,13 @@ export async function canSendNudge(
     }
   }
 
-  // Per-type cooldown (per-post for boost)
+  // Per-type cooldown (per-post for boost/heating/top-reply)
   const cooldownH = NUDGE_COOLDOWN_HOURS[type]
   const cutoff = new Date(now.getTime() - cooldownH * 60 * 60 * 1000)
+  const perPost = type === "nudge_boost_popping" || type === "nudge_post_heating" || type === "nudge_top_reply"
   const sameType = recent.filter((n) => {
     if (n.type !== type) return false
-    if (type === "nudge_boost_popping" && opts.postId) {
+    if (perPost && opts.postId) {
       return n.href.includes(opts.postId) && new Date(n.createdAt) > cutoff
     }
     return new Date(n.createdAt) > cutoff
@@ -204,6 +223,53 @@ export async function evalHotPostNudge(postId: string) {
   return maybeSendNudge(post.userId, "nudge_boost_popping", {
     postId: post.id,
     count: post.yeahs,
+  })
+}
+
+/** Called after a comment lands. Fires a "jump back in" nudge when replies pile up fast. */
+export async function evalReplyVelocityNudge(postId: string) {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, userId: true, createdAt: true },
+  })
+  if (!post) return null
+
+  const halfHourAgo = new Date(Date.now() - 30 * 60 * 1000)
+  const recentReplies = await prisma.comment.count({
+    where: { postId, createdAt: { gte: halfHourAgo } },
+  })
+  if (recentReplies < 3) return null
+
+  return maybeSendNudge(post.userId, "nudge_post_heating", {
+    postId: post.id,
+    count: recentReplies,
+  })
+}
+
+/** Called after a comment vote lands. Crowns the top reply once per milestone. */
+export async function evalTopReplyNudge(commentId: string) {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { id: true, postId: true, userId: true, yeahs: true },
+  })
+  if (!comment) return null
+  // Milestone crossings only — cheap gate before the top-check query.
+  if (![3, 5, 10, 25, 50].includes(comment.yeahs)) return null
+
+  const top = await prisma.comment.findFirst({
+    where: { postId: comment.postId },
+    orderBy: [{ yeahs: "desc" }, { createdAt: "asc" }],
+    select: { id: true },
+  })
+  if (!top || top.id !== comment.id) return null
+
+  const post = await prisma.post.findUnique({
+    where: { id: comment.postId },
+    select: { user: { select: { ghostId: true } } },
+  })
+  return maybeSendNudge(comment.userId, "nudge_top_reply", {
+    postId: comment.postId,
+    name: post?.user.ghostId,
   })
 }
 

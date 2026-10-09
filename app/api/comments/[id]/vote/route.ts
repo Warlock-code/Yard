@@ -6,6 +6,7 @@ import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitCommentVote } from "@/lib/socket-client"
 import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
+import { evalTopReplyNudge } from "@/lib/nudges"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   emitCommentVote(comment.post.campus, updated.postId, updated.id, updated.yeahs)
+
+  // Top-reply crown: best-effort, never fails the vote.
+  evalTopReplyNudge(updated.id).catch(() => {})
 
   return NextResponse.json({ comment: updated })
 }

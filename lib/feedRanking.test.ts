@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { rankFeedCandidates } from "./feedRanking.ts"
+import { capAuthorRepetition, rankFeedCandidates } from "./feedRanking.ts"
 
 const viewer = {
   campus: "KNUST",
@@ -136,4 +136,65 @@ test("tie seed never overrides real score gaps", () => {
     post({ id: "hot", createdAt: minutesAgo(snapshot, 30), yeahs: 50, commentsCount: 10 }),
   ], viewer, snapshot, "any-seed")
   assert.deepEqual(ranked.map((p) => p.id), ["hot", "cold"])
+})
+
+test("reply velocity lifts fresh conversation above stale totals", () => {
+  const ranked = rankFeedCandidates([
+    post({ id: "stale", createdAt: minutesAgo(snapshot, 300), yeahs: 20, commentsCount: 20 }),
+    post({ id: "live", createdAt: minutesAgo(snapshot, 300), yeahs: 20, commentsCount: 20, recentCommentsCount: 8 }),
+  ], viewer, snapshot)
+  assert.deepEqual(ranked.map((p) => p.id), ["live", "stale"])
+})
+
+test("missing velocity fields behave exactly as before", () => {
+  const ranked = rankFeedCandidates([
+    post({ id: "a", createdAt: minutesAgo(snapshot, 30), yeahs: 5 }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 60), yeahs: 5 }),
+  ], viewer, snapshot)
+  assert.deepEqual(ranked.map((p) => p.id), ["a", "b"])
+})
+
+test("rage-bait (votes, no replies, old) sinks below discussion", () => {
+  const ranked = rankFeedCandidates([
+    post({ id: "bait", createdAt: minutesAgo(snapshot, 420), yeahs: 40, commentsCount: 0 }),
+    post({ id: "talk", createdAt: minutesAgo(snapshot, 420), yeahs: 12, commentsCount: 8 }),
+  ], viewer, snapshot)
+  assert.deepEqual(ranked.map((p) => p.id), ["talk", "bait"])
+})
+
+test("fresh hot takes are spared from rage-bait decay", () => {
+  const ranked = rankFeedCandidates([
+    post({ id: "fresh-take", createdAt: minutesAgo(snapshot, 60), yeahs: 40, commentsCount: 0 }),
+    post({ id: "older", createdAt: minutesAgo(snapshot, 400), yeahs: 5, commentsCount: 1 }),
+  ], viewer, snapshot)
+  assert.equal(ranked[0].id, "fresh-take")
+})
+
+test("open reports mildly dampen but don't veto", () => {
+  const clean = rankFeedCandidates([
+    post({ id: "a", createdAt: minutesAgo(snapshot, 60), yeahs: 10, commentsCount: 3 }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 60), yeahs: 10, commentsCount: 3 }),
+  ], viewer, snapshot).map((p) => p.id)
+  const flagged = rankFeedCandidates([
+    post({ id: "a", createdAt: minutesAgo(snapshot, 60), yeahs: 10, commentsCount: 3, reportsCount: 5 }),
+    post({ id: "b", createdAt: minutesAgo(snapshot, 60), yeahs: 10, commentsCount: 3 }),
+  ], viewer, snapshot).map((p) => p.id)
+  assert.deepEqual(clean, ["a", "b"])
+  assert.deepEqual(flagged, ["b", "a"])
+})
+
+test("capAuthorRepetition limits one author in the top window", () => {
+  const ranked = [
+    post({ id: "s1", userId: "spammer" }),
+    post({ id: "s2", userId: "spammer" }),
+    post({ id: "s3", userId: "spammer" }),
+    post({ id: "other", userId: "u2" }),
+  ]
+  const capped = capAuthorRepetition(ranked, 2, 20)
+  assert.deepEqual(capped.map((p) => p.id), ["s1", "s2", "other", "s3"])
+})
+
+test("capAuthorRepetition is a no-op without repetition", () => {
+  const ranked = [post({ id: "a", userId: "u1" }), post({ id: "b", userId: "u2" })]
+  assert.deepEqual(capAuthorRepetition(ranked).map((p) => p.id), ["a", "b"])
 })

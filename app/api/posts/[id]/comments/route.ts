@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rateLimit"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { emitCommentAdded } from "@/lib/socket-client"
 import { attachChampionTrophiesDeep } from "@/lib/champions"
+import { evalReplyVelocityNudge } from "@/lib/nudges"
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -89,6 +90,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   await notifyMentions({ text, senderUser: user, href: `/post/${post?.id ?? id}`, excludeUserId: user.id }).catch(() => {})
+
+  // Heating-up nudge: best-effort, never fails the comment.
+  evalReplyVelocityNudge(id).catch(() => {})
 
   await attachChampionTrophiesDeep(comment)
   emitCommentAdded(post.campus, comment.postId, {
@@ -176,5 +180,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     replies: n.replies.map(strip),
   })
 
-  return NextResponse.json({ comments: roots.map(strip), sort })
+  // Top-reply crown: highest-heat comment (earliest wins ties), crowned at 3+ heat.
+  let topReplyId: string | null = null
+  let topHeat = 3
+  for (const c of all) {
+    if (c.yeahs >= topHeat && (topReplyId === null || c.yeahs > topHeat)) {
+      topHeat = c.yeahs
+      topReplyId = c.id
+    }
+  }
+
+  return NextResponse.json({ comments: roots.map(strip), sort, topReplyId })
 }

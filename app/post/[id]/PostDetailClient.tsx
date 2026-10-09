@@ -41,10 +41,12 @@ function CommentThread({
   comment,
   onReply,
   onHeat,
+  topReplyId,
 }: {
   comment: Comment
   onReply: (parentId: string, ghostId: string) => void
   onHeat: (commentId: string) => void
+  topReplyId?: string | null
 }) {
   return (
     <div className="mt-3">
@@ -59,6 +61,7 @@ function CommentThread({
             </Link>
             {comment.user.tier === "PLUS" && <span className="badge badge-plus text-[10px]">✓ plus</span>}
             {comment.user.tier === "PRIME" && <span className="badge badge-prime text-[10px]">👑 prime</span>}
+            {topReplyId === comment.id && <span className="badge badge-primary text-[10px]" title="most heated reply">🏆 top reply</span>}
             <ChampionTrophies trophies={comment.user.championTrophies} className="text-[10px] leading-none" />
             <span className="text-xs text-white/40">{timeAgo(comment.createdAt)}</span>
           </div>
@@ -84,7 +87,7 @@ function CommentThread({
       {comment.replies?.length > 0 && (
         <div className="ml-10 border-l border-white/10 pl-3 mt-2">
           {comment.replies.map((reply) => (
-            <CommentThread key={reply.id} comment={reply} onReply={onReply} onHeat={onHeat} />
+            <CommentThread key={reply.id} comment={reply} onReply={onReply} onHeat={onHeat} topReplyId={topReplyId} />
           ))}
         </div>
       )}
@@ -286,6 +289,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
   const [replyingTo, setReplyingTo] = useState<{ id: string; ghostId: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [commentSort, setCommentSort] = useState<"top" | "latest">("top")
+  const [topReplyId, setTopReplyId] = useState<string | null>(null)
 
   const { connected, on } = useSocket()
 
@@ -299,8 +303,9 @@ export default function PostDetailClient({ postId }: { postId: string }) {
 
   async function loadComments(sort: "top" | "latest" = commentSort) {
     try {
-      const data = await apiGet<{ comments: Comment[] }>(`/api/posts/${postId}/comments?sort=${sort}`)
+      const data = await apiGet<{ comments: Comment[]; topReplyId?: string | null }>(`/api/posts/${postId}/comments?sort=${sort}`)
       setComments(data.comments)
+      setTopReplyId(data.topReplyId ?? null)
     } catch (err) {
       console.error(err)
     }
@@ -551,6 +556,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               comment={c}
               onReply={(id, ghostId) => setReplyingTo({ id, ghostId })}
               onHeat={handleHeatComment}
+              topReplyId={topReplyId}
             />
           ))
         )}

@@ -10,6 +10,12 @@ export type FeedRankingCandidate = {
   commentsCount: number
   createdAt: Date
   boostedUntil?: Date | null
+  // Reply velocity: comments in the trailing window (route merges a batched
+  // groupBy; missing = 0, so old callers/tests behave exactly as before).
+  recentCommentsCount?: number | null
+  // Open (non-dismissed) reports. Missing = 0. Mild dampener, not a veto —
+  // controversial-but-discussed posts still rank via comments.
+  reportsCount?: number | null
   // Ranking-only tier boost: author's tier + expiry. Accepts either flat
   // fields or the nested Prisma `user` relation (feed route passes posts
   // with `include: { user: { select: { tier, tierExpiresAt } } }`).
@@ -42,11 +48,33 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
     const ageHours = Math.max(0, snapshotTime - createdTime) / 3_600_000
     const yeahs = Number.isFinite(candidate.yeahs) ? Math.max(0, candidate.yeahs) : 0
     const comments = Number.isFinite(candidate.commentsCount) ? Math.max(0, candidate.commentsCount) : 0
-    const engagement = Math.log1p(yeahs) + 2 * Math.log1p(comments)
+    const recentCommentsRaw = candidate.recentCommentsCount
+    const recentComments = typeof recentCommentsRaw === "number" && Number.isFinite(recentCommentsRaw)
+      ? Math.max(0, recentCommentsRaw)
+      : 0
+    const reportsRaw = candidate.reportsCount
+    const reports = typeof reportsRaw === "number" && Number.isFinite(reportsRaw)
+      ? Math.max(0, reportsRaw)
+      : 0
+    // Reply velocity weighs more than stale totals: a post with 5 fresh
+    // replies beats one with 20 week-old comments.
+    const engagement = Math.log1p(yeahs) + 2 * Math.log1p(comments) + 1.5 * Math.log1p(recentComments)
     const followRelevance = viewer.followingIds.has(candidate.userId) ? 2 : 0
     const programRelevance = viewer.programKey && candidate.campus === viewer.campus
       && candidate.programKey === viewer.programKey ? 1 : 0
     let score = (1 + engagement + followRelevance + programRelevance) / (1 + ageHours / 12) ** 1.5
+
+    // Rage-bait decay: votes with nobody talking = outrage scroll, not
+    // conversation. Only kicks in after 6h so fresh hot takes get a chance.
+    if (ageHours >= 6 && yeahs >= 10 && comments <= 1) {
+      score *= 0.5
+    }
+
+    // Report dampener (mild): each open report shaves a little. Zero reports
+    // = unchanged, so this is a no-op for healthy posts.
+    if (reports > 0) {
+      score /= 1 + Math.log1p(reports)
+    }
 
     // New-creator lift: authors with ≤3 total posts get 1.6x so their
     // first posts actually get seen (churn guard). Missing count = no lift,
@@ -95,8 +123,35 @@ export function rankFeedCandidates<T extends FeedRankingCandidate>(
     .map(({ candidate }) => candidate)
 }
 
-/** Effective-tier weight at snapshot time (mirrors getEffectiveTier + getTierPriority). */
-function getCandidateTierWeight(candidate: FeedRankingCandidate, snapshotTime: number): number {
+/**
+ * Author diversity cap: no single author owns the top of the feed.
+ * Walks an already-ranked list and pushes a post down when its author
+ * already holds `maxPerAuthor` slots inside the top `window`.
+ * Pure + deterministic (stable for cursor pagination). No-op when the
+ * list is short or nobody repeats.
+ */
+export function capAuthorRepetition<T extends { userId: string }>(
+  ranked: readonly T[],
+  maxPerAuthor = 2,
+  window = 20,
+): T[] {
+  if (ranked.length <= maxPerAuthor) return [...ranked]
+  const top: T[] = []
+  const overflow: T[] = []
+  const counts = new Map<string, number>()
+  for (const item of ranked) {
+    const seen = counts.get(item.userId) ?? 0
+    if (top.length < window && seen >= maxPerAuthor) {
+      overflow.push(item)
+      continue
+    }
+    counts.set(item.userId, seen + 1)
+    top.push(item)
+  }
+  return [...top, ...overflow]
+}
+
+/** Effective-tier weight at snapshot time (mirrors getEffectiveTier + getTierPriority). */function getCandidateTierWeight(candidate: FeedRankingCandidate, snapshotTime: number): number {
   const rawTier = candidate.authorTier ?? candidate.user?.tier ?? "FREE"
   if (rawTier !== "PLUS" && rawTier !== "PRIME") return 1
   const expiresAt = candidate.authorTierExpiresAt ?? candidate.user?.tierExpiresAt ?? null

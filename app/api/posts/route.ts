@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { notifyMentions } from "@/lib/mentions"
-import { rankFeedCandidates } from "@/lib/feedRanking"
+import { capAuthorRepetition, rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 import { emitNewPost } from "@/lib/socket-client"
 import { processPostHashtags } from "@/lib/search"
@@ -302,16 +302,74 @@ export async function GET(req: NextRequest) {
     } catch {
       authorPostCounts = undefined
     }
-    return rankFeedCandidates(posts, {
+    // Reply velocity + report signals: two batched groupBys (best-effort —
+    // on failure the new fields stay undefined and ranking falls back to
+    // exactly the old formula).
+    let recentCommentCounts: Map<string, number> | undefined
+    let reportCounts: Map<string, number> | undefined
+    try {
+      const postIds = posts.map((p) => p.id)
+      if (postIds.length > 0) {
+        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+        const [recent, reports] = await Promise.all([
+          prisma.comment.groupBy({
+            by: ["postId"],
+            where: { postId: { in: postIds }, createdAt: { gte: hourAgo } },
+            _count: { _all: true },
+          }),
+          prisma.report.groupBy({
+            by: ["postId"],
+            where: { postId: { in: postIds }, status: { not: "dismissed" } },
+            _count: { _all: true },
+          }),
+        ])
+        recentCommentCounts = new Map(
+          recent.map((r) => [r.postId, r._count._all]).filter((e): e is [string, number] => e[0] !== null)
+        )
+        reportCounts = new Map(
+          reports.map((r) => [r.postId, r._count._all]).filter((e): e is [string, number] => e[0] !== null)
+        )
+      }
+    } catch {
+      recentCommentCounts = undefined
+      reportCounts = undefined
+    }
+    const withSignals = posts.map((p) => ({
+      ...p,
+      recentCommentsCount: recentCommentCounts?.get(p.id),
+      reportsCount: reportCounts?.get(p.id),
+    }))
+    const ranked = rankFeedCandidates(withSignals, {
       campus: user.campus,
       programKey: user.programKey,
       followingIds,
     }, now, tieSeed, authorPostCounts ? { authorPostCounts } : undefined)
+    // Author diversity: max 2 posts per author in the top 20 so one
+    // spammer can't own the feed. Deterministic — pagination-safe.
+    // Typed back to the plain post rows so everything downstream
+    // (unseen split, announcements, pins) is untouched.
+    const rankedPosts: typeof posts = capAuthorRepetition(ranked, 2, 20)
+    return rankedPosts
   })()
 
   const unseenPosts = rankedPosts.filter((post) => !viewedPostIds.has(post.id))
   const seenPosts = rankedPosts.filter((post) => viewedPostIds.has(post.id))
   const combinedPosts = [...unseenPosts, ...seenPosts]
+
+  // Needs-love slot: one fresh (<24h), zero-comment campus post gets
+  // eyeballs at position 4 so new posts can't die unseen. Skipped on
+  // follow-up pages (cursor), in following mode, or when the top already
+  // has fresh conversation.
+  if (!cursor && mode !== "following") {
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const loved = combinedPosts.findIndex(
+      (p) => p.commentsCount === 0 && new Date(p.createdAt) >= dayAgo
+    )
+    if (loved > 3) {
+      const [slot] = combinedPosts.splice(loved, 1)
+      combinedPosts.splice(3, 0, slot)
+    }
+  }
 
   const cursorIndex = cursor ? combinedPosts.findIndex((post) => post.id === cursor) : -1
   if (cursor && cursorIndex === -1) {
