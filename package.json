@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "dev:socket": "tsx server/socket-server.ts",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "node server/index.js",
     "start:socket": "node server/socket-server.js",
     "lint": "eslint",

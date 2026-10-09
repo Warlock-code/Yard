@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 const OFFICIAL_EMAIL = "official@yardapp.me"
 
 /** The system author for admin announcements. Created lazily on first post. */
-export async function getOfficialUser() {
+async function getOfficialUser() {
   return prisma.user.upsert({
     where: { email: OFFICIAL_EMAIL },
     update: {},

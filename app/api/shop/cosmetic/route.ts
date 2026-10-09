@@ -6,7 +6,7 @@ import { creditUser } from "@/lib/credits"
 import { AVATARS, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { getEffectiveTier } from "@/lib/tier"
 
-export const COSMETICS = AVATARS
+const COSMETICS = AVATARS
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
