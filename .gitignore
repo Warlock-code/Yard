@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 keystore
+keystore-b64.txt
 android/keystore.txt
 *.jks
 *.keystore
