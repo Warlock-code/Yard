@@ -20,6 +20,9 @@ export default function SettingsPage() {
   const [yearDraft, setYearDraft] = useState("")
   const [yearSaving, setYearSaving] = useState(false)
   const [yearMsg, setYearMsg] = useState("")
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleting, setDeleting] = useState(false)
 
   const admissionYears = useMemo(() => {
     const current = new Date().getFullYear() + 1
@@ -58,6 +61,33 @@ export default function SettingsPage() {
       setYearMsg(err instanceof Error ? err.message : "couldn't save. try again.")
     } finally {
       setYearSaving(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!deletePassword.trim()) {
+      alert("enter your password to confirm.")
+      return
+    }
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password: deletePassword }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "could not delete account.")
+      }
+      router.push("/signup")
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "something went wrong.")
+    } finally {
+      setDeleting(false)
+      setShowDeleteModal(false)
+      setDeletePassword("")
     }
   }
 
@@ -126,7 +156,7 @@ export default function SettingsPage() {
           className="w-full text-left py-2.5 px-3 rounded-xl hover:bg-white/5 text-sm flex items-center gap-2"
           onClick={() => router.push("/lair")}
         >
-          👻 my lair <span className="text-white/30 text-xs ml-1">inbox • ghost name • storage</span>
+          👻 my lair <span className="text-white/30 text-xs ml-1">ghost name • storage</span>
           <span className="ml-auto text-white/20">›</span>
         </button>
         <button
@@ -151,9 +181,33 @@ export default function SettingsPage() {
         </button>
       </div>
 
+      <div className="card p-3 mb-3 border-red-500/20">
+        <p className="font-semibold text-sm text-red-400">danger zone</p>
+        <p className="text-xs text-white/40 mb-2">delete your account permanently. this can’t be undone.</p>
+        <button className="btn-ghost w-full text-sm text-red-400" onClick={() => setShowDeleteModal(true)}>
+          delete account
+        </button>
+      </div>
+
       <p className="text-[11px] text-white/25 text-center mt-4">
-        ghost name, avatar, storage and delete still live in the lair — this page is just the easy door.
+        ghost name, avatar and storage live in the lair — this page is just the easy door.
       </p>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="card p-5 w-full max-w-sm bg-black">
+            <h3 className="font-bold text-lg mb-1">delete account</h3>
+            <p className="text-white/50 text-sm mb-4">this action is irreversible. all your posts, votes, and data will be permanently deleted.</p>
+            <input className="input mb-3" type="password" placeholder="password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
+            <div className="flex gap-2">
+              <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>cancel</button>
+              <button className="btn-primary flex-1" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? "deleting..." : "delete account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

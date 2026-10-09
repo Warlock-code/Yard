@@ -6,7 +6,6 @@ import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
-import AskShareCard from "@/app/components/AskShareCard"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import { logPaywallHit } from "@/lib/logPaywall"
 
@@ -62,9 +61,6 @@ export default function LairPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [deletePassword, setDeletePassword] = useState("")
-  const [deleting, setDeleting] = useState(false)
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const [storageLoading, setStorageLoading] = useState(true)
   const [storageError, setStorageError] = useState("")
@@ -98,12 +94,6 @@ export default function LairPage() {
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false)
-  type AskQ = { id: string; text: string; status: string; answer: string | null; createdAt: string }
-  const [questions, setQuestions] = useState<AskQ[]>([])
-  const [inboxLoading, setInboxLoading] = useState(true)
-  const [answerDraft, setAnswerDraft] = useState<Record<string, string>>({})
-  const [answering, setAnswering] = useState<string | null>(null)
 
   const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ credits: { creditsBalance: number; creditsEarned: number; creditsWithdrawn: number } | null }>("/api/credits/withdraw")
@@ -190,82 +180,18 @@ export default function LairPage() {
       .catch(console.error)
   }, [])
 
-  const loadInbox = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet<{ questions: AskQ[] }>("/api/ask/inbox")
-      .then((data) => {
-        if (!isCurrent()) return
-        setQuestions(data.questions || [])
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (isCurrent()) setInboxLoading(false)
-      })
-  }, [])
-
   useEffect(() => {
     let active = true
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
     loadWallet(() => active)
-    loadInbox(() => active)
     return () => { active = false }
-  }, [load, loadStorage, loadReferral, loadWallet, loadInbox])
-
-  async function handleAnswer(qid: string) {
-    const text = (answerDraft[qid] || "").trim()
-    if (!text || answering) return
-    setAnswering(qid)
-    try {
-      await apiPost(`/api/ask/${qid}/answer`, { answer: text })
-      setAnswerDraft((s) => ({ ...s, [qid]: "" }))
-      loadInbox()
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "couldn't post answer.")
-    } finally {
-      setAnswering(null)
-    }
-  }
-
-  async function handleDismissAsk(qid: string) {
-    try {
-      await apiPost(`/api/ask/${qid}/dismiss`, {})
-      setQuestions((qs) => qs.filter((q) => q.id !== qid))
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "couldn't dismiss.")
-    }
-  }
+  }, [load, loadStorage, loadReferral, loadWallet])
 
   async function handleLogout() {
     document.cookie = "yard_token=; Max-Age=0; path=/"
     router.push("/login")
-  }
-
-  async function handleDeleteAccount() {
-    if (!deletePassword.trim()) {
-      alert("enter your password to confirm.")
-      return
-    }
-    setDeleting(true)
-    try {
-      const res = await fetch("/api/auth/delete-account", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ password: deletePassword }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || "could not delete account.")
-      }
-      router.push("/signup")
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "something went wrong.")
-    } finally {
-      setDeleting(false)
-      setShowDeleteModal(false)
-      setDeletePassword("")
-    }
   }
 
   async function handleRename() {
@@ -379,61 +305,6 @@ export default function LairPage() {
         </button>
       )}
 
-      <div className="card p-4 mb-4 border-primary/20">
-        <div className="flex items-center justify-between mb-1">
-          <p className="font-semibold">📮 ask me anonymously</p>
-          {!inboxLoading && questions.filter((q) => q.status === "pending").length > 0 && (
-            <span className="text-xs font-bold text-primary">
-              {questions.filter((q) => q.status === "pending").length} new
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-white/50 mb-3">share your card on status — questions land here. answer to post them to campus.</p>
-        {referralStats && (
-          <div className="mb-3">
-            <AskShareCard
-              code={referralStats.code}
-              ghostId={me.ghostId}
-              avatarEmoji={me.avatarEmoji}
-              campus={me.campus}
-            />
-          </div>
-        )}
-        {inboxLoading ? (
-          <p className="text-xs text-white/40">loading inbox...</p>
-        ) : questions.filter((q) => q.status === "pending").length === 0 ? (
-          <p className="text-xs text-white/40">no questions yet — share your link.</p>
-        ) : (
-          <ul className="space-y-3 mt-1">
-            {questions.filter((q) => q.status === "pending").slice(0, 10).map((q) => (
-              <li key={q.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <p className="post-mono text-sm text-white/90 mb-2">{q.text}</p>
-                <div className="flex gap-2">
-                  <input
-                    className="input flex-1 h-9 text-sm"
-                    placeholder="write your answer..."
-                    value={answerDraft[q.id] || ""}
-                    onChange={(e) => setAnswerDraft((s) => ({ ...s, [q.id]: e.target.value.toLowerCase() }))}
-                    onKeyDown={(e) => e.key === "Enter" && handleAnswer(q.id)}
-                    maxLength={2000}
-                  />
-                  <button
-                    className="btn-primary px-4 h-9 text-sm disabled:opacity-50"
-                    onClick={() => handleAnswer(q.id)}
-                    disabled={answering === q.id || !(answerDraft[q.id] || "").trim()}
-                  >
-                    {answering === q.id ? "..." : "post"}
-                  </button>
-                </div>
-                <button className="text-[11px] text-white/30 hover:text-white/50 mt-1.5" onClick={() => handleDismissAsk(q.id)}>
-                  dismiss
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       <div className="card p-4 mb-4">
         <p className="font-semibold">✏️ ghost name</p>
         <p className="text-sm text-white/50 mb-3">500 credits only.</p>
@@ -453,87 +324,53 @@ export default function LairPage() {
       </div>
 
       {referralStats && (
-        <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-semibold">👥 referrals</p>
-            <span className="text-xs text-white/40">{referralStats.stats.verifiedReferrals}/{referralStats.stats.totalReferrals} verified</span>
+        <div className="card p-3 mb-3">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-sm">👥 referrals</p>
+            <span className="text-[11px] text-white/40">{referralStats.stats.verifiedReferrals}/{referralStats.stats.totalReferrals} verified • +{referralStats.stats.creditsEarned} credits</span>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{referralStats.stats.totalReferrals}</p>
-              <p className="text-xs text-white/40">total</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{referralStats.stats.verifiedReferrals}</p>
-              <p className="text-xs text-white/40">verified</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{referralStats.stats.creditsEarned}</p>
-              <p className="text-xs text-white/40">credits earned</p>
-            </div>
+          <div className="flex gap-2 mt-2">
+            <input
+              className="input flex-1 h-8 text-xs"
+              readOnly
+              value={referralStats.referralLink}
+              aria-label="referral link"
+            />
+            <button
+              className="btn-primary px-3 h-8 text-xs shrink-0"
+              onClick={async () => {
+                await navigator.clipboard.writeText(referralStats.referralLink)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              }}
+            >
+              {copied ? "✓" : "copy"}
+            </button>
           </div>
-
-          <div className="mb-3">
-            <p className="text-xs text-white/50 mb-1">your referral link</p>
-            <div className="flex gap-2">
-              <input
-                className="input flex-1 text-sm"
-                readOnly
-                value={referralStats.referralLink}
-              />
-              <button
-                className="btn-primary px-4"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(referralStats.referralLink)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 1500)
-                }}
-              >
-                {copied ? "✓ copied" : "copy"}
-              </button>
-            </div>
-            <p className="text-xs text-white/40 mt-1">
-              share: <code className="text-primary">{referralStats.code}</code> → {referralStats.stats.referrerReward} credits for you, {referralStats.stats.refereeReward} for them on verification
+          {referralStats.stats.pendingReferrals > 0 && (
+            <p className="text-[11px] text-primary mt-1.5">
+              ⏳ {referralStats.stats.pendingReferrals} pending = {referralStats.stats.pendingReferrals * referralStats.stats.referrerReward} credits on the way
             </p>
-            {referralStats.stats.pendingReferrals > 0 && (
-              <p className="text-xs text-primary mt-1">
-                ⏳ {referralStats.stats.pendingReferrals} pending verification = {referralStats.stats.pendingReferrals * referralStats.stats.referrerReward} credits on the way
-              </p>
-            )}
-          </div>
-
+          )}
           {referralStats.referrals.length > 0 && (
-            <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer select-none">
-                <span className="text-sm font-medium">recent referrals</span>
-                <span className="text-xs text-white/40">{referralStats.referrals.length} total</span>
+            <details className="mt-2 pt-2 border-t border-white/10">
+              <summary className="text-xs text-white/50 cursor-pointer select-none">
+                recent ({referralStats.referrals.length})
               </summary>
-              <ul className="space-y-2 mt-3 pt-3 border-t border-white/10">
-                {referralStats.referrals.slice(0, 10).map((r) => (
-                  <li key={r.id} className="flex items-center gap-3 text-sm">
-                    <Avatar emoji={r.avatarEmoji} size={28} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{r.ghostId}</p>
-                      <p className="text-xs text-white/40">
-                        {new Date(r.joinedAt).toLocaleDateString()} •
-                        {r.emailVerified ? " ✓ verified" : " pending verification"}
-                      </p>
-                    </div>
-                    <span className={`badge badge-xs ${
-                      r.rewardStatus === "completed" ? "badge-primary" :
-                      r.rewardStatus === "flagged" ? "badge-warning" :
-                      r.status === "pending" ? "badge-ghost" : "badge-ghost"
-                    }`}>
-                      {r.rewardStatus === "completed" ? `+${r.rewardAmount} 🔥` :
-                       r.rewardStatus === "flagged" ? "⚠ flagged" :
-                       r.status === "pending" ? "pending" : "no reward"}
+              <ul className="space-y-1.5 mt-2">
+                {referralStats.referrals.slice(0, 5).map((r) => (
+                  <li key={r.id} className="flex items-center gap-2 text-xs">
+                    <Avatar emoji={r.avatarEmoji} size={22} />
+                    <span className="flex-1 truncate">{r.ghostId}</span>
+                    <span className="text-[10px] text-white/40">
+                      {r.rewardStatus === "completed" ? `+${r.rewardAmount}` :
+                        r.emailVerified ? "✓" : "pending"}
                     </span>
                   </li>
                 ))}
               </ul>
             </details>
-)}
+          )}
         </div>
       )}
 
@@ -561,51 +398,57 @@ export default function LairPage() {
         <span className="text-white/40">→</span>
       </button>
 
-      <div className="card p-4 mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="font-semibold">image storage</p>
-          <Link href="/shop" className="text-sm text-primary">get more storage</Link>
+      <div className="card p-3 mb-3">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-sm">🖼 storage</p>
+          <Link href="/shop" className="text-[11px] text-primary">get more →</Link>
         </div>
-        <p className="text-sm text-white/50">
-          {me.storageUsed.toFixed(2)} mb used / {me.storageLimit.toFixed(2)} mb
+        <p className="text-[11px] text-white/50 mt-1">
+          {me.storageUsed.toFixed(2)} / {me.storageLimit.toFixed(2)} mb • {me.storageRemaining.toFixed(2)} left
         </p>
-        <p className="text-xs text-white/40 mt-1">{me.storageRemaining.toFixed(2)} mb remaining</p>
-        <p className="font-semibold text-sm mt-4 mb-1">pending images</p>
-        <p className="text-xs text-white/40 mb-3">discard unposted images to reclaim storage.</p>
+        <div className="h-1 rounded-full bg-white/10 mt-1.5 overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full"
+            style={{ width: `${me.storageLimit > 0 ? Math.min(100, (me.storageUsed / me.storageLimit) * 100) : 0}%` }}
+          />
+        </div>
         {storageError && (
-          <p className="text-xs text-white/50 mb-3" role="alert">
+          <p className="text-[11px] text-white/50 mt-2" role="alert">
             {storageError}{" "}
-            <button className="text-primary" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>refresh</button>
+            <button className="text-primary" disabled={!!discarding} onClick={() => { load(); loadStorage() }}>retry</button>
           </p>
         )}
         {storageLoading ? (
-          <p className="text-xs text-white/40">loading pending images...</p>
+          <p className="text-[11px] text-white/40 mt-2">loading...</p>
         ) : uploads.length === 0 ? (
-          !storageError && <p className="text-xs text-white/40">no pending images.</p>
+          !storageError && <p className="text-[11px] text-white/40 mt-2">no pending images.</p>
         ) : (
-          <ul className="space-y-3">
-            {uploads.map((upload) => (
-              <li key={upload.id} className="flex items-center gap-3">
-                <div className="relative w-16 h-16 flex-shrink-0">
+          <ul className="space-y-1.5 mt-2 pt-2 border-t border-white/10">
+            {uploads.slice(0, 5).map((upload) => (
+              <li key={upload.id} className="flex items-center gap-2">
+                <div className="relative w-10 h-10 flex-shrink-0">
                   <OptimizedImage
                     src={upload.url}
                     alt="unposted upload"
                     fill
-                    sizes="64px"
+                    sizes="40px"
                     rounded
                     unoptimized
                   />
                 </div>
-                <span className="text-xs text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} mb</span>
+                <span className="text-[11px] text-white/50 flex-1">{(upload.sizeBytes / (1024 * 1024)).toFixed(2)} mb</span>
                 <button
-                  className="btn-ghost text-xs disabled:opacity-40"
+                  className="text-[11px] text-white/40 hover:text-white/70 disabled:opacity-40"
                   disabled={!!discarding}
                   onClick={() => discardUpload(upload)}
                 >
-                  {discarding === upload.id ? "discarding..." : "discard"}
+                  {discarding === upload.id ? "..." : "discard"}
                 </button>
               </li>
             ))}
+            {uploads.length > 5 && (
+              <p className="text-[10px] text-white/30">+{uploads.length - 5} more</p>
+            )}
           </ul>
         )}
       </div>
@@ -632,36 +475,6 @@ export default function LairPage() {
       <button className="btn-ghost w-full mt-2" onClick={handleLogout}>
         log out
       </button>
-
-      <button className="btn-ghost w-full mt-2 text-red-400" onClick={() => setShowDeleteModal(true)}>
-        delete account
-      </button>
-
-      {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">withdrawals paused</h3>
-            <p className="text-white/50 text-sm mb-4">withdrawals are currently paused. your balance is safe — check back soon.</p>
-            <button className="btn-ghost w-full" onClick={() => setShowWithdrawModal(false)}>close</button>
-          </div>
-        </div>
-      )}
-
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-          <div className="card p-5 w-full max-w-sm bg-black">
-            <h3 className="font-bold text-lg mb-1">delete account</h3>
-            <p className="text-white/50 text-sm mb-4">this action is irreversible. all your posts, votes, and data will be permanently deleted.</p>
-            <input className="input mb-3" type="password" placeholder="password to confirm" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} />
-            <div className="flex gap-2">
-              <button className="btn-ghost flex-1" onClick={() => { setShowDeleteModal(false); setDeletePassword("") }}>cancel</button>
-              <button className="btn-primary flex-1" onClick={handleDeleteAccount} disabled={deleting}>
-                {deleting ? "deleting..." : "delete account"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </main>
   )
