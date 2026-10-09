@@ -1173,14 +1173,14 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
               {me.tier === "PRIME" && (
                 <div className="card p-3 mb-3 border-[#facc15]/25 bg-[#facc15]/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-[#facc15]/80 uppercase mb-1">👑 prime</p>
-                  <p className="text-xs text-white/60 mb-2">gold everything + earnings. enjoy!</p>
+                  <p className="text-xs text-white/60 mb-2">gold everything + credit rewards. enjoy!</p>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>
               )}
               {me.tier === "PLUS" && (
                 <div className="card p-3 mb-3 border-primary/20 bg-primary/[0.06]">
                   <p className="text-[10px] font-bold tracking-widest text-primary/70 uppercase mb-1">{me.isTrial ? "plus trial" : "plus"}</p>
-                  <p className="text-xs text-white/60 mb-2">{me.isTrial ? "free week — enjoy the checkmark while it lasts." : "you have edits, avatars & priority. prime adds gold + earnings."}</p>
+                  <p className="text-xs text-white/60 mb-2">{me.isTrial ? "free week — enjoy the checkmark while it lasts." : "you have edits, avatars & priority. prime adds gold + credit rewards."}</p>
                   <button className="w-full text-xs font-bold text-[#facc15] border border-[#facc15]/30 rounded-xl py-2 hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/feed").catch(()=>{}); setShowDrawer(false); router.push("/upgrade") }}>{me.isTrial ? "keep plus — ghs 10/mo" : "go prime — ghs 20/mo"}</button>
                   <p className="text-[11px] text-white/25 mt-1.5 text-center">{me.tierDaysLeft!=null?`${me.isTrial ? "trial — " : ""}${me.tierDaysLeft}d left`:''} • {me.storageUsed?.toFixed(0)}/{me.storageLimit} mb</p>
                 </div>

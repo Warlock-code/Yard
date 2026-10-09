@@ -14,8 +14,8 @@ export default function PrivacyPage() {
           <p>your posts appear under your ghost identity, not your real name or email. internally, posts are linked to your account so we can enforce our community guidelines and respond to legal requests, but this link is never exposed to other users.</p>
         </section>
         <section>
-          <h2 className="font-semibold text-white mb-1">payments & banking</h2>
-          <p>payments are processed by paystack. we do not store your card details — paystack handles checkout directly and shares only transaction status with us. if you request a prime payout, we store your encrypted bank/MoMo details until the transfer completes, then keep them for records and fraud review.</p>
+          <h2 className="font-semibold text-white mb-1">payments</h2>
+          <p>payments are processed by paystack. we do not store your card details — paystack handles checkout directly and shares only transaction status with us. we never collect bank or MoMo account details: yard offers no cash payouts of any kind.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">push notifications</h2>

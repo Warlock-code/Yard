@@ -68,7 +68,7 @@ type AudienceData = {
   activeHours: { hour: number; count: number }[]
 }
 
-type Tab = "overview" | "earnings" | "posts" | "audience"
+type Tab = "overview" | "rewards" | "posts" | "audience"
 
 export default function AnalyticsPage() {
   const router = useRouter()
@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
         <div className="card p-6 mt-4 text-center border-[#facc15]/25 bg-[#facc15]/[0.06]">
           <p className="text-3xl mb-2">👑</p>
           <p className="font-bold text-lg mb-1">analytics is prime exclusive</p>
-          <p className="text-sm text-white/50 mb-4">impressions, earnings breakdown, audience growth — plus 2x credit earnings, gold everything and 2 freezes a month.</p>
+          <p className="text-sm text-white/50 mb-4">impressions, rewards breakdown, audience growth — plus 2x credit rewards, gold everything and 2 freezes a month.</p>
           <button className="btn-primary w-full" onClick={() => router.push("/upgrade")}>
             go prime — ghs 20/mo
           </button>
@@ -151,7 +151,7 @@ export default function AnalyticsPage() {
       )}
 
       <div className="flex gap-1 mb-4 overflow-x-auto pb-2">
-        {(["overview", "earnings", "posts", "audience"] as Tab[]).map((t) => (
+        {(["overview", "rewards", "posts", "audience"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
         <DateRangePicker value={range} onChange={setRange} />
         {earnings && (
           <StatCard
-            label="total earned"
+            label="total rewards"
             value={`₵${(earnings.totalEarned / 100).toFixed(2)}`}
             change={earnings.range}
           />
@@ -231,10 +231,10 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {tab === "earnings" && earnings && (
+      {tab === "rewards" && earnings && (
         <div className="space-y-4">
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-4">earnings breakdown by source</h3>
+            <h3 className="text-sm font-semibold mb-4">rewards breakdown by source</h3>
             <EarningsPieChart data={earningsSources} />
             <div className="grid grid-cols-3 gap-2 mt-4">
               {earningsSources.map((s) => (
@@ -250,14 +250,14 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-4">earnings over time</h3>
+            <h3 className="text-sm font-semibold mb-4">rewards over time</h3>
             <EarningsLineChart data={earnings.byDate} />
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-4">post earnings</h3>
+            <h3 className="text-sm font-semibold mb-4">post rewards</h3>
             {earnings.breakdown.posts.length === 0 ? (
-              <p className="text-white/40 text-center py-4">no post earnings</p>
+              <p className="text-white/40 text-center py-4">no post rewards yet</p>
             ) : (
               earnings.breakdown.posts.map((p) => (
                 <div
@@ -281,9 +281,9 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-4">battle earnings</h3>
+            <h3 className="text-sm font-semibold mb-4">battle rewards</h3>
             {earnings.breakdown.battles.length === 0 ? (
-              <p className="text-white/40 text-center py-4">no battle earnings</p>
+              <p className="text-white/40 text-center py-4">no battle rewards yet</p>
             ) : (
               earnings.breakdown.battles.map((b) => (
                 <div
@@ -339,7 +339,7 @@ export default function AnalyticsPage() {
             <StatCard label="total posts" value={posts.summary.totalPosts.toString()} />
             <StatCard label="total views" value={posts.summary.totalViews.toLocaleString()} />
             <StatCard
-              label="total earnings"
+              label="total rewards"
               value={`₵${(posts.summary.totalEarnings / 100).toFixed(2)}`}
             />
             <StatCard

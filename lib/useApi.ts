@@ -170,10 +170,5 @@ export const api = {
   buyCosmetic: (cosmeticId: string) => apiPost<{ authorization_url: string }>("/api/shop/cosmetic", { cosmeticId }),
   getCreditsBalance: () => apiGet<{ balance: number }>("/api/credits/balance"),
   purchaseCredits: (packId: string) => apiPost<{ authorization_url: string }>("/api/credits/purchase", { packId }),
-  withdrawCredits: (amount: number, bankCode: string, accountNumber: string, accountName: string) =>
-    apiPost<{ providerRef: string }>("/api/credits/withdraw", { amount, bankCode, accountNumber, accountName }),
   getCreditTransactions: () => apiGet<{ transactions: { id: string; type: string; amount: number; balanceAfter: number; createdAt: string }[] }>("/api/credits/transactions"),
-  requestPayout: (amount: number, bankCode: string, accountNumber: string, accountName: string) =>
-    apiPost<{ id: string }>("/api/payout/request", { amount, bankCode, accountNumber, accountName }),
-  getPayouts: () => apiGet<{ payouts: Payout[] }>("/api/payouts/list"),
 }

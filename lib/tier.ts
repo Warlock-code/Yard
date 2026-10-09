@@ -145,7 +145,7 @@ export const TIER_CONFIG = {
       "All common & rare avatars unlocked free",
       "Gold checkmark + Prime badge on profile and posts",
       "Highest feed + battle priority",
-      "2x credit earnings from votes, tips, referrals, streaks (cash payouts currently paused — credits spendable in-app)",
+      "2x credit rewards from votes, tips, referrals, streaks (credits spendable in-app on boosts, pins and shop items — no cash payouts)",
       "Full post hints: programs + class years + follower context",
       "Full analytics dashboard (prime exclusive)",
       "2 free post boosts per week",

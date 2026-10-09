@@ -11,10 +11,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST() {
-  // Withdrawals paused pending licensing/KYC review — fail closed.
-  // GET (balance view) still works; no new cash-out can be created and no
-  // bank details are collected while paused. Original logic kept in git
-  // history (`git log -- app/api/credits/withdraw/route.ts`) — restore it
-  // here once cleared by counsel.
-  return NextResponse.json({ error: "withdrawals are currently paused. your balance is safe — check back soon." }, { status: 403 })
+  // No cash-out: credits are in-app only and can never be withdrawn or
+  // redeemed for cash. The payout engine stays dormant in git history
+  // (`git log -- app/api/credits/withdraw/route.ts`) until cleared by counsel.
+  return NextResponse.json({ error: "withdrawals are not available. credits are spendable in-app." }, { status: 410 })
 }

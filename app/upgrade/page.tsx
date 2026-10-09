@@ -15,11 +15,11 @@ const ROWS: { label: string; free: string; plus: string; prime: string; primeWin
   { label: "Feed + battle priority", free: "normal", plus: "higher", prime: "highest", primeWin: true },
   { label: "Free post boost", free: "—", plus: "1 / week", prime: "2 / week", primeWin: true },
   { label: "Streak freeze", free: "—", plus: "1 / month", prime: "2 / month", primeWin: true },
-  { label: "Credit earnings", free: "—", plus: "1x", prime: "2x", primeWin: true },
+  { label: "Credit rewards", free: "—", plus: "1x", prime: "2x", primeWin: true },
   { label: "Post hints (who's watching)", free: "counts", plus: "programs", prime: "programs + years", primeWin: true },
   { label: "Storage", free: "50 MB", plus: "50 + 50 MB", prime: "50 + 100 MB", primeWin: true },
   { label: "Theme", free: "default green", plus: "+ plus blue", prime: "+ gold", primeWin: true },
-  { label: "Earnings + payouts", free: "—", plus: "—", prime: "paused", primeWin: false },
+  { label: "Cash payouts", free: "—", plus: "—", prime: "—", primeWin: false },
   { label: "Shop (epic / legendary, boosts, freeze)", free: "buy separately", plus: "buy separately", prime: "buy separately", primeWin: false },
 ]
 
@@ -95,7 +95,7 @@ export default function UpgradePage() {
               <span className="text-2xl">✨</span>
               <p className="font-bold text-lg text-sky-300">plus active</p>
             </div>
-            <p className="text-white/60 text-sm mb-4">nice. prime adds gold, 2x boosts and earnings (payouts currently paused).</p>
+            <p className="text-white/60 text-sm mb-4">nice. prime adds gold, 2x boosts and 2x credit rewards.</p>
           </div>
           <div className="card p-0 overflow-hidden border-[#facc15]/20">
             <div className="grid grid-cols-3 text-xs font-bold uppercase tracking-wide">

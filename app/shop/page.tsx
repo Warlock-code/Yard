@@ -244,7 +244,7 @@ export default function ShopPage() {
           <div className="card p-5 relative overflow-hidden border-[#facc15]/25">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-transparent" />
             <p className="text-xs text-[#facc15] uppercase mb-1">prime — ghs 20</p>
-            <p className="font-bold text-lg mb-2">gold, 2x boosts and earnings (payouts paused)</p>
+            <p className="font-bold text-lg mb-2">gold, 2x boosts and 2x credit rewards</p>
             <p className="text-white/50 text-sm mb-3">compare plans, then checkout.</p>
             <button
               className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
@@ -274,8 +274,8 @@ export default function ShopPage() {
           <div className="card p-5 relative overflow-hidden border-[#facc15]/25">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#facc15] to-transparent" />
             <p className="text-xs text-[#facc15] uppercase mb-1">prime — ghs 20</p>
-            <p className="font-bold text-lg mb-2">gold, 2x boosts and earnings (payouts paused)</p>
-            <p className="text-white/50 text-sm mb-3">for creators who want earnings.</p>
+            <p className="font-bold text-lg mb-2">gold, 2x boosts and 2x credit rewards</p>
+            <p className="text-white/50 text-sm mb-3">for creators who want it all.</p>
             <button
               className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading !== null}

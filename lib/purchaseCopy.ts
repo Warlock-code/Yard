@@ -102,7 +102,7 @@ export function getPurchaseCopy(kind: PurchaseKind): PurchaseCopy {
       return {
         emoji: "👑",
         title: "welcome to Prime",
-        body: "every common avatar free, real earnings on your posts, and highest feed priority. Your subscription renews monthly — cancel anytime from the upgrade page.",
+        body: "every common avatar free, 2x credit rewards on your posts, and highest feed priority. Your subscription renews monthly — cancel anytime from the upgrade page.",
         ctaLabel: "back to Lair",
         ctaHref: "/lair",
         autoRenewNote: "auto-renew is on — we'll deduct GHS 20 monthly automatically. Cancel anytime from upgrade page.",

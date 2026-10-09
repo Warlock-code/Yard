@@ -19,7 +19,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">payments and subscriptions</h2>
-          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement. cash payouts to MoMo/bank are currently paused — balances remain saved and payouts will reopen once compliance review is complete.</p>
+          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement. credits are in-app only: they can be spent on boosts, pins and shop items, and can never be withdrawn, transferred, or redeemed for cash or MoMo/bank payouts.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">account actions</h2>

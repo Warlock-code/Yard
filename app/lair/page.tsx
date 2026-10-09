@@ -93,21 +93,6 @@ export default function LairPage() {
   const [copied, setCopied] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
-  const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
-
-  const loadWallet = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet<{ credits: { creditsBalance: number; creditsEarned: number; creditsWithdrawn: number } | null }>("/api/credits/withdraw")
-      .then((data) => {
-        if (!isCurrent() || !data.credits) return
-        setWallet({ balance: data.credits.creditsBalance, earned: data.credits.creditsEarned, withdrawn: data.credits.creditsWithdrawn })
-      })
-      .catch(() => {})
-  }, [])
-
-  async function openWithdrawModal() {
-    // Withdrawals paused — never collect bank details while paused.
-    alert("withdrawals are currently paused. your balance is safe — check back soon.")
-  }
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
       .then((data) => {
@@ -185,9 +170,8 @@ export default function LairPage() {
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
-    loadWallet(() => active)
     return () => { active = false }
-  }, [load, loadStorage, loadReferral, loadWallet])
+  }, [load, loadStorage, loadReferral])
 
   async function handleLogout() {
     document.cookie = "yard_token=; Max-Age=0; path=/"
@@ -273,34 +257,20 @@ export default function LairPage() {
       {me.tier === "PRIME" ? (
         <div className="card p-4 mb-4 border-[#facc15]/25">
           <div className="flex items-center justify-between mb-2">
-            <p className="font-semibold">💰 earnings</p>
-            <span className="text-xs text-white/40">≈ GHS {((wallet?.earned ?? 0) / 100).toFixed(2)}</span>
+            <p className="font-semibold">🪙 credits</p>
+            <span className="text-xs text-white/40">{me.creditsBalance} balance</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-[#facc15]">{wallet?.earned ?? 0}</p>
-              <p className="text-xs text-white/40">earned</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-primary">{wallet?.balance ?? me.creditsBalance}</p>
-              <p className="text-xs text-white/40">balance</p>
-            </div>
-            <div className="card p-3 text-center bg-white/[0.03]">
-              <p className="text-lg font-bold text-white/70">{wallet?.withdrawn ?? 0}</p>
-              <p className="text-xs text-white/40">withdrawn</p>
-            </div>
-          </div>
-          <button className="btn-primary w-full opacity-40" onClick={openWithdrawModal}>
-            withdrawals paused
+          <p className="text-xs text-white/50 mb-3">earn credits from votes, tips and streaks — spend them on boosts, pins, avatars and themes in the shop. credits live in the app and can&apos;t be withdrawn for cash.</p>
+          <button className="btn-primary w-full" onClick={() => router.push("/shop")}>
+            spend in the shop →
           </button>
-          <p className="text-xs text-white/40 mt-2 text-center">withdrawals are currently paused. your balance is safe — check back soon.</p>
         </div>
       ) : (
         <button
           className="card w-full p-4 mb-4 flex items-center justify-between border-[#facc15]/20"
           onClick={() => router.push("/upgrade")}
         >
-          <span className="font-semibold text-sm">💰 earnings <span className="text-white/40 font-normal">(withdrawals paused)</span></span>
+          <span className="font-semibold text-sm">👑 prime <span className="text-white/40 font-normal">gold + 2x boosts</span></span>
           <span className="text-xs font-bold text-[#facc15]">👑 prime →</span>
         </button>
       )}
@@ -456,7 +426,7 @@ export default function LairPage() {
       {me.tier === "PLUS" && (
         <div className="card p-4 mb-3 border-[#facc15]/25">
           <p className="font-semibold mb-1">👑 go prime</p>
-          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts, 2x earnings, 2 freezes a month + full analytics (payouts currently paused).</p>
+          <p className="text-sm text-white/50 mb-3">gold badge, 2x weekly boosts, 2x credit rewards, 2 freezes a month + full analytics.</p>
           <button className="w-full rounded-xl border border-[#facc15]/40 text-[#facc15] font-bold py-2.5 text-sm hover:bg-[#facc15]/10" onClick={() => { logPaywallHit("upgrade_view", "/lair").catch(()=>{}); router.push("/upgrade") }}>
             prime — ghs 20/mo
           </button>
