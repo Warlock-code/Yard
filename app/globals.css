@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   --background: #050505;
@@ -47,11 +47,6 @@
   --accent-midnight-strong: #ffffff;
   --accent-midnight-soft: rgba(255, 255, 255, 0.10);
   --accent-midnight-glow: rgba(255, 255, 255, 0.22);
-
-  --accent-arctic: #141414;
-  --accent-arctic-strong: #000000;
-  --accent-arctic-soft: rgba(0, 0, 0, 0.08);
-  --accent-arctic-glow: rgba(0, 0, 0, 0.16);
 }
 
 .theme-default {
@@ -115,25 +110,8 @@ html.theme-midnight {
   color-scheme: dark;
 }
 
-html.theme-arctic {
-  background-color: #ffffff;
-  color-scheme: light;
-}
-
 .theme-midnight body {
   background: #000000;
-}
-
-.theme-arctic {
-  --accent: var(--accent-free);
-  --accent-strong: var(--accent-free-strong);
-  --accent-soft: rgba(186, 255, 57, 0.2);
-  --accent-glow: rgba(132, 204, 22, 0.35);
-  --foreground: #161616;
-  --muted: rgba(22, 22, 22, 0.55);
-  --card: #ffffff;
-  --card-hover: rgba(0, 0, 0, 0.03);
-  --border: rgba(0, 0, 0, 0.12);
 }
 
 .theme-rainbow .btn-primary {
@@ -232,7 +210,7 @@ body {
   text-transform: lowercase;
 }
 
-/* Top "YARD." logo keeps its own distinct look — excluded from Inter */
+/* Top "YARD." logo keeps its own distinct look â€” excluded from Inter */
 .brand-mark {
   text-transform: uppercase !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
@@ -576,7 +554,7 @@ h1, h2, h3 {
   display: none;
 }
 
-/* Post content display — Inter, heavier weight; applies to old + new posts */
+/* Post content display â€” Inter, heavier weight; applies to old + new posts */
 .post-mono {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 700;
@@ -607,7 +585,7 @@ h1, h2, h3 {
   line-clamp: 3;
 }
 
-/* Yard focus ring — visible keyboard navigation everywhere */
+/* Yard focus ring â€” visible keyboard navigation everywhere */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -682,175 +660,3 @@ button, a {
 .admin-dense .text-xl { font-size: 1.125rem; }
 .admin-dense .text-2xl { font-size: 1.25rem; }
 .admin-dense .text-4xl { font-size: 1.5rem; }
-
-/* ---- Arctic White (full light mode) ----
- * Writings black, background white, accents stay BRIGHT lime (fills) so
- * they pop on white. Note: `*-primary` utilities have no Tailwind output
- * in this codebase, so the rules below define them for arctic only —
- * dark themes are untouched.
- */
-.theme-arctic {
-  --background: #ffffff;
-}
-
-.theme-arctic body {
-  background: #ffffff;
-  color: var(--foreground);
-}
-
-.theme-arctic .card {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.theme-arctic .card:hover {
-  border-color: rgba(0, 0, 0, 0.2);
-}
-
-.theme-arctic .input {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-/* Bright lime button, black writing — same as dark mode. */
-.theme-arctic .btn-primary {
-  background: #baff39;
-  color: #050505;
-}
-
-.theme-arctic .btn-primary:hover {
-  background: var(--accent-strong);
-}
-
-/* Primary fills stay bright lime with black writing (FAB, pills,
- * filter chips, active segments). */
-.theme-arctic .bg-primary { background-color: #baff39; color: #050505; }
-.theme-arctic .bg-primary\/10 { background-color: rgba(132, 204, 22, 0.14); color: #161616; }
-.theme-arctic .bg-primary\/15 { background-color: rgba(132, 204, 22, 0.18); color: #161616; }
-.theme-arctic .bg-primary\/20 { background-color: rgba(132, 204, 22, 0.22); color: #161616; }
-.theme-arctic .bg-primary\/\[0\.06\] { background-color: rgba(132, 204, 22, 0.1); }
-.theme-arctic .hover\:bg-primary\/10:hover { background-color: rgba(132, 204, 22, 0.14); }
-.theme-arctic .hover\:bg-primary\/20:hover { background-color: rgba(132, 204, 22, 0.22); }
-
-/* Primary borders stay visible lime. */
-.theme-arctic .border-primary { border-color: #84cc16; }
-.theme-arctic .border-primary\/20 { border-color: rgba(132, 204, 22, 0.35); }
-.theme-arctic .border-primary\/30 { border-color: rgba(132, 204, 22, 0.45); }
-.theme-arctic .border-primary\/40 { border-color: rgba(132, 204, 22, 0.55); }
-.theme-arctic .border-primary\/50 { border-color: rgba(132, 204, 22, 0.65); }
-.theme-arctic .hover\:border-primary\/30:hover { border-color: rgba(132, 204, 22, 0.45); }
-.theme-arctic .hover\:border-primary\/50:hover { border-color: rgba(132, 204, 22, 0.65); }
-.theme-arctic .ring-primary { --tw-ring-color: #65a30d; }
-.theme-arctic .focus-visible\:ring-primary:focus-visible { --tw-ring-color: #65a30d; }
-.theme-arctic .outline-primary { outline-color: #65a30d; }
-
-/* Accent writing is black in light mode (lime text on white is unreadable). */
-.theme-arctic .text-primary { color: #161616; }
-.theme-arctic .text-primary\/70 { color: rgba(22, 22, 22, 0.7); }
-.theme-arctic .text-primary\/80 { color: rgba(22, 22, 22, 0.8); }
-.theme-arctic .hover\:text-primary:hover { color: #161616; }
-.theme-arctic .group:hover .group-hover\:text-primary { color: #161616; }
-
-/* Hardcoded lime writing becomes deep green so it stays visible. */
-.theme-arctic .text-\[\#baff39\] { color: #4d7c0f; }
-.theme-arctic .text-\[\#baff39\]\/80 { color: rgba(77, 124, 15, 0.8); }
-.theme-arctic .hover\:text-\[\#baff39\]:hover { color: #4d7c0f; }
-.theme-arctic .group:hover .group-hover\:text-\[\#baff39\] { color: #4d7c0f; }
-.theme-arctic .focus-visible\:outline-\[\#baff39\]:focus-visible { outline-color: #65a30d; }
-
-/* Gold writing becomes deep amber so prime/earnings stay readable. */
-.theme-arctic .text-\[\#facc15\] { color: #b45309; }
-.theme-arctic .text-\[\#facc15\]\/80 { color: rgba(180, 83, 9, 0.8); }
-.theme-arctic .badge-prime { background: #fef9c3; color: #854d0e; }
-
-/* Pastel shop accents deepen so they read on white. */
-.theme-arctic .text-purple-300 { color: #9333ea; }
-.theme-arctic .text-rose-300 { color: #e11d48; }
-.theme-arctic .text-teal-300 { color: #0d9488; }
-.theme-arctic .text-sky-300 { color: #0284c7; }
-.theme-arctic input:focus-visible,
-.theme-arctic button:focus-visible,
-.theme-arctic a:focus-visible { outline-color: rgba(77, 124, 15, 0.6); }
-
-.theme-arctic .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.05) 25%,
-    rgba(0, 0, 0, 0.10) 50%,
-    rgba(0, 0, 0, 0.05) 75%
-  );
-  background-size: 800px 100%;
-}
-
-/* white ink -> dark ink */
-.theme-arctic .text-white { color: #161616; }
-.theme-arctic .text-white\/95 { color: rgba(22, 22, 22, 0.95); }
-.theme-arctic .text-white\/90 { color: rgba(22, 22, 22, 0.9); }
-.theme-arctic .text-white\/85 { color: rgba(22, 22, 22, 0.85); }
-.theme-arctic .text-white\/80 { color: rgba(22, 22, 22, 0.8); }
-.theme-arctic .text-white\/75 { color: rgba(22, 22, 22, 0.75); }
-.theme-arctic .text-white\/70 { color: rgba(22, 22, 22, 0.7); }
-.theme-arctic .text-white\/65 { color: rgba(22, 22, 22, 0.65); }
-.theme-arctic .text-white\/60 { color: rgba(22, 22, 22, 0.6); }
-.theme-arctic .text-white\/55 { color: rgba(22, 22, 22, 0.55); }
-.theme-arctic .text-white\/50 { color: rgba(22, 22, 22, 0.5); }
-.theme-arctic .text-white\/45 { color: rgba(22, 22, 22, 0.45); }
-.theme-arctic .text-white\/40 { color: rgba(22, 22, 22, 0.4); }
-.theme-arctic .text-white\/35 { color: rgba(22, 22, 22, 0.35); }
-.theme-arctic .text-white\/30 { color: rgba(22, 22, 22, 0.3); }
-.theme-arctic .text-white\/25 { color: rgba(22, 22, 22, 0.25); }
-.theme-arctic .text-white\/20 { color: rgba(22, 22, 22, 0.2); }
-.theme-arctic .text-white\/15 { color: rgba(22, 22, 22, 0.15); }
-.theme-arctic .text-white\/10 { color: rgba(22, 22, 22, 0.1); }
-.theme-arctic .text-white\/5 { color: rgba(22, 22, 22, 0.05); }
-.theme-arctic .hover\:text-white:hover { color: #161616; }
-.theme-arctic .hover\:text-white\/70:hover { color: rgba(22, 22, 22, 0.7); }
-.theme-arctic .hover\:text-white\/50:hover { color: rgba(22, 22, 22, 0.5); }
-
-/* white borders -> dark borders */
-.theme-arctic .border-white\/40 { border-color: rgba(0, 0, 0, 0.4); }
-.theme-arctic .border-white\/30 { border-color: rgba(0, 0, 0, 0.3); }
-.theme-arctic .border-white\/25 { border-color: rgba(0, 0, 0, 0.25); }
-.theme-arctic .border-white\/20 { border-color: rgba(0, 0, 0, 0.2); }
-.theme-arctic .border-white\/15 { border-color: rgba(0, 0, 0, 0.15); }
-.theme-arctic .border-white\/10 { border-color: rgba(0, 0, 0, 0.1); }
-.theme-arctic .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
-.theme-arctic .border-white\/\[0\.07\] { border-color: rgba(0, 0, 0, 0.07); }
-.theme-arctic .border-white\/\[0\.06\] { border-color: rgba(0, 0, 0, 0.06); }
-.theme-arctic .border-white\/\[0\.05\] { border-color: rgba(0, 0, 0, 0.05); }
-.theme-arctic .border-white\/\[0\.04\] { border-color: rgba(0, 0, 0, 0.04); }
-.theme-arctic .border-white\/\[0\.03\] { border-color: rgba(0, 0, 0, 0.03); }
-
-/* white washes -> black washes */
-.theme-arctic .bg-white\/20 { background-color: rgba(0, 0, 0, 0.2); }
-.theme-arctic .bg-white\/15 { background-color: rgba(0, 0, 0, 0.15); }
-.theme-arctic .bg-white\/10 { background-color: rgba(0, 0, 0, 0.1); }
-.theme-arctic .bg-white\/5 { background-color: rgba(0, 0, 0, 0.05); }
-.theme-arctic .bg-white\/\[0\.07\] { background-color: rgba(0, 0, 0, 0.07); }
-.theme-arctic .bg-white\/\[0\.06\] { background-color: rgba(0, 0, 0, 0.06); }
-.theme-arctic .bg-white\/\[0\.05\] { background-color: rgba(0, 0, 0, 0.05); }
-.theme-arctic .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.03); }
-.theme-arctic .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
-.theme-arctic .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.1); }
-.theme-arctic .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.05); }
-.theme-arctic .hover\:bg-white\/\[0\.05\]:hover { background-color: rgba(0, 0, 0, 0.05); }
-
-/* Near-black sticky bars (feed tabs, explore/search rails, pills) become
- * white so dark text stays readable. Full-screen dim veils (bg-black/60,
- * bg-black/70) are left dark — they overlay correctly on light content. */
-.theme-arctic .bg-black\/80 { background-color: rgba(255, 255, 255, 0.85); }
-.theme-arctic .bg-black\/90 { background-color: rgba(255, 255, 255, 0.9); }
-
-/* Bottom nav: ash grey pill, black icons/writing. */
-.theme-arctic nav[aria-label="primary"] > div {
-  background-color: rgba(22, 22, 22, 0.07);
-  border-color: rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* Solid black surfaces (modal cards, drawers) become white in arctic.
- * Translucent veils (bg-black/60, bg-black/70) are left dark — they dim correctly. */
-.theme-arctic .bg-black { background-color: #ffffff; }
-
-/* Form dropdowns render light */
-.theme-arctic select { color-scheme: light; }
-.theme-arctic select option { background-color: #ffffff; color: #161616; }

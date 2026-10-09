@@ -39,7 +39,8 @@ function resolveThemeClassName(
 
 function applyThemeClassName(className: string) {
   const root = document.documentElement
-  root.classList.remove(...THEME_CLASS_NAMES)
+  // "theme-arctic" was retired — strip it if a returning device still has it.
+  root.classList.remove(...THEME_CLASS_NAMES, "theme-arctic")
   root.classList.add(className)
 }
 

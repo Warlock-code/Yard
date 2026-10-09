@@ -1,4 +1,4 @@
-export type ThemeId = "default" | "blue" | "gold" | "purple" | "crimson" | "teal" | "rainbow" | "midnight" | "arctic"
+export type ThemeId = "default" | "blue" | "gold" | "purple" | "crimson" | "teal" | "rainbow" | "midnight"
 
 export type ThemeDef = {
   id: ThemeId
@@ -116,18 +116,6 @@ export const THEMES: ThemeDef[] = [
     activeTextClass: "text-white",
     activeBorderClass: "border-white/40",
     activeBgClass: "bg-white/5",
-  },
-  {
-    id: "arctic",
-    name: "Arctic White",
-    description: "1000 credits — one-time. full light mode, black accents.",
-    pricePesewas: 100000,
-    swatchFrom: "#ffffff",
-    swatchTo: "#111111",
-    className: "theme-arctic",
-    activeTextClass: "text-black",
-    activeBorderClass: "border-black/40",
-    activeBgClass: "bg-black/5",
   },
 ]
 
