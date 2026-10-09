@@ -174,6 +174,12 @@ function CohortPrompt({ onSaved }: { onSaved: (year: number) => void }) {
 export default function FeedPage() {
   const router = useRouter()
   const [me, setMe] = useState<Me | null>(null)
+  // Guest browsing: logged-out visitors read the global feed and are
+  // funneled to /signup the moment they try to interact.
+  const [guest, setGuest] = useState(false)
+  // Auth resolution gate: the feed fetch waits until /me settles so a
+  // guest's first paint doesn't race into a login redirect.
+  const [authReady, setAuthReady] = useState(false)
   const [posts, setPosts] = useState<Post[]>([])
   const [mode, setMode] = useState("campus")
   const [loading, setLoading] = useState(true)
@@ -233,14 +239,24 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     return fetchDeduped("GET /api/auth/me", () => apiGet<{ user: Me | null }>("/api/auth/me"))
       .then((data) => {
         if (!data.user) {
-          if (isCurrent()) router.push("/login")
+          // No session: guest mode (read-only global feed), never a wall.
+          if (isCurrent()) {
+            setGuest(true)
+            setMode("all")
+          }
           return
         }
         setCached(cacheKeys.me, data, TTL.me)
         if (isCurrent()) setMe(data.user)
       })
       .catch(() => {
-        if (isCurrent() && !getCached<{ user: Me | null }>(cacheKeys.me)) router.push("/login")
+        if (isCurrent() && !getCached<{ user: Me | null }>(cacheKeys.me)) {
+          setGuest(true)
+          setMode("all")
+        }
+      })
+      .finally(() => {
+        if (isCurrent()) setAuthReady(true)
       })
   }, [router])
 
@@ -258,6 +274,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   function selectMode(nextMode: string) {
     if (nextMode === mode) return
+    // Guests only get the global feed — other tabs are a signup prompt.
+    if (guest && nextMode !== "all") {
+      router.push("/signup")
+      return
+    }
     setLoading(true)
     setLoadingMore(false)
     setPendingPosts([])
@@ -291,6 +312,9 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }, [loading])
 
   useEffect(() => {
+    // Wait for /me so guests don't fetch campus-mode (401) mid-race.
+    // Guests always land on mode "all", which the API serves logged-out.
+    if (!authReady) return
     let active = true
     // Show cached campus feed instantly on first paint
     if (mode === "campus" && feedVersion === 0) {
@@ -311,7 +335,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       .catch((err: unknown) => {
         if (!active) return
         if (err instanceof Error && err.message === "not authenticated.") {
-          router.push("/login")
+          // Stale session on a private mode (guests never hit this —
+          // their mode is forced to "all" before the first fetch).
+          if (!guest) router.push("/login")
+          else setLoading(false)
           return
         }
         console.error(err)
@@ -320,7 +347,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [mode, feedVersion, refreshSeed, router])
+  }, [mode, feedVersion, refreshSeed, router, authReady, guest])
 
   useEffect(() => {
     if (loading || !nextCursor) return
@@ -419,6 +446,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }, [connected, on, mode, me?.campus])
 
   async function handleVote(postId: string) {
+    if (guest) {
+      router.push("/signup")
+      return
+    }
     if (pendingVotes.current.has(postId) || votedIds.has(postId)) return
     const prev = posts.find((p) => p.id === postId)
     if (!prev) return
@@ -449,6 +480,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }
 
   async function toggleExpand(postId: string) {
+    // Guests read the preview; the full thread is behind signup.
+    if (guest) {
+      router.push("/signup")
+      return
+    }
     if (expandedId === postId) {
       setExpandedId(null)
       return
@@ -468,7 +504,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
 
   async function handleInlineSubmit(postId: string) {
     const text = inlineDraft[postId]?.trim().toLowerCase()
-    if (!text || !me) return
+    if (!text) return
+    if (!me) {
+      router.push("/signup")
+      return
+    }
     const tempId = `temp-${Date.now()}`
     const optimistic: InlineComment = {
       id: tempId,
@@ -540,7 +580,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }
 
   async function handleFollow(targetUserId: string) {
-    if (!me || pendingFollowRequests.current.has(targetUserId)) return
+    if (!me) {
+      router.push("/signup")
+      return
+    }
+    if (pendingFollowRequests.current.has(targetUserId)) return
     pendingFollowRequests.current.add(targetUserId)
     setPendingFollows(new Set(pendingFollowRequests.current))
     try {
@@ -557,6 +601,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   }
 
   async function handleReport(postId: string) {
+    if (guest) {
+      router.push("/signup")
+      return
+    }
     const reason = prompt("why are you reporting this post?")
     if (!reason?.trim()) return
     try {
@@ -665,7 +713,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       onTouchEnd={handleTouchEnd}
     >
       <div className="relative flex items-center justify-center px-4 py-3">
-        <button onClick={() => setShowDrawer(true)} className="absolute left-4">
+        <button onClick={() => (guest ? router.push("/signup") : setShowDrawer(true))} className="absolute left-4" aria-label={guest ? "join yard" : "open menu"}>
           <Avatar emoji={me?.avatarEmoji || "👻"} size={32} />
         </button>
         <span className="brand-mark font-black text-lg tracking-tight">
@@ -687,6 +735,15 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         </Link>
       </div>
 
+      {guest ? (
+        <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-4 py-2.5 z-10 flex items-center justify-center gap-2 text-sm">
+          <span className="text-white/50">🌍 everyone&apos;s gist</span>
+          <span className="text-white/20">•</span>
+          <button onClick={() => router.push("/signup")} className="text-[#baff39] font-bold text-sm">
+            join your school →
+          </button>
+        </div>
+      ) : (
       <div className="sticky top-0 bg-black/90 backdrop-blur border-b border-white/10 px-2 grid grid-cols-4 z-10">
         {TABS.map((tab) => (
           <button
@@ -700,6 +757,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           </button>
         ))}
       </div>
+      )}
       {pullToRefresh && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 pointer-events-none">
           <div className="bg-black/80 backdrop-blur border border-white/10 rounded-full px-4 py-2 text-sm text-primary font-medium animate-pulse">
@@ -718,6 +776,16 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         </div>
       )}
 
+      {!loading && guest && (
+        <div className="mx-4 mt-3 rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-3 flex items-center gap-3">
+          <span className="text-xl">👻</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">you&apos;re browsing as a guest</p>
+            <p className="text-xs text-white/50">join with your school email to post, vote & comment.</p>
+          </div>
+          <button onClick={() => router.push("/signup")} className="btn-primary text-xs px-3 py-1.5 shrink-0">join</button>
+        </div>
+      )}
       {!loading && <SmartNudge />}
       {rushStatus.live && (
         <div className="mx-4 mt-3 rounded-xl border border-[#facc15]/40 bg-[#facc15]/[0.07] p-3 flex items-center gap-3 animate-pulse">
@@ -726,7 +794,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
             <p className="font-bold text-sm text-[#facc15]">rush hour — votes earn 2x</p>
             <p className="text-xs text-white/50">ends in {rushMinsLeft}m • post + vote now</p>
           </div>
-          <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-3 py-1.5 shrink-0">post</button>
+          <button onClick={() => router.push(guest ? "/signup" : "/compose")} className="btn-primary text-xs px-3 py-1.5 shrink-0">post</button>
         </div>
       )}
       {!loading && me && me.cohortYear == null && (
@@ -905,7 +973,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       {!isOwn && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleFollow(post.user.id) }}
-                          disabled={!me || followPending}
+                          disabled={followPending}
                           aria-label={`${isFollowing ? "unfollow" : "follow"} ${post.user.ghostId}`}
                           aria-pressed={isFollowing}
                           aria-busy={followPending}
@@ -1051,20 +1119,31 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           {!loadingMore && !nextCursor && (
             <div className="text-center px-8 py-10">
               <p className="text-3xl mb-2">👻</p>
-              <p className="font-bold text-white/80 text-sm">you&apos;re all caught up</p>
-              <p className="text-white/40 text-xs mt-1 mb-4">fresh gist lands all day — check battles or start one.</p>
-              <div className="flex gap-2 justify-center">
-                <button onClick={() => router.push("/battles")} className="btn-ghost text-xs">⚔️ battles</button>
-                <button onClick={() => router.push("/explore")} className="btn-ghost text-xs">🔥 trending</button>
-                <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-4">+ gist</button>
-              </div>
+              {guest ? (
+                <>
+                  <p className="font-bold text-white/80 text-sm">want in on the gist?</p>
+                  <p className="text-white/40 text-xs mt-1 mb-4">join with your school email to post, vote & comment.</p>
+                  <button onClick={() => router.push("/signup")} className="btn-primary text-xs px-6">join yard</button>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-white/80 text-sm">you&apos;re all caught up</p>
+                  <p className="text-white/40 text-xs mt-1 mb-4">fresh gist lands all day — check battles or start one.</p>
+                  <div className="flex gap-2 justify-center">
+                    <button onClick={() => router.push("/battles")} className="btn-ghost text-xs">⚔️ battles</button>
+                    <button onClick={() => router.push("/explore")} className="btn-ghost text-xs">🔥 trending</button>
+                    <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-4">+ gist</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
       )}
 
       <button
-        onClick={() => router.push("/compose")}
+        onClick={() => router.push(guest ? "/signup" : "/compose")}
+        aria-label={guest ? "join yard to post" : "compose post"}
         className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-primary text-black text-2xl flex items-center justify-center shadow-[0_8px_24px_var(--accent-glow)] z-20"
       >
         ✏️

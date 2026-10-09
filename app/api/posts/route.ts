@@ -203,17 +203,30 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
-  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
+  // Guest browsing: logged-out visitors get a read-only global feed
+  // (school-visibility posts only). Campus/class/following modes need
+  // an identity, so guests are locked to "all".
+  const guest = !user
+  const viewerCampus = user?.campus ?? ""
+  const viewerProgramKey = user?.programKey ?? null
 
   const { searchParams } = new URL(req.url)
-  const mode = searchParams.get("mode") || "campus"
+  const requestedMode = searchParams.get("mode") || "campus"
+  const mode = guest ? "all" : requestedMode
   const type = searchParams.get("type") || "all"
   const cursor = searchParams.get("cursor")
   // Per-refresh shuffle seed from the client. Same seed = same tie order
   // (keeps cursor pagination consistent); new seed = ties rotate.
   const tieSeed = searchParams.get("seed") || undefined
 
-  const [follows, readableWhere, programWhereBase, viewedPosts] = await Promise.all([
+  const [follows, readableWhere, programWhereBase, viewedPosts] = !user
+    ? [
+        [] as { followingId: string }[],
+        { archived: false, visibility: "school" } as Prisma.PostWhereInput,
+        { id: { in: [] } } as Prisma.PostWhereInput,
+        [] as { postId: string }[],
+      ]
+    : await Promise.all([
     prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } }),
     getReadablePostWhere(user),
     getProgramPostWhere(user),
@@ -234,15 +247,15 @@ export async function GET(req: NextRequest) {
     const programWhere = programWhereBase
     scopeWhere = {
       OR: [
-        { campus: user.campus, visibility: "school" },
+        { campus: viewerCampus, visibility: "school" },
         programWhere,
       ],
     }
     // C: boosted bypasses visibility/programKey but stays same-campus for privacy
-    boostedScopeWhere = { campus: user.campus, ...boostedActiveWhere }
+    boostedScopeWhere = { campus: viewerCampus, ...boostedActiveWhere }
   } else if (mode === "program") {
     scopeWhere = {
-      AND: [{ campus: user.campus, visibility: "program" }, programWhereBase],
+      AND: [{ campus: viewerCampus, visibility: "program" }, programWhereBase],
     }
     boostedScopeWhere = null // keep program niche
   } else if (mode === "following") {
@@ -347,8 +360,8 @@ export async function GET(req: NextRequest) {
       reportsCount: reportCounts?.get(p.id),
     }))
     const ranked = rankFeedCandidates(withSignals, {
-      campus: user.campus,
-      programKey: user.programKey,
+      campus: viewerCampus,
+      programKey: viewerProgramKey,
       followingIds,
     }, now, tieSeed, authorPostCounts ? { authorPostCounts } : undefined)
     // Author diversity: max 2 posts per author in the top 20 so one
@@ -392,13 +405,14 @@ export async function GET(req: NextRequest) {
 
   // Pinned admin announcements: global ("ALL") or this campus, newest first.
   // Only on the first page, never in following mode (that feed is people only).
+  // Guests only ever see global announcements — campus ones need a campus.
   let announcements: typeof page = []
   if (!cursor && mode !== "following") {
     const rows = await prisma.post.findMany({
       where: {
         type: "announcement",
         archived: false,
-        OR: [{ campus: "ALL" }, { campus: user.campus }],
+        OR: guest ? [{ campus: "ALL" }] : [{ campus: "ALL" }, { campus: viewerCampus }],
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
@@ -418,10 +432,11 @@ export async function GET(req: NextRequest) {
 
   // Pinned campus spotlight: paid 1hr pins, newest pin first, max 3.
   // Best-effort (empty until the pinnedUntil migration is deployed).
+  // Skipped for guests — pins are campus-scoped and guests have no campus.
   try {
-    if (!cursor) {
+    if (!cursor && !guest) {
       const pinnedRows = await prisma.post.findMany({
-        where: { campus: user.campus, archived: false, pinnedUntil: { gt: now } },
+        where: { campus: viewerCampus, archived: false, pinnedUntil: { gt: now } },
         orderBy: [{ pinnedUntil: "desc" }],
         take: 3,
         include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
