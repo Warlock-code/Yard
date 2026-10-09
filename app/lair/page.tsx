@@ -6,6 +6,7 @@ import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
+import AskShareCard from "@/app/components/AskShareCard"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import { logPaywallHit } from "@/lib/logPaywall"
 
@@ -94,9 +95,6 @@ export default function LairPage() {
     }>
   } | null>(null)
   const [copied, setCopied] = useState(false)
-  const [askCopied, setAskCopied] = useState(false)
-  const [askShared, setAskShared] = useState(false)
-  const [storySaving, setStorySaving] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
   const [wallet, setWallet] = useState<{ balance: number; earned: number; withdrawn: number } | null>(null)
@@ -290,58 +288,6 @@ export default function LairPage() {
     }
   }
 
-  function askLink(code: string | undefined) {
-    if (typeof window !== "undefined" && window.location?.origin) {
-      // Prefer the live domain for shares — preview/localhost origins break unfurls.
-      const origin = window.location.origin.includes("localhost") ? "https://yardapp.me" : window.location.origin
-      if (code) return `${origin}/ask/${code}`
-    }
-    return code ? `https://yardapp.me/ask/${code}` : ""
-  }
-
-  async function handleAskShare(code: string | undefined) {
-    const link = askLink(code)
-    if (!link) return
-    const text = `ask ${me?.ghostId || "me"} anything — anonymously 👀\n${link}`
-    try {
-      const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> }
-      if (nav.share) {
-        await nav.share({ title: "ask me anonymously", text, url: link })
-        return
-      }
-      throw new Error("no native share")
-    } catch {
-      // User-cancelled share throws too — only fall back when clipboard works.
-      try {
-        await navigator.clipboard.writeText(text)
-        setAskShared(true)
-        setTimeout(() => setAskShared(false), 1500)
-      } catch {}
-    }
-  }
-
-  async function handleStorySave(code: string | undefined) {
-    if (!code || storySaving) return
-    setStorySaving(true)
-    try {
-      const res = await fetch(`/ask/${code}/opengraph-image`)
-      if (!res.ok) throw new Error("couldn't fetch story image.")
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "yard-ask-story.png"
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 5000)
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "couldn't save image.")
-    } finally {
-      setStorySaving(false)
-    }
-  }
-
   if (loading || !me) return <p className="text-center text-white/40 mt-10">entering the den...</p>
 
   return (
@@ -442,44 +388,15 @@ export default function LairPage() {
             </span>
           )}
         </div>
-        <p className="text-sm text-white/50 mb-3">share your link on status — questions land here. answer to post them to campus.</p>
+        <p className="text-sm text-white/50 mb-3">share your card on status — questions land here. answer to post them to campus.</p>
         {referralStats && (
           <div className="mb-3">
-            <div className="flex gap-2 mb-2">
-              <input
-                className="input flex-1 text-sm"
-                readOnly
-                value={askLink(referralStats.code)}
-              />
-              <button
-                className="btn-primary px-4"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(askLink(referralStats.code))
-                    setAskCopied(true)
-                    setTimeout(() => setAskCopied(false), 1500)
-                  } catch {}
-                }}
-              >
-                {askCopied ? "✓ copied" : "copy"}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="btn-ghost flex-1 text-sm"
-                onClick={() => handleAskShare(referralStats.code)}
-              >
-                {askShared ? "✓ link ready — paste it" : "share to status 📤"}
-              </button>
-              <button
-                className="btn-ghost flex-1 text-sm disabled:opacity-50"
-                disabled={storySaving}
-                onClick={() => handleStorySave(referralStats.code)}
-              >
-                {storySaving ? "saving..." : "save story image 🖼️"}
-              </button>
-            </div>
-            <p className="text-[11px] text-white/30 mt-2">tip: post the image to status, then add your link as a sticker — like ngl.</p>
+            <AskShareCard
+              code={referralStats.code}
+              ghostId={me.ghostId}
+              avatarEmoji={me.avatarEmoji}
+              campus={me.campus}
+            />
           </div>
         )}
         {inboxLoading ? (
