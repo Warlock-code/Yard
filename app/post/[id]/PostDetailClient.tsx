@@ -295,7 +295,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
   const searchParams = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
   const [flashId, setFlashId] = useState<string | null>(null)
-  const [replyPulse, setReplyPulse] = useState(false)
+  const [replyPulse, setReplyPulse] = useState(() => searchParams.get("nudge") === "reply")
   const nudgeHandled = useRef(false)
 
   // Nudge deep-links (?nudge=reply | ?nudge=topreply): focus the reply box
@@ -307,7 +307,6 @@ export default function PostDetailClient({ postId }: { postId: string }) {
     nudgeHandled.current = true
     if (nudge === "reply") {
       const t = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 450)
-      setReplyPulse(true)
       const c = window.setTimeout(() => setReplyPulse(false), 3000)
       return () => { window.clearTimeout(t); window.clearTimeout(c) }
     }
