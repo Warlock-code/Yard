@@ -107,6 +107,10 @@ type Me = {  id: string
   storageLimit?: number
   ghostCoins?: number
   cohortYear?: number | null
+  // Invite-nudge targeting (from /api/auth/me).
+  createdAt?: string
+  referralCount?: number
+  inviteCode?: string
 }
 
 const TABS = [
@@ -217,10 +221,42 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const pendingVotes = useRef(new Set<string>())
   // Live posts queue as a tap-to-load pill (no feed jump while reading).
   const [pendingPosts, setPendingPosts] = useState<Post[]>([])
+  // Onboarding invite ask: one-time card for 2+ day old users with zero
+  // referrals. Dismissal persists in localStorage — shown once, ever.
+  const [showInviteNudge, setShowInviteNudge] = useState(false)
+  const [inviteCopied, setInviteCopied] = useState(false)
   // Hints panel (own posts): who viewed/voted, tiered breakdowns.
   const [hintsOpenId, setHintsOpenId] = useState<string | null>(null)
   const [hintsData, setHintsData] = useState<Record<string, PostHints>>({})
   const [hintsLoading, setHintsLoading] = useState<Record<string, boolean>>({})
+  // Onboarding invite ask: day 2–3 after signup, zero referrals, once ever.
+  useEffect(() => {
+    if (guest || !me || !authReady || showInviteNudge) return
+    try {
+      if (localStorage.getItem("yard_invite_nudge_seen") === "1") return
+    } catch { return }
+    const created = me.createdAt ? new Date(me.createdAt).getTime() : NaN
+    if (!Number.isFinite(created)) return
+    const ageDays = (Date.now() - created) / (24 * 60 * 60 * 1000)
+    if (ageDays >= 2 && (me.referralCount ?? 0) === 0) setShowInviteNudge(true)
+  }, [guest, me, authReady, showInviteNudge])
+
+  function dismissInviteNudge() {
+    try { localStorage.setItem("yard_invite_nudge_seen", "1") } catch {}
+    setShowInviteNudge(false)
+  }
+
+  async function copyInviteLink() {
+    if (!me?.inviteCode) return
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/join?ref=${me.inviteCode}`)
+      setInviteCopied(true)
+      setTimeout(() => setInviteCopied(false), 1500)
+    } catch {
+      router.push("/lair")
+    }
+  }
+
   // Live tick for rush-hour banner countdown (cheap 60s interval).
   const [rushNow, setRushNow] = useState(() => Date.now())
   useEffect(() => {
@@ -786,6 +822,19 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
           <button onClick={() => router.push("/signup")} className="btn-primary text-xs px-3 py-1.5 shrink-0">join</button>
         </div>
       )}
+      {!loading && !guest && showInviteNudge && me?.inviteCode && (
+        <div className="mx-4 mt-3 rounded-xl border border-[#baff39]/30 bg-[#baff39]/[0.06] p-3 flex items-center gap-3">
+          <span className="text-xl">👥</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm">yard is better with your people</p>
+            <p className="text-xs text-white/50">every verified signup with your link earns you credits.</p>
+          </div>
+          <button onClick={copyInviteLink} className="btn-primary text-xs px-3 py-1.5 shrink-0">
+            {inviteCopied ? "✓" : "copy link"}
+          </button>
+          <button onClick={dismissInviteNudge} aria-label="dismiss" className="text-white/30 hover:text-white/60 text-sm shrink-0 px-1">✕</button>
+        </div>
+      )}
       {!loading && <SmartNudge />}
       {rushStatus.live && (
         <div className="mx-4 mt-3 rounded-xl border border-[#facc15]/40 bg-[#facc15]/[0.07] p-3 flex items-center gap-3 animate-pulse">
@@ -1129,11 +1178,14 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                 <>
                   <p className="font-bold text-white/80 text-sm">you&apos;re all caught up</p>
                   <p className="text-white/40 text-xs mt-1 mb-4">fresh gist lands all day — check battles or start one.</p>
-                  <div className="flex gap-2 justify-center">
+                  <div className="flex gap-2 justify-center flex-wrap">
                     <button onClick={() => router.push("/battles")} className="btn-ghost text-xs">⚔️ battles</button>
                     <button onClick={() => router.push("/explore")} className="btn-ghost text-xs">🔥 trending</button>
                     <button onClick={() => router.push("/compose")} className="btn-primary text-xs px-4">+ gist</button>
                   </div>
+                  <button onClick={() => router.push("/lair")} className="text-white/40 hover:text-[#baff39] text-xs mt-3">
+                    seen everything? invite your hostel →
+                  </button>
                 </>
               )}
             </div>

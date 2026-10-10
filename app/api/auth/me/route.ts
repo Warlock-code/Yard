@@ -70,6 +70,10 @@ export async function GET(req: NextRequest) {
       storageLimit: effectiveStorageLimit,
       storageRemaining: Math.max(0, effectiveStorageLimit - user.storageUsed),
       championTrophies,
+      // Invite-nudge targeting (additive — existing clients ignore new fields).
+      createdAt: user.createdAt,
+      referralCount: user.referralCount,
+      inviteCode: user.inviteCode,
     },
   })
 }

@@ -80,6 +80,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       body: `${post.yeahs} yeahs and climbing - check it out.`,
       href: `/post/${post.id}`,
     })
+    // Victory ask (fires exactly once per post — yeahs hits 10 a single
+    // time): strike while they're proud, funnel to the lair invite link.
+    // Higher milestones stay celebration-only so this never nags.
+    if (post.yeahs === 10) {
+      await createNotification({
+        userId: owner.id,
+        pushToken: owner.pushToken,
+        type: "invite_nudge",
+        title: "your gist is blowing up 🔥",
+        body: "10 yeahs and climbing — invite your hostel to see it. your link lives in your lair.",
+        href: "/lair",
+      })
+    }
   }
 
   emitVoteUpdate(post.campus, post.id, post.yeahs)

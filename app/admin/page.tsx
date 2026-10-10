@@ -36,9 +36,11 @@ type Payout = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits" | "Contest"
 
 type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
+
+type ContestLeader = { referrerId: string; verified: number; total: number; ghostId: string; campus: string; tier: string }
 
 const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: string }[] = [
   { key: "Overview", label: "overview", icon: "▦", desc: "revenue & health", group: "general" },
@@ -51,6 +53,7 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Drafts", label: "drafts", icon: "✎", desc: "review ai posts", group: "moderation" },
   { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
   { key: "Credits", label: "credits", icon: "🔥", desc: "treasury & balances", group: "finance" },
+  { key: "Contest", label: "contest", icon: "🏆", desc: "referral contest", group: "moderation" },
 ]
 
 const GROUPS = ["general", "manage", "moderation", "finance"]
@@ -204,6 +207,15 @@ export default function AdminPage() {
   const [annText, setAnnText] = useState("")
   const [annCampus, setAnnCampus] = useState("ALL")
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  // Referral contest console: leaderboard window + blast copy.
+  const [contestDays, setContestDays] = useState(7)
+  const [contestLeaders, setContestLeaders] = useState<ContestLeader[]>([])
+  const [contestLoading, setContestLoading] = useState(false)
+  const [ctTitle, setCtTitle] = useState("🏆 invite contest is live")
+  const [ctBody, setCtBody] = useState("top inviter this week wins prime + credits. your link lives in your lair — go.")
+  const [ctText, setCtText] = useState("")
+  const [ctSending, setCtSending] = useState(false)
+  const [ctStatus, setCtStatus] = useState("")
   const [bcTitle, setBcTitle] = useState("")
   const [bcBody, setBcBody] = useState("")
   const [bcHref, setBcHref] = useState("/download")
@@ -382,6 +394,18 @@ export default function AdminPage() {
       .finally(() => { if (active) setMetricsLoading(false) })
     return () => { active = false }
   }, [section, range])
+
+  // Referral contest leaderboard: reloads on section open + window change.
+  useEffect(() => {
+    if (section !== "Contest") return
+    let active = true
+    setContestLoading(true)
+    adminFetch(`/api/admin/credits?action=top_referrers&days=${contestDays}`)
+      .then((d) => { if (active) setContestLeaders((d as unknown as { leaders?: ContestLeader[] }).leaders || []) })
+      .catch(() => { if (active) setContestLeaders([]) })
+      .finally(() => { if (active) setContestLoading(false) })
+    return () => { active = false }
+  }, [section, contestDays])
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -583,6 +607,77 @@ export default function AdminPage() {
       setDrafts((prev) => prev.filter((d) => d.id !== id))
     } catch (e: unknown) { alert(errMsg(e, `failed to ${action} draft`)) }
     finally { setBusyId(null) }
+  }
+
+  async function handleGrantPrime(id: string, ghost: string) {
+    if (busyId) return
+    if (!confirm(`grant 30 days of PRIME to ${ghost} as contest prize?`)) return
+    setBusyId(id)
+    try {
+      await adminFetch(`/api/admin/users/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "grant_prime" }),
+      })
+      alert(`prime granted to ${ghost}.`)
+    } catch (e: unknown) { alert(errMsg(e, "grant failed.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleContestMint(id: string, ghost: string) {
+    const raw = prompt(`mint how many credits to ${ghost}? (contest prize)`)
+    if (!raw) return
+    const amount = parseInt(raw, 10)
+    if (!Number.isFinite(amount) || amount <= 0) { alert("amount must be a positive number"); return }
+    if (busyId) return
+    if (!confirm(`mint ${amount} credits to ${ghost} as contest prize?`)) return
+    setBusyId(id)
+    try {
+      await adminFetch("/api/admin/credits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mint", userId: id, amount, reason: "referral contest prize" }),
+      })
+      alert("prize minted.")
+    } catch (e: unknown) { alert(errMsg(e, "mint failed.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleContestPin() {
+    if (!ctText.trim() || busyId) return
+    setBusyId("contest-pin")
+    try {
+      await adminFetch("/api/admin/announcements", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ctText, campus: "ALL" }),
+      })
+      setCtText("")
+      alert("contest pinned to feed.")
+    } catch (e: unknown) { alert(errMsg(e, "pin failed.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleContestBlast() {
+    if (!ctTitle.trim() || !ctBody.trim()) { alert("title and message required"); return }
+    if (!confirm(`notify ALL users with "${ctTitle.trim()}"? one broadcast per contest — make it count.`)) return
+    setCtSending(true)
+    setCtStatus("starting…")
+    try {
+      let cursor: string | null = null
+      let totalSent = 0
+      let totalPushed = 0
+      for (;;) {
+        const d = await adminFetch("/api/admin/broadcast", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: ctTitle, body: ctBody, href: "/lair", cursor }),
+        }) as unknown as { sent?: number; pushed?: number; done?: boolean; nextCursor?: string | null }
+        totalSent += d.sent || 0
+        totalPushed += d.pushed || 0
+        setCtStatus(`sent ${totalSent} · pushed ${totalPushed}…`)
+        cursor = d.nextCursor || null
+        if (d.done || !cursor) break
+      }
+      setCtStatus(`done — ${totalSent} notified, ${totalPushed} pushes.`)
+      setCtTitle(""); setCtBody("")
+    } catch (e: unknown) { setCtStatus(errMsg(e, "broadcast failed partway — re-run to continue.")) }
+    finally { setCtSending(false) }
   }
 
   async function handleCreditAdjust(action: "mint" | "burn") {
@@ -1464,6 +1559,62 @@ export default function AdminPage() {
                       <input value={bcHref} onChange={(e) => setBcHref(e.target.value)} placeholder="link — /download" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <button disabled={bcSending} onClick={handleBroadcast} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{bcSending ? "sending…" : "notify all users"}</button>
                       {bcStatus && <p className="text-xs text-white/50">{bcStatus}</p>}
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* ============ CONTEST ============ */}
+              {section === "Contest" && (
+                <div className="grid lg:grid-cols-5 gap-4">
+                  <Card className="lg:col-span-3">
+                    <CardHeader title="referral leaderboard" sub="verified invites in window — crown the winner" right={
+                      <select value={contestDays} onChange={(e) => setContestDays(Number(e.target.value))} className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#baff39]/60">
+                        <option value={7}>7 days</option>
+                        <option value={14}>14 days</option>
+                        <option value={30}>30 days</option>
+                      </select>
+                    } />
+                    {contestLoading ? (
+                      <p className="p-5 text-xs text-white/40">loading leaderboard…</p>
+                    ) : contestLeaders.length === 0 ? (
+                      <div className="p-4"><EmptyState icon="🏆" title="no verified invites yet" sub="run a contest blast, then check back." /></div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b border-white/[0.06]"><th className={th}>#</th><th className={th}>ghost</th><th className={th}>verified</th><th className={th}>total</th><th className={th}>prize</th></tr></thead>
+                          <tbody>
+                            {contestLeaders.map((l, i) => (
+                              <tr key={l.referrerId} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
+                                <td className={`${td} font-black text-[#baff39]`}>{i + 1}</td>
+                                <td className={td}><p className="font-bold">{i === 0 ? "👑 " : ""}{l.ghostId}</p><p className="text-[11px] text-white/30 truncate max-w-[200px]">{l.campus} · {l.tier}</p></td>
+                                <td className={`${td} font-black`}>{l.verified}</td>
+                                <td className={`${td} text-white/60`}>{l.total}</td>
+                                <td className={td}>
+                                  <div className="flex gap-1.5">
+                                    <button disabled={!!busyId} onClick={() => handleGrantPrime(l.referrerId, l.ghostId)} className="rounded-lg border border-[#facc15]/40 text-[#facc15] text-[11px] font-bold px-2.5 py-1.5 hover:bg-[#facc15]/10 disabled:opacity-50">prime</button>
+                                    <button disabled={!!busyId} onClick={() => handleContestMint(l.referrerId, l.ghostId)} className="rounded-lg border border-white/15 text-[11px] font-bold px-2.5 py-1.5 text-white/70 hover:bg-white/5 disabled:opacity-50">+credits</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+                  <Card className="lg:col-span-2">
+                    <CardHeader title="run the contest" sub="pin + one broadcast per contest" />
+                    <div className="p-5 space-y-3">
+                      <textarea value={ctText} onChange={(e) => setCtText(e.target.value)} placeholder="contest post — e.g. 🏆 invite contest: top inviter this week wins prime + 500 credits. link lives in your lair. go." rows={3} maxLength={2000} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <button disabled={busyId === "contest-pin"} onClick={handleContestPin} className="w-full rounded-xl border border-[#baff39]/40 text-[#baff39] font-bold py-2.5 text-sm hover:bg-[#baff39]/10 disabled:opacity-50 transition-colors">{busyId === "contest-pin" ? "pinning…" : "pin contest to feed"}</button>
+                      <div className="border-t border-white/10 pt-3 space-y-3">
+                        <input value={ctTitle} onChange={(e) => setCtTitle(e.target.value)} placeholder="blast title" maxLength={80} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                        <textarea value={ctBody} onChange={(e) => setCtBody(e.target.value)} placeholder="blast message" rows={2} maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                        <button disabled={ctSending} onClick={handleContestBlast} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{ctSending ? "sending…" : "notify all users"}</button>
+                        {ctStatus && <p className="text-xs text-white/50">{ctStatus}</p>}
+                      </div>
+                      <p className="text-[11px] text-white/30">flow: pin post → blast once → crown winner here (prime + credits) → pin winner shoutout.</p>
                     </div>
                   </Card>
                 </div>

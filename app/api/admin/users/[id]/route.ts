@@ -13,6 +13,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try { body = await req.json() } catch { return NextResponse.json({ error: "invalid JSON." }, { status: 400 }) }
   const { action } = body
 
+  // Contest prize: 30 days of Prime. Separate from suspend/ban flow —
+  // tier fields only, never touches status or sessions.
+  if (action === "grant_prime") {
+    try {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      const user = await prisma.user.update({
+        where: { id },
+        data: { tier: "PRIME", tierExpiresAt: expiresAt },
+        select: { id: true, tier: true, tierExpiresAt: true, ghostId: true },
+      })
+      return NextResponse.json({ user })
+    } catch (e: any) {
+      if (e?.code === "P2025") return NextResponse.json({ error: "user not found." }, { status: 404 })
+      return NextResponse.json({ error: "failed to grant prime." }, { status: 500 })
+    }
+  }
+
   if (action !== "suspend" && action !== "ban" && action !== "unsuspend") {
     return NextResponse.json({ error: "invalid action." }, { status: 400 })
   }

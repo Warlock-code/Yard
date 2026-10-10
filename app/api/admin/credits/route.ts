@@ -50,6 +50,44 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ users })
   }
 
+  if (action === "top_referrers") {
+    const days = Math.min(Math.max(Number(searchParams.get("days")) || 7, 1), 90)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    // Verified = reward paid out; totals include pending. Two groupBys,
+    // merged in code — no schema change needed for contests.
+    const [verified, totals] = await Promise.all([
+      prisma.referral.groupBy({
+        by: ["referrerId"],
+        where: { rewardStatus: "completed", createdAt: { gte: since } },
+        _count: { _all: true },
+      }),
+      prisma.referral.groupBy({
+        by: ["referrerId"],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+      }),
+    ])
+    const totalById = new Map(totals.map((t) => [t.referrerId, t._count._all]))
+    const ranked = verified
+      .map((v) => ({ referrerId: v.referrerId, verified: v._count._all, total: totalById.get(v.referrerId) ?? v._count._all }))
+      .sort((a, b) => b.verified - a.verified)
+      .slice(0, 10)
+    const users = await prisma.user.findMany({
+      where: { id: { in: ranked.map((r) => r.referrerId) } },
+      select: { id: true, ghostId: true, campus: true, tier: true },
+    })
+    const byId = new Map(users.map((u) => [u.id, u]))
+    return NextResponse.json({
+      leaders: ranked.map((r) => ({
+        ...r,
+        ghostId: byId.get(r.referrerId)?.ghostId ?? "ghost",
+        campus: byId.get(r.referrerId)?.campus ?? "",
+        tier: byId.get(r.referrerId)?.tier ?? "FREE",
+      })),
+      days,
+    })
+  }
+
   return NextResponse.json({ error: "invalid action" }, { status: 400 })
 }
 
