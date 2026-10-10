@@ -397,7 +397,13 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
       try {
         const data = await apiGet<{ posts: Post[]; nextCursor: string | null }>(`/api/posts?mode=${mode}&cursor=${nextCursor}&seed=${refreshSeed}`)
         if (!active) return
-        setPosts((prev) => [...prev, ...data.posts])
+        // Dedupe by id: a re-fired page fetch must never render twins.
+        setPosts((prev) => {
+          const seen = new Set(prev.map((p) => p.id))
+          const fresh = data.posts.filter((p) => !seen.has(p.id))
+          if (fresh.length === 0) return prev
+          return [...prev, ...fresh]
+        })
         setNextCursor(data.nextCursor)
       } catch (err) {
         console.error(err)
