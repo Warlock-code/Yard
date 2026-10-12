@@ -23,6 +23,11 @@ export async function GET(req: NextRequest) {
   const windowFilter = { gte: start }
 
   // All heavy reads are capped to the `range`-day window; lifetime counts mirror the stats route.
+  // NOTE: kind="trial" rows are free 7-day grants (status success, amount 0) written at
+  // signup — they must never count as paying. Every paying metric below excludes them.
+  const paidWhereWindow = { status: "success", kind: { not: "trial" }, createdAt: windowFilter } as const
+  const paidWhereEver = { status: "success", kind: { not: "trial" } } as const
+  const mauStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const [
     posts,
     comments,
@@ -35,18 +40,23 @@ export async function GET(req: NextRequest) {
     paidOutAgg,
     payers,
     signups,
+    everPayers,
+    everRevenueAgg,
+    mauPosts,
+    mauComments,
+    mauVotes,
   ] = await Promise.all([
     prisma.post.findMany({ where: { createdAt: windowFilter }, select: { userId: true, createdAt: true } }),
     prisma.comment.findMany({ where: { createdAt: windowFilter }, select: { userId: true, createdAt: true } }),
     prisma.postVote.findMany({ where: { createdAt: windowFilter }, select: { userId: true, createdAt: true } }),
     prisma.transaction.count({ where: { status: "pending", createdAt: windowFilter } }),
-    prisma.transaction.count({ where: { status: "success", createdAt: windowFilter } }),
+    prisma.transaction.count({ where: paidWhereWindow }),
     prisma.user.count(),
     prisma.user.count({ where: { tier: "PLUS" } }),
-    prisma.transaction.aggregate({ where: { status: "success", createdAt: windowFilter }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: paidWhereWindow, _sum: { amount: true } }),
     prisma.payout.aggregate({ where: { status: "paid", requestedAt: windowFilter }, _sum: { amount: true } }),
     prisma.transaction.findMany({
-      where: { status: "success", createdAt: windowFilter },
+      where: paidWhereWindow,
       select: { userId: true },
       distinct: ["userId"],
     }),
@@ -54,6 +64,21 @@ export async function GET(req: NextRequest) {
       where: { createdAt: windowFilter },
       select: { id: true, createdAt: true },
     }),
+    prisma.transaction.findMany({
+      where: paidWhereEver,
+      select: { userId: true },
+      distinct: ["userId"],
+    }),
+    prisma.transaction.aggregate({ where: paidWhereEver, _sum: { amount: true } }),
+    // MAU action sets: rolling 30d regardless of range (range=7 window is too short).
+    // Skipped when range already covers 30d — window sets are reused below.
+    ...(range >= 30
+      ? [null, null, null] as const
+      : [
+          prisma.post.findMany({ where: { createdAt: { gte: mauStart } }, select: { userId: true } }),
+          prisma.comment.findMany({ where: { createdAt: { gte: mauStart } }, select: { userId: true } }),
+          prisma.postVote.findMany({ where: { createdAt: { gte: mauStart } }, select: { userId: true } }),
+        ]),
   ])
 
   const dauByDay = new Map<string, Set<string>>(days.map((d) => [d, new Set<string>()]))
@@ -76,14 +101,27 @@ export async function GET(req: NextRequest) {
     if (signupsByDay.has(day)) signupsByDay.get(day)?.add(u.id)
   }
 
-  // Paid signups per day (pay conversion)
-  const paidUserIds = new Set(payers.map(p => p.userId))
+  // Paid signups per day (pay conversion) — against EVER-paid (excl trial), so a day-1
+  // signup who pays on day 40 still counts as converted for their cohort day.
+  const everPaidIds = new Set(everPayers.map(p => p.userId))
   for (const u of signups) {
-    if (paidUserIds.has(u.id)) {
+    if (everPaidIds.has(u.id)) {
       const day = dayOf(u.createdAt)
       if (paidSignupsByDay.has(day)) paidSignupsByDay.get(day)?.add(u.id)
     }
   }
+
+  // MAU action-based: distinct users with post/comment/vote in rolling 30d.
+  // Range 30 reuses window sets; range 7 uses the dedicated 30d fetches above.
+  const mauSet = new Set<string>()
+  if (range >= 30) {
+    for (const d of dauByDay.values()) for (const uid of d) mauSet.add(uid)
+  } else {
+    for (const row of mauPosts ?? []) mauSet.add(row.userId)
+    for (const row of mauComments ?? []) mauSet.add(row.userId)
+    for (const row of mauVotes ?? []) mauSet.add(row.userId)
+  }
+  const mauAction = mauSet.size
 
   // Signup cohort posting activity: how many signups post on day 0 (signup day) and day 1 (next day)
   const signupPostDay0 = new Map<string, number>(days.map((d) => [d, 0]))
@@ -165,11 +203,17 @@ export async function GET(req: NextRequest) {
   }
 
   const plusRate = userCount > 0 ? plusCount / userCount : 0
-  const paidRate = userCount > 0 ? plusCount / userCount : 0
+  // Paying = ever paid anything real (trial excluded). paidRate kept for compat.
+  const everRevenuePesewas = everRevenueAgg._sum.amount ?? 0
+  const payingConversion = userCount > 0 ? everPayers.length / userCount : 0
+  const paidRate = payingConversion
+  const windowPayRate = userCount > 0 ? payers.length / userCount : 0
 
   const revenuePesewas = revenueAgg._sum.amount ?? 0
   const paidOutPesewas = paidOutAgg._sum.amount ?? 0
+  // ARPPU = average revenue per paying user (window revenue / window payers).
   const arppuPesewas = payers.length > 0 ? revenuePesewas / payers.length : 0
+  const lifetimeArppuPesewas = everPayers.length > 0 ? everRevenuePesewas / everPayers.length : 0
   const payoutRatio = revenuePesewas > 0 ? paidOutPesewas / revenuePesewas : 0
 
   // Posts per active user per day
@@ -284,9 +328,18 @@ export async function GET(req: NextRequest) {
     retentionD1: signupDays.map((day) => ({ day, rate: retentionD1.get(day) ?? 0 })),
     retentionD7: signupDays.map((day) => ({ day, rate: retentionD7.get(day) ?? 0 })),
     arppuPesewas,
+    lifetimeArppuPesewas,
     revenuePesewas,
+    everRevenuePesewas,
     paidOutPesewas,
     payoutRatio,
+    // Paying conversion = % who paid anything real (trial excluded).
+    payingConversion,
+    windowPayRate,
+    everPayersCount: everPayers.length,
+    windowPayersCount: payers.length,
+    // MAU action-based = distinct posters/commenters/voters, rolling 30d.
+    mauAction,
     signupPostDay0: signupPostRateDay0,
     signupPostDay1: signupPostRateDay1,
     signupsPerDay,

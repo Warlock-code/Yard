@@ -167,9 +167,16 @@ export default function AdminPage() {
   funnel: {hits:number;checkoutStarted:number;paid:number};
   conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
   arppuPesewas:number;
+  lifetimeArppuPesewas?:number;
   revenuePesewas:number;
+  everRevenuePesewas?:number;
   paidOutPesewas:number;
   payoutRatio:number;
+  payingConversion?:number;
+  windowPayRate?:number;
+  everPayersCount?:number;
+  windowPayersCount?:number;
+  mauAction?:number;
   signupPostDay0: {day:string;count:number;rate:number}[];
   signupPostDay1: {day:string;count:number;rate:number}[];
   signupsPerDay?: {day:string;count:number}[];
@@ -373,9 +380,16 @@ export default function AdminPage() {
           funnel: {hits:number;checkoutStarted:number;paid:number};
           conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
           arppuPesewas:number;
+          lifetimeArppuPesewas?:number;
           revenuePesewas:number;
+          everRevenuePesewas?:number;
           paidOutPesewas:number;
           payoutRatio:number;
+          payingConversion?:number;
+          windowPayRate?:number;
+          everPayersCount?:number;
+          windowPayersCount?:number;
+          mauAction?:number;
           signupPostDay0: {day:string;count:number;rate:number}[];
           signupPostDay1: {day:string;count:number;rate:number}[];
           signupsPerDay?: {day:string;count:number}[];
@@ -408,10 +422,10 @@ export default function AdminPage() {
   }, [section, range])
 
   // Credit spend averages: reloads with Insights range. Independent of metrics.
+  // Loading flag is set in go()/range-switch to avoid set-state-in-effect.
   useEffect(() => {
     if (section !== "Insights") return
     let active = true
-    setSpendLoading(true)
     adminFetch(`/api/admin/credits?action=spend_stats&days=${range}`)
       .then((d) => {
         if (!active) return
@@ -776,7 +790,7 @@ export default function AdminPage() {
   }
 
   const activeMeta = NAV.find((n) => n.key === section)!
-  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null) } if (s === "Drafts") setDraftsLoading(true); if (s === "Credits") setCreditsLoading(true); if (s === "Battles") setBattleDraftsLoading(true); setSection(s); setDrawer(false) }
+  const go = (s: SectionKey) => { if (s === "Insights") { setMetricsLoading(true); setMetricsError(null); setSpendLoading(true) } if (s === "Drafts") setDraftsLoading(true); if (s === "Credits") setCreditsLoading(true); if (s === "Battles") setBattleDraftsLoading(true); setSection(s); setDrawer(false) }
 
   const sidebarNav = (
     <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 no-scrollbar">
@@ -1028,14 +1042,14 @@ export default function AdminPage() {
                     <p className="text-sm text-white/40"><span className="text-white font-black">growth &amp; money</span> · last {range} days</p>
                     <div className="flex gap-1.5 bg-black/40 border border-white/10 rounded-xl p-1 w-fit">
                       {([7, 30] as const).map((r) => (
-                        <button key={r} onClick={() => { setMetricsLoading(true); setRange(r) }} className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${range === r ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{r}d</button>
+                        <button key={r} onClick={() => { setMetricsLoading(true); setSpendLoading(true); setRange(r) }} className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${range === r ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{r}d</button>
                       ))}
                     </div>
                   </div>
 
                   {metricsLoading ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {[...Array(7)].map((_, i) => <div key={i} className="h-[128px] rounded-2xl skeleton-shimmer" />)}
+                      {[...Array(8)].map((_, i) => <div key={i} className="h-[128px] rounded-2xl skeleton-shimmer" />)}
                     </div>
                   ) : metricsError ? (
                     <EmptyState icon="◊" title={metricsError === "metrics api not deployed yet" ? "metrics api not deployed yet" : "could not load insights"} sub={metricsError === "metrics api not deployed yet" ? "deploy /api/admin/metrics to see growth and money." : metricsError} />
@@ -1052,15 +1066,18 @@ export default function AdminPage() {
                         const hits = metrics.funnel?.hits || 0
                         const paywallPct = dauSum > 0 ? (hits / dauSum) * 100 : 0
                         const plusP = metrics.conversion ? (metrics.conversion.plusRate > 1 ? metrics.conversion.plusRate : metrics.conversion.plusRate * 100) : 0
+                        const payP = (metrics.payingConversion ?? 0) > 1 ? (metrics.payingConversion ?? 0) : (metrics.payingConversion ?? 0) * 100
                         const ratio = metrics.payoutRatio || 0
                         const over = ratio > 1
                         return (
                           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                             <StatCard label="dau today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
+                            <StatCard label="mau action" value={(metrics.mauAction ?? 0).toLocaleString()} sub="posters/commenters/voters · 30d" icon="🌙" accent="#a855f7" />
                             <StatCard label="posts/day avg" value={postsAvg.toFixed(1)} sub="posts per day" icon="📝" accent="#facc15" />
                             <StatCard label="paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / dau`} icon="◊" accent="#38bdf8" />
                             <StatCard label="plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} plus`} icon="★" accent="#38bdf8" />
-                            <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev`} icon="💰" accent="#baff39" />
+                            <StatCard label="paying conv %" value={`${payP.toFixed(1)}%`} sub={`${(metrics.everPayersCount ?? 0).toLocaleString()} ever paid · trial excluded`} icon="💳" accent="#34d399" />
+                            <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev / ${(metrics.windowPayersCount ?? 0).toLocaleString()} payers`} icon="💰" accent="#baff39" />
                             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between min-h-[128px] hover:border-white/20 transition-colors">
                               <div className="flex items-center justify-between">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/40">payout ratio</p>
@@ -1252,8 +1269,8 @@ export default function AdminPage() {
                           <div className="p-5">
                             <p className="text-xs text-white/40 leading-relaxed">funnel and paywall-hit % need the paywall-hit instrumentation. if hits stay at 0, the client is not logging paywall views and checkout events to <span className="text-white/70 font-mono">/api/admin/metrics</span> yet — wire that up to unlock growth and money reads.</p>
                             <div className="mt-4 rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.06] p-3">
-                              <p className="text-[11px] font-bold text-[#baff39]">arppu = revenue / paid users</p>
-                              <p className="text-[11px] text-white/40 mt-1">payout ratio over 1x means paying out more than revenue.</p>
+                              <p className="text-[11px] font-bold text-[#baff39]">arppu = window revenue / window payers · trial excluded</p>
+                              <p className="text-[11px] text-white/40 mt-1">paying conv = ever-paid / users · mau = action-based rolling 30d. payout ratio over 1x means paying out more than revenue.</p>
                             </div>
                           </div>
                         </Card>
