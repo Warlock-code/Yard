@@ -15,7 +15,7 @@ const ROWS: { label: string; free: string; plus: string; prime: string; primeWin
   { label: "Feed + battle priority", free: "normal", plus: "higher", prime: "highest", primeWin: true },
   { label: "Free post boost", free: "—", plus: "1 / week", prime: "2 / week", primeWin: true },
   { label: "Streak freeze", free: "—", plus: "1 / month", prime: "2 / month", primeWin: true },
-  { label: "Credit rewards", free: "—", plus: "1x", prime: "2x", primeWin: true },
+  { label: "Credit rewards", free: "0 — missed counts here ↑", plus: "1x", prime: "2x", primeWin: true },
   { label: "Post hints (who's watching)", free: "counts", plus: "programs", prime: "programs + years", primeWin: true },
   { label: "Storage", free: "50 MB", plus: "50 + 50 MB", prime: "50 + 100 MB", primeWin: true },
   { label: "Theme", free: "default green", plus: "+ plus blue", prime: "+ gold", primeWin: true },
@@ -27,6 +27,7 @@ export default function UpgradePage() {
   const router = useRouter()
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME" } | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
+  const [missed, setMissed] = useState<{ total: number; weekly: number; plusWeekly: number; primeWeekly: number } | null>(null)
 
   useEffect(() => {
     logPaywallHit("upgrade_view", "/upgrade").catch(() => {})
@@ -38,6 +39,9 @@ export default function UpgradePage() {
       .then((data) => {
         if (active) setMe(data.user)
       })
+      .catch(() => {})
+    apiGet<{ total: number; weekly: number; plusWeekly: number; primeWeekly: number }>("/api/earnings/missed")
+      .then((d) => { if (active) setMissed(d) })
       .catch(() => {})
     return () => { active = false }
   }, [])
@@ -64,6 +68,15 @@ export default function UpgradePage() {
         <h1 className="text-xl font-bold">plus vs free</h1>
       </div>
       <p className="text-white/50 text-sm mb-4">every upgrade button lands here — compare, then decide. plus and prime renew monthly, cancel anytime.</p>
+
+      {me?.tier === "FREE" && missed && missed.weekly > 0 && (
+        <div className="card p-4 mb-4 border-[#baff39]/30 bg-[#baff39]/5">
+          <p className="font-semibold text-sm">💸 you&apos;ve missed ~{missed.weekly}cr this week ({missed.total}cr total)</p>
+          <p className="text-xs text-white/50 mt-1">
+            as FREE you earn 0. PLUS would&apos;ve paid {missed.plusWeekly}cr · PRIME {missed.primeWeekly}cr for the same heat.
+          </p>
+        </div>
+      )}
 
       {!me ? (
         <div className="space-y-4">

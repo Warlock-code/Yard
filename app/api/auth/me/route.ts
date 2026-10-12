@@ -30,6 +30,18 @@ export async function GET(req: NextRequest) {
 
   const totalEarned = earningsSum._sum.amount || 0
   const totalPaidOut = paidOutSum._sum.amount || 0
+  // Missed-earnings shadow total (FREE upgrade nudge). Live-safe pre-migration.
+  let missedEarnings = 0
+  try {
+    const withMissed = user as unknown as { missedEarnings?: unknown }
+    if (typeof withMissed.missedEarnings === "number") missedEarnings = withMissed.missedEarnings
+    else {
+      const { getMissedTotal } = await import("@/lib/missedEarnings")
+      missedEarnings = await getMissedTotal(user.id).catch(() => 0)
+    }
+  } catch {
+    missedEarnings = 0
+  }
   const effectiveTier = getEffectiveTier(user)
   const daysLeft = user.tier !== "FREE" ? getTierDaysLeft(user) : null
   // Trial = holding a paid tier with no successful paid subscription.
@@ -65,6 +77,7 @@ export async function GET(req: NextRequest) {
       followingCount,
       totalEarnedPesewas: totalEarned,
       availableBalancePesewas: totalEarned - totalPaidOut,
+      missedEarnings,
       hasPendingPayout: !!pendingPayout,
       storageUsed: Math.max(0, user.storageUsed),
       storageLimit: effectiveStorageLimit,

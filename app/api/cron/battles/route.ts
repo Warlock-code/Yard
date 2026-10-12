@@ -124,6 +124,18 @@ export async function GET(req: NextRequest) {
                 round: prompt.roundNumber,
                 tier
               })
+            } else if (tier === "FREE") {
+              // FREE shadow: what PLUS (battle 1x) would have paid. Display-only.
+              const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * 1)
+              if (shadow > 0) {
+                const { logMissedEarnings } = await import("@/lib/missedEarnings")
+                await logMissedEarnings(w.userId, shadow, {
+                  source: "battle_win",
+                  promptId: prompt.id,
+                  entryId: w.id,
+                  battleType: "bracket_round",
+                }).catch(() => {})
+              }
             }
             await prisma.user.update({
               where: { id: w.userId },
@@ -196,6 +208,17 @@ export async function GET(req: NextRequest) {
               battleType: "bracket_final",
               tier
             })
+          } else if (tier === "FREE") {
+            const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * 1)
+            if (shadow > 0) {
+              const { logMissedEarnings } = await import("@/lib/missedEarnings")
+              await logMissedEarnings(winner.userId, shadow, {
+                source: "battle_win",
+                promptId: prompt.id,
+                entryId: winner.id,
+                battleType: "bracket_final",
+              }).catch(() => {})
+            }
           }
         }
 
@@ -243,6 +266,17 @@ export async function GET(req: NextRequest) {
               battleType: "single",
               tier
             })
+          } else if (tier === "FREE") {
+            const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * 1)
+            if (shadow > 0) {
+              const { logMissedEarnings } = await import("@/lib/missedEarnings")
+              await logMissedEarnings(winner.userId, shadow, {
+                source: "battle_win",
+                promptId: prompt.id,
+                entryId: winner.id,
+                battleType: "single",
+              }).catch(() => {})
+            }
           }
         }
 

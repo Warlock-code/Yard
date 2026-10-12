@@ -39,33 +39,50 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (owner) {
     const tier = getEffectiveTier(owner)
     const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 0
+    const rush = isRushLive()
+    const rushMult = rush ? RUSH_MULTIPLIER : 1
     if (multiplier > 0) {
       // Rush hour: votes pay double (free tier still earns 0 — no farming).
-      const rush = isRushLive()
-      const rushMult = rush ? RUSH_MULTIPLIER : 1
       const voteReward = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * multiplier * rushMult)
 
       await creditUser(owner.id, "VOTE_REWARD", voteReward, post.id, { postId: post.id, voterId: user.id, tier, rush })
-      
+
       if (MILESTONES.includes(post.yeahs)) {
         const milestoneBonus = Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * multiplier * rushMult)
-        await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, { 
-          postId: post.id, 
+        await creditUser(owner.id, "VOTE_REWARD", milestoneBonus, post.id, {
+          postId: post.id,
           milestone: post.yeahs,
           tier,
           rush,
         })
       }
+    } else {
+      // FREE shadow ledger: what PLUS (1x) would have paid. Display-only.
+      const { logMissedEarnings } = await import("@/lib/missedEarnings")
+      let shadow = Math.round(CREDIT_CONFIG.EARN.POST_VOTE * 1 * rushMult)
+      if (MILESTONES.includes(post.yeahs)) {
+        shadow += Math.round(MILESTONE_BONUS_PESEWAS[post.yeahs] / 100 * CREDIT_CONFIG.CREDITS_PER_GHS * 1 * rushMult)
+      }
+      await logMissedEarnings(owner.id, shadow, {
+        source: "post_vote",
+        postId: post.id,
+        voterId: user.id,
+        rush,
+      })
     }
   }
 
   if (owner && !MILESTONES.includes(post.yeahs)) {
+    const ownerTier = getEffectiveTier(owner)
     await createNotification({
       userId: owner.id,
       pushToken: owner.pushToken,
       type: "like",
       title: "your post got a yeah",
-      body: `${user.ghostId} yeahed your post`,
+      body:
+        ownerTier === "FREE"
+          ? `${user.ghostId} yeahed your post — PLUS would've earned +${Math.round(CREDIT_CONFIG.EARN.POST_VOTE * (isRushLive() ? RUSH_MULTIPLIER : 1))}cr. upgrade to claim.`
+          : `${user.ghostId} yeahed your post`,
       href: `/post/${post.id}`,
       actorName: user.ghostId,
     })

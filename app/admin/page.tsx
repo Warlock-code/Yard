@@ -192,6 +192,18 @@ export default function AdminPage() {
   const [range, setRange] = useState<7|30>(30)
   const [metricsError, setMetricsError] = useState<string | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
+  const [spend, setSpend] = useState<null | {
+    days: number
+    totalSpent: number
+    totalUsers: number
+    activeSpenders: number
+    avgPerDay: number
+    avgPerUserPerDay: number
+    avgPerSpenderPerDay: number
+    byType: { type: string; total: number; count: number }[]
+    byDay: { day: string; total: number; count: number }[]
+  }>(null)
+  const [spendLoading, setSpendLoading] = useState(false)
   const [userSearch, setUserSearch] = useState("")
   const [tierFilter, setTierFilter] = useState("ALL")
   const [postSearch, setPostSearch] = useState("")
@@ -392,6 +404,31 @@ export default function AdminPage() {
         setMetricsError(msg.includes("404") ? "metrics api not deployed yet" : msg)
       })
       .finally(() => { if (active) setMetricsLoading(false) })
+    return () => { active = false }
+  }, [section, range])
+
+  // Credit spend averages: reloads with Insights range. Independent of metrics.
+  useEffect(() => {
+    if (section !== "Insights") return
+    let active = true
+    setSpendLoading(true)
+    adminFetch(`/api/admin/credits?action=spend_stats&days=${range}`)
+      .then((d) => {
+        if (!active) return
+        setSpend(d as unknown as {
+          days: number
+          totalSpent: number
+          totalUsers: number
+          activeSpenders: number
+          avgPerDay: number
+          avgPerUserPerDay: number
+          avgPerSpenderPerDay: number
+          byType: { type: string; total: number; count: number }[]
+          byDay: { day: string; total: number; count: number }[]
+        })
+      })
+      .catch(() => { if (active) setSpend(null) })
+      .finally(() => { if (active) setSpendLoading(false) })
     return () => { active = false }
   }, [section, range])
 
@@ -1087,6 +1124,63 @@ export default function AdminPage() {
                               </div>
                             </div>
                           </div>
+                        </div>
+                      </Card>
+
+                      {/* ============ CREDIT SPEND: avg / user ============ */}
+                      <Card>
+                        <CardHeader title="credit spend" sub={`avg user spending · last ${metrics.range || range}d · MISSED_EARNING excluded`} right={
+                          <span className="text-[11px] text-white/30">{spendLoading ? "loading…" : spend ? `${spend.totalSpent.toLocaleString()}cr total` : "no data"}</span>
+                        } />
+                        <div className="p-5 space-y-4">
+                          {spendLoading ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              {[...Array(4)].map((_, i) => <div key={i} className="h-[128px] rounded-2xl skeleton-shimmer" />)}
+                            </div>
+                          ) : !spend ? (
+                            <p className="text-xs text-white/40">no spend data yet.</p>
+                          ) : (
+                            <>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <StatCard label="avg / user / day" value={`${spend.avgPerUserPerDay}cr`} sub={`${spend.totalUsers.toLocaleString()} users`} icon="💳" accent="#baff39" />
+                                <StatCard label="avg / day" value={`${spend.avgPerDay.toLocaleString()}cr`} sub={`${spend.totalSpent.toLocaleString()}cr total`} icon="📊" accent="#38bdf8" />
+                                <StatCard label="avg / spender / day" value={`${spend.avgPerSpenderPerDay}cr`} sub={`${spend.activeSpenders.toLocaleString()} spenders`} icon="🔥" accent="#facc15" />
+                                <StatCard label="top sink" value={(spend.byType[0]?.type || "—").slice(0, 14)} sub={spend.byType[0] ? `${spend.byType[0].total.toLocaleString()}cr · ${spend.byType[0].count} buys` : "no buys yet"} icon="🏆" accent="#a855f7" />
+                              </div>
+                              <div className="grid lg:grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs font-bold text-white/50 mb-2">credits spent / day</p>
+                                  <div className="h-[170px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={(spend.byDay || []).map((d) => ({ ...d, day: d.day.slice(5) }))} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                                        <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                        <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                        <Bar dataKey="total" radius={[8, 8, 0, 0]} fill="#baff39" name="credits" />
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-white/50 mb-2">spend by category · total</p>
+                                  <div className="h-[170px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={(spend.byType || []).slice(0, 8)} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
+                                        <XAxis type="number" hide />
+                                        <YAxis type="category" dataKey="type" tick={{ fill: "rgba(255,255,255,0.55)", fontSize: 11 }} axisLine={false} tickLine={false} width={130} />
+                                        <Tooltip contentStyle={{ background: "#0c0c0c", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "#fff", fontSize: "12px" }} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                                        <Bar dataKey="total" radius={[0, 8, 8, 0]} fill="#38bdf8" name="credits">
+                                          {(spend.byType || []).slice(0, 8).map((_, i) => (
+                                            <Cell key={i} fill={["#baff39", "#38bdf8", "#facc15", "#a855f7", "#34d399", "#f87171", "#fb923c", "#22d3ee"][i % 8]} />
+                                          ))}
+                                        </Bar>
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </Card>
 

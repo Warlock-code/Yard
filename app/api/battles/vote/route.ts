@@ -52,6 +52,34 @@ export async function POST(req: NextRequest) {
     throw err
   }
 
+  // FREE shadow ledger: battle votes pay POST_VOTE * 1x on PLUS. Display-only, post-tx so a
+  // missing missedEarnings column can never abort the vote itself.
+  try {
+    const entry = await prisma.battleEntry.findUnique({
+      where: { id: entryId },
+      select: { userId: true },
+    })
+    if (entry && entry.userId !== user.id) {
+      const owner = await prisma.user.findUnique({
+        where: { id: entry.userId },
+        select: { tier: true, tierExpiresAt: true },
+      })
+      if (owner) {
+        const { getEffectiveTier } = await import("@/lib/tier")
+        if (getEffectiveTier(owner) === "FREE") {
+          const { logMissedEarnings } = await import("@/lib/missedEarnings")
+          await logMissedEarnings(entry.userId, Math.round(CREDIT_CONFIG.EARN.POST_VOTE * 1), {
+            source: "battle_vote",
+            entryId,
+            voterId: user.id,
+          })
+        }
+      }
+    }
+  } catch {
+    // ignore shadow failures
+  }
+
   emitBattleVote(promptId!, entryId, updatedVotes!)
 
   return NextResponse.json({ success: true })

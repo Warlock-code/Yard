@@ -88,6 +88,74 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  if (action === "spend_stats") {
+    // Average credit spend per user — for the Insights chart.
+    // Spend = CreditTransaction amount < 0 (excludes MISSED_EARNING shadows).
+    const days = Math.min(Math.max(Number(searchParams.get("days")) || 30, 1), 90)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+    const dayLabels: string[] = []
+    for (let i = days - 1; i >= 0; i--) {
+      dayLabels.push(dayKey(new Date(Date.now() - i * 24 * 60 * 60 * 1000)))
+    }
+
+    const [byType, totalUsers, spendRows] = await Promise.all([
+      prisma.creditTransaction.groupBy({
+        by: ["type"],
+        where: { amount: { lt: 0 }, createdAt: { gte: since }, NOT: { type: "MISSED_EARNING" } },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      prisma.user.count(),
+      prisma.creditTransaction.findMany({
+        where: { amount: { lt: 0 }, createdAt: { gte: since }, NOT: { type: "MISSED_EARNING" } },
+        select: { amount: true, type: true, userId: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 20000,
+      }),
+    ])
+
+    const byDayMap = new Map<string, { total: number; count: number }>(
+      dayLabels.map((d) => [d, { total: 0, count: 0 }])
+    )
+    const spenders = new Set<string>()
+    let totalSpent = 0
+    for (const r of spendRows) {
+      const spent = Math.abs(r.amount)
+      totalSpent += spent
+      spenders.add(r.userId)
+      const k = dayKey(r.createdAt)
+      const slot = byDayMap.get(k)
+      if (slot) {
+        slot.total += spent
+        slot.count += 1
+      }
+    }
+
+    const byDay = dayLabels.map((day) => ({
+      day,
+      total: byDayMap.get(day)?.total ?? 0,
+      count: byDayMap.get(day)?.count ?? 0,
+    }))
+    const byTypeSorted = byType
+      .map((t) => ({ type: t.type, total: Math.abs(t._sum.amount ?? 0), count: t._count._all }))
+      .sort((a, b) => b.total - a.total)
+
+    const denomDays = days || 1
+    const denomUsers = totalUsers || 1
+    return NextResponse.json({
+      days,
+      totalSpent,
+      totalUsers,
+      activeSpenders: spenders.size,
+      avgPerDay: Number((totalSpent / denomDays).toFixed(1)),
+      avgPerUserPerDay: Number((totalSpent / denomUsers / denomDays).toFixed(2)),
+      avgPerSpenderPerDay: spenders.size > 0 ? Number((totalSpent / spenders.size / denomDays).toFixed(2)) : 0,
+      byType: byTypeSorted,
+      byDay,
+    })
+  }
+
   return NextResponse.json({ error: "invalid action" }, { status: 400 })
 }
 

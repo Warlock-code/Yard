@@ -20,6 +20,7 @@ export type NudgeType =
   | "nudge_first_buy"
   | "nudge_storage"
   | "nudge_comeback"
+  | "nudge_missed_earnings"
 
 // Per-type cooldowns (hours). Boost/heating/top-reply are per-post, rest are per-user.
 export const NUDGE_COOLDOWN_HOURS: Record<NudgeType, number> = {
@@ -33,6 +34,7 @@ export const NUDGE_COOLDOWN_HOURS: Record<NudgeType, number> = {
   nudge_first_buy: 24,
   nudge_storage: 48,
   nudge_comeback: 72,
+  nudge_missed_earnings: 24,
 }
 
 export type NudgeCopy = {
@@ -119,6 +121,16 @@ export function getNudgeCopy(
         body: "you haven't posted in days — drop one gist and watch the heat come back.",
         href: "/compose?nudge=comeback",
         icon: "👻",
+      }
+    case "nudge_missed_earnings":
+      return {
+        title: "you're leaving credits behind 💸",
+        body:
+          opts.count && opts.count > 0
+            ? `you missed ~${opts.count}cr as FREE this week — PLUS earns 1x, PRIME 2x. upgrade to claim.`
+            : `your posts earned heat but 0 credits as FREE — PLUS earns 1x, PRIME 2x.`,
+        href: "/upgrade?nudge=missed",
+        icon: "💸",
       }
   }
 }
@@ -331,13 +343,23 @@ export async function evalUserNudges(userId: string) {
     if (daysSince >= 3) await trySend("nudge_comeback")
   }
 
-  // 4. Plus: FREE user hitting paywalls (2+ hits in 7d)
+  // 4. Plus: FREE user hitting paywalls (2+ hits in 7d) + missed-earnings drip.
   if (user.tier === "FREE") {
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
     const hits = await prisma.paywallHit.count({
       where: { userId: user.id, createdAt: { gte: weekAgo } },
     }).catch(() => 0)
     if (hits >= 2) await trySend("nudge_plus")
+
+    // 4b. Missed earnings: FREE shadow >= 10cr in 7d → upgrade nudge with amount.
+    // Live-safe: MISSED_EARNING rows may not exist yet → count 0, no nudge.
+    try {
+      const { getMissedSince } = await import("@/lib/missedEarnings")
+      const missedWeek = await getMissedSince(user.id, weekAgo)
+      if (missedWeek >= 10) await trySend("nudge_missed_earnings", { count: missedWeek })
+    } catch {
+      // ignore
+    }
 
     // 5. First buy: account 2+ days old, never paid successfully
     const ageDays = (now - new Date(user.createdAt).getTime()) / 86_400_000

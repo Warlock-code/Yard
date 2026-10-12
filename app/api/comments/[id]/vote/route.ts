@@ -47,21 +47,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn || 0
       if (multiplier > 0) {
         const voteReward = Math.round(CREDIT_CONFIG.EARN.COMMENT_VOTE * multiplier)
-        
-        await creditUser(owner.id, "VOTE_REWARD", voteReward, `comment_${updated.id}`, { 
-          commentId: updated.id, 
-          voterId: user.id, 
-          tier 
+
+        await creditUser(owner.id, "VOTE_REWARD", voteReward, `comment_${updated.id}`, {
+          commentId: updated.id,
+          voterId: user.id,
+          tier
+        })
+      } else {
+        // FREE shadow ledger: what PLUS (1x) would have paid. Display-only.
+        const { logMissedEarnings } = await import("@/lib/missedEarnings")
+        await logMissedEarnings(owner.id, Math.round(CREDIT_CONFIG.EARN.COMMENT_VOTE * 1), {
+          source: "comment_vote",
+          commentId: updated.id,
+          voterId: user.id,
         })
       }
     }
 
+    const commentOwnerTier = owner ? getEffectiveTier(owner) : "FREE"
     await createNotification({
       userId: updated.userId,
       pushToken: comment.user.pushToken,
       type: "comment_like",
       title: "your comment got heat",
-      body: `${user.ghostId} heated your comment`,
+      body:
+        commentOwnerTier === "FREE"
+          ? `${user.ghostId} heated your comment — PLUS would've earned +${CREDIT_CONFIG.EARN.COMMENT_VOTE}cr.`
+          : `${user.ghostId} heated your comment`,
       href: `/post/${updated.postId}`,
       actorName: user.ghostId,
     }).catch(() => {})

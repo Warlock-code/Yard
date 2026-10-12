@@ -127,6 +127,19 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
         tier,
       })
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
+    } else if (tier === "FREE") {
+      // FREE shadow: what PLUS (1x) would have paid. Display-only.
+      const shadow = Math.round(reward * 1)
+      if (shadow > 0) {
+        const { logMissedEarnings } = await import("@/lib/missedEarnings")
+        await logMissedEarnings(user.id, shadow, {
+          source: "leaderboard",
+          campus,
+          rank: i + 1,
+          period: "weekly",
+          score: user.score,
+        }).catch(() => {})
+      }
     }
 
     // Board prize every week regardless of credit config (non-cash).
@@ -192,6 +205,18 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
         tier,
       })
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
+    } else if (tier === "FREE") {
+      const shadow = Math.round(reward * 1)
+      if (shadow > 0) {
+        const { logMissedEarnings } = await import("@/lib/missedEarnings")
+        await logMissedEarnings(user.id, shadow, {
+          source: "leaderboard",
+          campus,
+          rank: i + 1,
+          period: "monthly",
+          score: user.score,
+        }).catch(() => {})
+      }
     }
 
     // Board prize every month regardless of credit config (non-cash).

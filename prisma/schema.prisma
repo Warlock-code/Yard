@@ -77,6 +77,8 @@ model User {
   creditsEarned    Int       @default(0)
   creditsPurchased Int       @default(0)
   creditsWithdrawn Int       @default(0)
+  missedEarnings   Int       @default(0)
+  missedEarningsAt DateTime?
   kycStatus        KycStatus @default(NONE)
   kycData          Json?
   kycSubmittedAt   DateTime?

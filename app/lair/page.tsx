@@ -19,6 +19,7 @@ type Me = {
   streakCount: number
   ghostCoins: number
   creditsBalance: number
+  missedEarnings?: number
   postCount: number
   followersCount: number
   followingCount: number
@@ -28,6 +29,8 @@ type Me = {
   inviteCode: string
   referralCount: number
 }
+
+type Missed = { total: number; weekly: number; plusWeekly: number; primeWeekly: number }
 
 type PendingUpload = { id: string; url: string; sizeBytes: number }
 
@@ -93,6 +96,7 @@ export default function LairPage() {
   const [copied, setCopied] = useState(false)
   const [newName, setNewName] = useState("")
   const [renaming, setRenaming] = useState(false)
+  const [missed, setMissed] = useState<Missed | null>(null)
   const loadStorage = useCallback((isCurrent: () => boolean = () => true) => {
     return apiGet<{ uploads: PendingUpload[] }>("/api/storage")
       .then((data) => {
@@ -170,6 +174,9 @@ export default function LairPage() {
     load(() => active)
     loadStorage(() => active)
     loadReferral(() => active)
+    apiGet<Missed>("/api/earnings/missed")
+      .then((d) => { if (active) setMissed(d) })
+      .catch(() => {})
     return () => { active = false }
   }, [load, loadStorage, loadReferral])
 
@@ -272,6 +279,19 @@ export default function LairPage() {
         >
           <span className="font-semibold text-sm">👑 prime <span className="text-white/40 font-normal">gold + 2x boosts</span></span>
           <span className="text-xs font-bold text-[#facc15]">👑 prime →</span>
+        </button>
+      )}
+
+      {me.tier === "FREE" && missed && missed.weekly > 0 && (
+        <button
+          className="card w-full p-4 mb-4 text-left border-[#baff39]/30 bg-[#baff39]/5"
+          onClick={() => router.push("/upgrade?nudge=missed")}
+        >
+          <p className="font-semibold text-sm">💸 you missed ~{missed.weekly}cr this week</p>
+          <p className="text-xs text-white/50 mt-1">
+            PLUS would&apos;ve earned {missed.plusWeekly}cr · PRIME {missed.primeWeekly}cr. upgrade to claim 1x/2x going forward.
+          </p>
+          <p className="text-xs font-bold text-primary mt-2">see plans →</p>
         </button>
       )}
 

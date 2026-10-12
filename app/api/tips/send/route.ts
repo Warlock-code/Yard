@@ -45,7 +45,35 @@ export async function POST(req: NextRequest) {
   const multiplier =
     CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(author) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.tipReceived ?? 0
   if (multiplier <= 0) {
-    return NextResponse.json({ error: "author needs plus or prime to receive tips." }, { status: 400 })
+    // FREE shadow ledger: what PLUS (1x) would have received. Display-only.
+    // Never breaks the error path — best-effort so the sender still gets the gate.
+    try {
+      const feePreview = Math.ceil((amount * CREDIT_CONFIG.FEE.TIP_PCT) / 100)
+      const shadowReceived = Math.round((amount - feePreview) * 1)
+      if (shadowReceived > 0) {
+        const { logMissedEarnings } = await import("@/lib/missedEarnings")
+        await logMissedEarnings(author.id, shadowReceived, {
+          source: "tip",
+          postId,
+          fromUserId: user.id,
+          gross: amount,
+        })
+        const { createNotification } = await import("@/lib/notifications")
+        await createNotification({
+          userId: author.id,
+          type: "missed_earning",
+          title: "you missed a tip 🎁",
+          body: `${user.ghostId} tried to tip you ${shadowReceived}cr — upgrade to PLUS to receive tips.`,
+          href: "/upgrade?nudge=tip",
+        }).catch(() => {})
+      }
+    } catch {
+      // ignore shadow failures
+    }
+    return NextResponse.json(
+      { error: "author needs plus or prime to receive tips.", missed: true },
+      { status: 400 }
+    )
   }
 
   // Daily caps (sender side).

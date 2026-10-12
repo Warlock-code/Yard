@@ -175,7 +175,8 @@ export async function getUserCredits(userId: string) {
 }
 
 export async function getCreditTransactions(userId: string, limit = 50, cursor?: string) {
-  const where: Record<string, unknown> = { userId }
+  // MISSED_EARNING shadows are display-only upgrade nudges — never part of the wallet.
+  const where: Record<string, unknown> = { userId, NOT: { type: "MISSED_EARNING" } }
   if (cursor) where.id = { lt: cursor }
 
   const transactions = await prisma.creditTransaction.findMany({
