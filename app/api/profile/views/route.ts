@@ -46,21 +46,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ views: [] })
   }
 }
-
-export async function recordProfileView(viewerId: string, viewedId: string) {
-  // Best-effort, never throws. Self-views skipped, one row per viewer per
-  // viewed per day.
-  try {
-    if (!viewerId || !viewedId || viewerId === viewedId) return
-    const dayStart = new Date()
-    dayStart.setHours(0, 0, 0, 0)
-    const existing = await prisma.profileView.findFirst({
-      where: { viewerId, viewedId, createdAt: { gte: dayStart } },
-      select: { id: true },
-    })
-    if (existing) return
-    await prisma.profileView.create({ data: { viewerId, viewedId } })
-  } catch {
-    // table missing pre-migration — ignore
-  }
-}

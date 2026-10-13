@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic"
 // Custom reactions — 🔥 😂 💀 ❤️ 🐐 + more. 50cr unlocks an emoji forever
 // (stored in ownedCosmetics as `reaction:<emoji>`), 10cr per use. Counts are
 // public aggregates — no de-anonymization.
-export const REACTION_EMOJI = ["🔥", "😂", "💀", "❤️", "🐐", "👻", "⚔️", "🏆", "💧", "🤡"] as const
+// (module-private: Next.js route files may only export HTTP handlers)
+const REACTION_EMOJI = ["🔥", "😂", "💀", "❤️", "🐐", "👻", "⚔️", "🏆", "💧", "🤡"] as const
 
 function reactionKey(emoji: string) {
   return `reaction:${emoji}`

@@ -20,7 +20,7 @@ type Notification = {
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
 
 // Icon per notification type — no more wall of default 🔔.
-export function notificationIcon(type?: string, icon?: string) {
+  function notificationIcon(type?: string, icon?: string) {
   if (icon) return icon
   const t = (type || "").toLowerCase()
   if (t.includes("tip") || t.includes("credit") || t.includes("refund") || t.includes("wheel") || t.includes("mystery") || t.includes("reward") || t.includes("earning") || t.includes("streak")) return "💸"

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
 
   // Who-viewed ledger (PLUS/PRIME read it via /api/profile/views).
   if (viewer.id !== user.id) {
-    import("@/app/api/profile/views/route")
+    import("@/lib/profileViews")
       .then((m) => m.recordProfileView(viewer.id, user.id))
       .catch(() => {})
   }
