@@ -30,10 +30,14 @@ export async function POST(req: NextRequest) {
   const bundle = BUNDLES[bundleId as keyof typeof BUNDLES]
   if (!bundle) return NextResponse.json({ error: "invalid bundle." }, { status: 400 })
 
-  if (bundle.tier === "PLUS" && (user.tier === "PLUS" || user.tier === "PRIME")) {
+  // Effective tier honors expiry — an expired PLUS row reads as FREE and may
+  // buy again. Raw tier would wrongly block them.
+  const { getEffectiveTier } = await import("@/lib/tier")
+  const effectiveTier = getEffectiveTier(user)
+  if (bundle.tier === "PLUS" && (effectiveTier === "PLUS" || effectiveTier === "PRIME")) {
     return NextResponse.json({ error: "already on Plus or higher." }, { status: 400 })
   }
-  if (bundle.tier === "PRIME" && user.tier === "PRIME") {
+  if (bundle.tier === "PRIME" && effectiveTier === "PRIME") {
     return NextResponse.json({ error: "already on Prime." }, { status: 400 })
   }
 

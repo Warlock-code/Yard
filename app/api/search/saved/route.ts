@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getEffectiveTier } from "@/lib/tier"
 import { getSavedSearches, saveSearch, deleteSavedSearch } from "@/lib/search"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PLUS") {
+  // PLUS or PRIME with an unexpired subscription (effective tier honors
+  // grace/expiry — raw tier does not, and PRIME includes PLUS perks).
+  if (getEffectiveTier(user) !== "PLUS" && getEffectiveTier(user) !== "PRIME") {
     return NextResponse.json({ error: "plus feature. Upgrade to save searches." }, { status: 403 })
   }
 
@@ -18,7 +21,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  if (user.tier !== "PLUS") {
+  if (getEffectiveTier(user) !== "PLUS" && getEffectiveTier(user) !== "PRIME") {
     return NextResponse.json({ error: "plus feature. Upgrade to save searches." }, { status: 403 })
   }
 

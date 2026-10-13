@@ -29,15 +29,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tie
   const planCode = PLANS[tier]
   if (!planCode) {
     if (ANNUAL_KINDS.has(tier)) {
-      return NextResponse.json({ error: "annual plans aren't configured yet." }, { status: 500 })
+      // Graceful (non-500): annual plans need env plan codes on the server.
+      return NextResponse.json({ error: "annual plans aren't configured yet — check back soon." }, { status: 503 })
     }
     return NextResponse.json({ error: "invalid tier. Only 'plus' and 'prime' are available." }, { status: 400 })
   }
 
-  // Server guard — frontend also blocks but we enforce here
+  // Server guard — frontend also blocks but we enforce here. Effective tier
+  // honors expiry (an expired PLUS row reads as FREE and may resubscribe).
+  const { getEffectiveTier } = await import("@/lib/tier")
+  const effectiveTier = getEffectiveTier(user)
   const baseTier = tier.replace("_annual", "")
-  if (baseTier === "plus" && (user.tier === "PLUS" || user.tier === "PRIME")) return NextResponse.json({ error: "already on Plus or higher." }, { status: 400 })
-  if (baseTier === "prime" && user.tier === "PRIME") return NextResponse.json({ error: "already on Prime." }, { status: 400 })
+  if (baseTier === "plus" && (effectiveTier === "PLUS" || effectiveTier === "PRIME")) return NextResponse.json({ error: "already on Plus or higher." }, { status: 400 })
+  if (baseTier === "prime" && effectiveTier === "PRIME") return NextResponse.json({ error: "already on Prime." }, { status: 400 })
 
   const reference = `sub_${tier}_${user.id}_${Date.now()}`
   let amount = PLAN_PRICE_PESEWAS[tier]

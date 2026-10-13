@@ -7,7 +7,7 @@ import { auditLog } from "@/lib/auditLog"
 export const dynamic = "force-dynamic"
 
 // Referral boost — pay 200cr and your NEXT completed referral pays 2x
-// (2,000cr to you, 1,000cr to them; reuses EARN.REFERRAL_* at completion).
+// (1,400cr to you, 600cr to them; reuses EARN.REFERRAL_* at completion).
 // Unused boosts stack. Applied in verify-email at completion time.
 // Milestones (applied there too): 5 verified refs → free PLUS 30d,
 // 10 verified → free PRIME 30d (tier + tierExpiresAt). Abuse guards:

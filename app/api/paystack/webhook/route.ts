@@ -73,11 +73,19 @@ export async function POST(req: NextRequest) {
           event.data?.subscription?.subscription_code || event.data?.subscription_code
         const plusCode = process.env.PAYSTACK_PLUS_PLAN_CODE
         const primeCode = process.env.PAYSTACK_PRIME_PLAN_CODE
+        const plusAnnualCode = process.env.PAYSTACK_PLUS_ANNUAL_PLAN_CODE
+        const primeAnnualCode = process.env.PAYSTACK_PRIME_ANNUAL_PLAN_CODE
         const plusAmount = Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000)
         const primeAmount = Number(process.env.PAYSTACK_PRIME_PRICE_PESEWAS || 2000)
-        const matchedTier =
-          planCode === plusCode && amount === plusAmount ? "PLUS"
-          : planCode === primeCode && amount === primeAmount ? "PRIME"
+        const plusAnnualAmount = Number(process.env.PAYSTACK_PLUS_ANNUAL_PRICE_PESEWAS || 10000)
+        const primeAnnualAmount = Number(process.env.PAYSTACK_PRIME_ANNUAL_PRICE_PESEWAS || 20000)
+        // Monthly renewals extend 31d; annual renewals extend 365d. Unknown
+        // plan/amount combos are ignored (never fulfill on guesswork).
+        const matched: { tier: "PLUS" | "PRIME"; days: number; kind: string } | null =
+          planCode === plusCode && amount === plusAmount ? { tier: "PLUS", days: 31, kind: "plus" }
+          : planCode === primeCode && amount === primeAmount ? { tier: "PRIME", days: 31, kind: "prime" }
+          : planCode === plusAnnualCode && amount === plusAnnualAmount ? { tier: "PLUS", days: 365, kind: "plus_annual" }
+          : planCode === primeAnnualCode && amount === primeAnnualAmount ? { tier: "PRIME", days: 365, kind: "prime_annual" }
           : null
         const isValidRenewal =
           event.data?.status === "success" &&
@@ -86,19 +94,19 @@ export async function POST(req: NextRequest) {
           typeof planCode === "string" &&
           typeof amount === "number" &&
           Number.isSafeInteger(amount) &&
-          matchedTier !== null
+          matched !== null
 
-        if (isValidRenewal) {
+        if (isValidRenewal && matched) {
           const user = await prisma.user.findUnique({ where: { email } })
           if (user) {
             await prisma.transaction.create({
               data: {
                 userId: user.id,
-                kind: matchedTier === "PRIME" ? "prime" : "plus",
+                kind: matched.kind,
                 reference,
                 amount,
                 status: "success",
-                metadata: { tier: matchedTier === "PRIME" ? "prime" : "plus", paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
+                metadata: { tier: matched.kind, paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
               },
             })
             await prisma.$transaction(async (db) => {
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
               const base = Math.max(Date.now(), current?.tierExpiresAt?.getTime() ?? 0)
               await db.user.update({
                 where: { id: user.id },
-                data: { tier: matchedTier as "PLUS" | "PRIME", tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000) },
+                data: { tier: matched.tier, tierExpiresAt: new Date(base + matched.days * 24 * 60 * 60 * 1000) },
               })
             })
           }
