@@ -46,12 +46,27 @@ export default function UpgradePage() {
     return () => { active = false }
   }, [])
 
-  async function handleSubscribe(tier: "plus" | "prime") {
-    if (!me || loading || me.tier === tier.toUpperCase()) return
+  async function handleSubscribe(tier: "plus" | "prime" | "plus_annual" | "prime_annual") {
+    if (!me || loading) return
+    const base = tier.replace("_annual", "").toUpperCase()
+    if (me.tier === base || (base === "PLUS" && me.tier === "PRIME")) return
     setLoading(tier)
     try {
       const data = await apiPost<{ data?: { authorization_url?: string } }>(`/api/subscribe/${tier}`, {})
       if (data.data?.authorization_url) await openPaystackCheckout(data.data.authorization_url)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "something went wrong.")
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  async function handleBundle(bundle: "plus" | "prime") {
+    if (!me || loading) return
+    setLoading(`bundle_${bundle}`)
+    try {
+      const data = await apiPost<{ authorization_url?: string; reference?: string }>(`/api/bundles`, { bundle })
+      if (data.authorization_url) await openPaystackCheckout(data.authorization_url)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
@@ -166,6 +181,51 @@ export default function UpgradePage() {
             {loading === "prime" ? "opening checkout..." : "go prime — ghs 20/month"}
           </button>
           <p className="text-center text-white/30 text-xs">pay with MoMo or card via paystack • auto-renew • cancel from this page</p>
+        </div>
+      )}
+
+      {me?.tier !== "PRIME" && (
+        <div className="space-y-3 mt-4">
+          <div className="card p-5">
+            <p className="font-bold text-sm mb-1">💰 annual plans — cash upfront</p>
+            <p className="text-xs text-white/40 mb-3">2 months free vs monthly. same perks, one payment.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                className="rounded-xl border border-sky-500/40 text-sky-300 font-bold py-2.5 text-xs hover:bg-sky-500/10 disabled:opacity-50"
+                disabled={loading !== null || me?.tier !== "FREE"}
+                onClick={() => handleSubscribe("plus_annual")}
+              >
+                {loading === "plus_annual" ? "…" : "plus yearly — ghs 100"}
+              </button>
+              <button
+                className="rounded-xl border border-[#facc15]/40 text-[#facc15] font-bold py-2.5 text-xs hover:bg-[#facc15]/10 disabled:opacity-50"
+                disabled={loading !== null}
+                onClick={() => handleSubscribe("prime_annual")}
+              >
+                {loading === "prime_annual" ? "…" : "prime yearly — ghs 200"}
+              </button>
+            </div>
+          </div>
+          <div className="card p-5">
+            <p className="font-bold text-sm mb-1">📦 bundles — tier + credits</p>
+            <p className="text-xs text-white/40 mb-3">start stacked. one-time payment, credits land instantly.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                className="rounded-xl bg-sky-500/15 border border-sky-500/30 font-bold py-2.5 text-xs hover:bg-sky-500/25 disabled:opacity-50"
+                disabled={loading !== null || me?.tier !== "FREE"}
+                onClick={() => handleBundle("plus")}
+              >
+                {loading === "bundle_plus" ? "…" : "plus + 1,100cr — ghs 20"}
+              </button>
+              <button
+                className="rounded-xl bg-[#facc15]/10 border border-[#facc15]/30 text-[#facc15] font-bold py-2.5 text-xs hover:bg-[#facc15]/20 disabled:opacity-50"
+                disabled={loading !== null}
+                onClick={() => handleBundle("prime")}
+              >
+                {loading === "bundle_prime" ? "…" : "prime + 2,400cr — ghs 40"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

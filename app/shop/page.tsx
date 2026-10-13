@@ -11,6 +11,7 @@ import type { CreditPack } from "@/lib/credit-config"
 
 const CATEGORIES = [
   { key: "credits", label: "credits", icon: "💳" },
+  { key: "luck", label: "luck", icon: "🎡" },
   { key: "tier", label: "upgrade" },
   { key: "boosts", label: "boosts" },
   { key: "streak", label: "streak" },
@@ -88,12 +89,103 @@ function ThemesPicker({
   )
 }
 
+function LuckSection({ onBought }: { onBought: () => void }) {
+  const [status, setStatus] = useState<{ freeAvailable: boolean } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+
+  useEffect(() => {
+    apiGet<{ freeAvailable: boolean }>("/api/wheel")
+      .then((d) => setStatus({ freeAvailable: d.freeAvailable }))
+      .catch(() => {})
+  }, [])
+
+  async function spin(kind: "free" | "paid" | "bundle10") {
+    setBusy(kind)
+    setResult(null)
+    try {
+      const d = await apiPost<{ spins: { reward: number; rareDrop?: string }[]; total: number }>(
+        "/api/wheel",
+        { kind }
+      )
+      const drops = d.spins.filter((s) => s.rareDrop).map((s) => ` + 🎁 ${s.rareDrop}`)
+      setResult(`+${d.total}cr${drops.join("")}`)
+      onBought()
+      setStatus(await apiGet<{ freeAvailable: boolean }>("/api/wheel").then((s) => ({ freeAvailable: s.freeAvailable })).catch(() => status))
+    } catch (err: unknown) {
+      // Needs-credits already redirected to /shop by the api client.
+      if (err instanceof Error && !err.message.startsWith("NEEDS_CREDITS:")) {
+        setResult(err.message)
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function openBox() {
+    setBusy("box")
+    setResult(null)
+    try {
+      const d = await apiPost<{ reward: number; rareDrop?: string | null }>("/api/mystery-box", {})
+      setResult(`+${d.reward}cr${d.rareDrop ? ` + 🎁 ${d.rareDrop}` : ""}`)
+      onBought()
+    } catch (err: unknown) {
+      if (err instanceof Error && !err.message.startsWith("NEEDS_CREDITS:")) {
+        setResult(err.message)
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="space-y-3 mt-2">
+      <div className="card p-5 text-center">
+        <p className="text-3xl mb-1">🎡</p>
+        <p className="font-bold">haunt wheel</p>
+        <p className="text-white/40 text-xs mb-3">free spin daily (5–50cr) · paid 100cr (50–500cr + rare drops)</p>
+        <div className="grid grid-cols-3 gap-2">
+          <button className="btn-primary text-sm disabled:opacity-50" disabled={busy !== null || !status?.freeAvailable} onClick={() => spin("free")}>
+            {busy === "free" ? "…" : status?.freeAvailable === false ? "used ✓" : "free spin"}
+          </button>
+          <button className="btn-ghost text-sm disabled:opacity-50" disabled={busy !== null} onClick={() => spin("paid")}>
+            {busy === "paid" ? "…" : "100cr"}
+          </button>
+          <button className="btn-ghost text-sm disabled:opacity-50" disabled={busy !== null} onClick={() => spin("bundle10")}>
+            {busy === "bundle10" ? "…" : "10x · 800cr"}
+          </button>
+        </div>
+      </div>
+      <div className="card p-5 text-center">
+        <p className="text-3xl mb-1">📦</p>
+        <p className="font-bold">mystery box</p>
+        <p className="text-white/40 text-xs mb-3">100cr · random 10–500cr + rare avatar drops</p>
+        <button className="btn-primary w-full text-sm disabled:opacity-50" disabled={busy !== null} onClick={openBox}>
+          {busy === "box" ? "opening…" : "open — 100cr"}
+        </button>
+      </div>
+      {result && (
+        <div className="card p-4 text-center border-[#baff39]/30 bg-[#baff39]/5">
+          <p className="font-bold text-sm">{result}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ShopPage() {
   const router = useRouter()
   const [category, setCategory] = useState("credits")
+  const [needBanner, setNeedBanner] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
   useEffect(() => {
+    // Landed here from an insufficient-credits redirect? Say why.
+    try {
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("need") === "credits") {
+        setNeedBanner(true)
+      }
+    } catch {}
     apiGet<{ user: { tier: "FREE" | "PLUS"; ownedCosmetics: string[]; freeBoosts?: number } | null }>("/api/auth/me").then((d) => {
       if (d.user) {
         const u = d.user
@@ -191,6 +283,13 @@ export default function ShopPage() {
         ))}
       </div>
 
+      {needBanner && (
+        <div className="card p-4 mb-3 border-[#baff39]/30 bg-[#baff39]/5">
+          <p className="font-semibold text-sm">💳 not enough credits for that</p>
+          <p className="text-white/50 text-xs mt-1">top up below — credits land instantly and work everywhere in the app.</p>
+        </div>
+      )}
+
       {me && (
         <div className="card p-3 mb-3 flex items-center justify-between">
           <span className="text-white/50 text-sm">your balance</span>
@@ -204,6 +303,7 @@ export default function ShopPage() {
             <span className="text-sm">🎁 tip someone with credits</span>
             <span className="text-white/40 text-sm">→</span>
           </button>
+          <p className="text-white/40 text-xs text-center">first pack ever = 20% off, auto-applied at checkout 🎉</p>
           <div className="grid grid-cols-2 gap-3">
             {getAllPacks().map((pack: CreditPack) => (
               <div key={pack.id} className="card p-4 text-center relative">
@@ -227,6 +327,16 @@ export default function ShopPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {category === "luck" && (
+        <LuckSection
+          onBought={() => {
+            apiGet<{ balance: number }>("/api/credits/balance")
+              .then((d) => setMe((prev) => (prev ? { ...prev, creditsBalance: d.balance } : prev)))
+              .catch(() => {})
+          }}
+        />
       )}
 
       {category === "tier" && !me && (

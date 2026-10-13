@@ -16,9 +16,8 @@ async function main() {
   // Delete related records first
   await prisma.comment.deleteMany({ where: { userId } })
   await prisma.vote.deleteMany({ where: { userId } })
-  await prisma.earning.deleteMany({ where: { userId } })
+  await prisma.creditTransaction.deleteMany({ where: { userId } }).catch(() => {})
   await prisma.post.deleteMany({ where: { userId } })
-  await prisma.payout.deleteMany({ where: { userId } }).catch(() => {})
   await prisma.transaction.deleteMany({ where: { userId } }).catch(() => {})
   await prisma.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } }).catch(() => {})
 

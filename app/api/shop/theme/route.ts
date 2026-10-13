@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse } from "@/lib/credits"
 import { THEME_MAP, isThemeId, themeCosmeticId } from "@/lib/themes"
 
 export async function POST(req: NextRequest) {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ success: true, creditsUsed: creditCost, newBalance: result.newBalance, message: "theme purchased with credits" })
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+      return toCreditErrorResponse(err, "couldn't buy the theme.")
     }
   }
 

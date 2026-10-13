@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isAdmin } from "@/lib/getAdmin"
-import { getTreasuryStats, mintCreditsAdmin, burnCreditsAdmin } from "@/lib/credits"
+import { getTreasuryStats, mintCreditsAdmin, burnCreditsAdmin, refundCreditsAdmin } from "@/lib/credits"
+
+async function trackFeatureEventSafe(userId: string, type: string, metadata: Record<string, unknown>) {
+  try {
+    const { trackFeatureEvent } = await import("@/lib/credits")
+    await trackFeatureEvent({ userId, type, metadata })
+  } catch {}
+}
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -13,20 +20,16 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get("action")
 
+  // Analytics beacon — live-safe, never breaks the main flow.
+  try {
+    await prisma.analyticsEvent.create({
+      data: { userId: user.id, type: "admin_credits_view", metadata: { action: action ?? "none" } },
+    }).catch(() => {})
+  } catch {}
+
   if (action === "treasury") {
     const stats = await getTreasuryStats()
     return NextResponse.json({ stats })
-  }
-
-  if (action === "payouts") {
-    const status = searchParams.get("status") || "pending"
-    const payouts = await prisma.creditPayout.findMany({
-      where: { status: { in: status.split(",") } },
-      include: { user: { select: { ghostId: true, email: true, tier: true } } },
-      orderBy: { requestedAt: "desc" },
-      take: 100,
-    })
-    return NextResponse.json({ payouts })
   }
 
   if (action === "users") {
@@ -40,8 +43,6 @@ export async function GET(req: NextRequest) {
         creditsBalance: true,
         creditsEarned: true,
         creditsPurchased: true,
-        creditsWithdrawn: true,
-        kycStatus: true,
         createdAt: true,
       },
       orderBy: { creditsBalance: "desc" },
@@ -156,6 +157,25 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  if (action === "feature_events") {
+    // What converts: counts per tracked feature event in the window.
+    const days = Math.min(Math.max(Number(searchParams.get("days")) || 30, 1), 90)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    try {
+      const grouped = await prisma.analyticsEvent.groupBy({
+        by: ["type"],
+        where: { createdAt: { gte: since }, NOT: { type: { in: ["page_view", "heartbeat", "session_start", "session_end"] } } },
+        _count: { _all: true },
+      })
+      return NextResponse.json({
+        days,
+        events: grouped.map((g) => ({ type: g.type, count: g._count._all })).sort((a, b) => b.count - a.count),
+      })
+    } catch {
+      return NextResponse.json({ days, events: [] })
+    }
+  }
+
   return NextResponse.json({ error: "invalid action" }, { status: 400 })
 }
 
@@ -174,6 +194,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
     }
     const result = await mintCreditsAdmin(userId, amount, reason, user.id)
+    try {
+      await prisma.analyticsEvent.create({
+        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "mint", targetId: userId, amount } },
+      }).catch(() => {})
+    } catch {}
     return NextResponse.json({ success: true, ...result })
   }
 
@@ -183,30 +208,62 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
     }
     const result = await burnCreditsAdmin(userId, amount, reason, user.id)
+    try {
+      await prisma.analyticsEvent.create({
+        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "burn", targetId: userId, amount } },
+      }).catch(() => {})
+    } catch {}
     return NextResponse.json({ success: true, ...result })
   }
 
-  if (action === "approve_payout") {
-    // Withdrawals paused: approvals disabled (would mark payable). Reject
-    // path below still works so pending users can be refunded.
-    return NextResponse.json({ error: "withdrawals are currently paused. approval disabled." }, { status: 403 })
+  if (action === "refund_credits") {
+    // Manual credit refund: returns spendable credits to a user via an
+    // ADMIN_REFUND CreditTransaction row — in-app only, never cash.
+    const { userId, amount, reason } = body
+    if (!userId || !amount || !reason) {
+      return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
+    }
+    const result = await refundCreditsAdmin(userId, amount, reason, user.id)
+    try {
+      await prisma.analyticsEvent.create({
+        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "refund_credits", targetId: userId, amount } },
+      }).catch(() => {})
+    } catch {}
+    return NextResponse.json({ success: true, ...result })
   }
 
-  if (action === "reject_payout") {
-    const { payoutId, reason } = body
-    if (!payoutId) return NextResponse.json({ error: "payoutId required" }, { status: 400 })
-
-    const payout = await prisma.creditPayout.findUnique({ where: { id: payoutId } })
-    if (!payout) return NextResponse.json({ error: "payout not found" }, { status: 404 })
-
-    // Refund credits to user
-    await mintCreditsAdmin(payout.userId, payout.creditsAmount, `Payout rejected: ${reason || "Admin rejection"}`, user.id)
-
-    await prisma.creditPayout.update({
-      where: { id: payoutId },
-      data: { status: "rejected", adminNotes: reason || "Rejected by admin" },
-    })
-
+  if (action === "refund") {
+    // Paystack refund path (manual): a successful charge gets its credits
+    // clawed back best-effort and the transaction marked refunded — no
+    // silent money, everything audited via reason. Never auto-touches bank.
+    const { reference, reason } = body
+    if (!reference || !reason) {
+      return NextResponse.json({ error: "reference, reason required" }, { status: 400 })
+    }
+    const tx = await prisma.transaction.findUnique({ where: { reference } })
+    if (!tx) return NextResponse.json({ error: "transaction not found" }, { status: 404 })
+    if (tx.status === "refunded") return NextResponse.json({ success: true, alreadyRefunded: true })
+    if (tx.status !== "success") {
+      await prisma.transaction.update({ where: { reference }, data: { status: "failed" } }).catch(() => {})
+      return NextResponse.json({ success: true, voided: true })
+    }
+    const meta = (tx.metadata ?? {}) as { credits?: unknown; packId?: unknown; bundle?: unknown }
+    const credits = typeof meta.credits === "number" && Number.isSafeInteger(meta.credits) ? meta.credits : 0
+    if ((tx.kind === "credits" || tx.kind === "bundle_plus" || tx.kind === "bundle_prime") && credits > 0) {
+      try {
+        await burnCreditsAdmin(tx.userId, credits, `Refund ${reference}: ${reason}`, user.id)
+      } catch (err) {
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : "user already spent the credits — adjust manually." },
+          { status: 400 }
+        )
+      }
+    }
+    await prisma.transaction.update({
+      where: { reference },
+      data: { status: "refunded", metadata: { ...(meta as Record<string, unknown>), refundReason: reason, refundedBy: user.id, refundedAt: new Date().toISOString() } },
+    }).catch(() => {})
+    await trackFeatureEventSafe(user.id, "refund", { reference, kind: tx.kind })
     return NextResponse.json({ success: true })
   }
 

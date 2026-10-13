@@ -114,33 +114,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-  if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
-    const trRef = event.data?.reference || ""
-    if (typeof trRef === "string" && trRef.startsWith("payout_")) {
-      // Legacy payouts table (kept for history).
-      const payout = await prisma.payout.findUnique({ where: { providerTransferRef: trRef } })
-      if (payout && (payout.status === "approved" || payout.status === "processing")) {
-        if (event.event === "transfer.success") {
-          await prisma.payout.update({ where: { id: payout.id }, data: { status: "paid", processedAt: new Date() } })
-        } else {
-          // failed/reversed -> allow retry by reverting to pending (keep ref for audit)
-          await prisma.payout.update({ where: { id: payout.id }, data: { status: "rejected" } })
-        }
-      } else if (payout && payout.status === "paid" && event.event === "transfer.failed") {
-        // ignore late failure after paid
-      }
-      // Current credit payouts flow.
-      const creditPayout = await prisma.creditPayout.findUnique({ where: { providerRef: trRef } })
-      if (creditPayout && (creditPayout.status === "approved" || creditPayout.status === "processing")) {
-        if (event.event === "transfer.success") {
-          await prisma.creditPayout.update({ where: { id: creditPayout.id }, data: { status: "paid", processedAt: new Date() } })
-        } else {
-          // failed/reversed -> terminal, keep ref for audit. Refund credits manually via admin Credits if needed.
-          await prisma.creditPayout.update({ where: { id: creditPayout.id }, data: { status: "rejected" } })
-        }
-      }
-    }
-  }
+  // NOTE: cash-payout transfers removed — credits are in-app only with no
+  // monetary value. No transfer events are processed.
 
   if (event.event === "invoice.payment_failed" || event.event === "subscription.not_renew") {
     const email: string | undefined = event.data?.customer?.email?.toLowerCase()

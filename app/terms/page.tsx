@@ -2,7 +2,7 @@ export default function TermsPage() {
   return (
     <main className="min-h-screen max-w-lg mx-auto px-5 py-8 pb-24">
       <h1 className="text-2xl font-black mb-1">terms of service</h1>
-      <p className="text-white/40 text-xs mb-6">last updated: september 2026</p>
+      <p className="text-white/40 text-xs mb-6">last updated: october 2026</p>
 
       <div className="space-y-5 text-sm text-white/80 leading-relaxed">
         <section>
@@ -19,7 +19,12 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">payments and subscriptions</h2>
-          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement. credits are in-app only: they can be spent on boosts, pins and shop items, and can never be withdrawn, transferred, or redeemed for cash or MoMo/bank payouts.</p>
+          <p>plus and prime are recurring subscriptions billed via paystack. boosts, cosmetics, and other one-time purchases are non-refundable once delivered. prime members earn credits from engagement.</p>
+        </section>
+        <section>
+          <h2 className="font-semibold text-white mb-1">credits — virtual currency, no cash value</h2>
+          <p>Credits have no monetary value. Credits are not redeemable for cash. Credits are a virtual in-app currency for entertainment only. You reserve the right to expire or modify credits at any time. No refunds on credits. No chargebacks.</p>
+          <p className="mt-2">Credits live in the app and can only be spent on boosts, pins, and shop items — they can never be withdrawn, transferred, or exchanged for money, MoMo, or bank payouts of any kind.</p>
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">account actions</h2>

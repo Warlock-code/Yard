@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
 import { emitBattleUpdate } from "@/lib/socket-client"
 import { attachChampionTrophies } from "@/lib/champions"
+import { creditUser, toCreditErrorResponse, trackFeatureEvent, CREDIT_CONFIG } from "@/lib/credits"
+import { getRateLimitInfo, rateLimit } from "@/lib/rateLimit"
 import type { Prisma } from "@prisma/client"
 
 type BattleEntryCreateInput = Prisma.BattleEntryCreateInput
@@ -53,10 +55,62 @@ export async function POST(req: NextRequest) {
   }
 
   let entry
+  const fee = CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM
+  // PRIME free-entry day key: 1 free entry/day, enforced both by the
+  // BATTLE_ENTRY_FREE ledger row (metadata day) and this RateLimit key.
+  const freeDay = new Date().toISOString().slice(0, 10) // yyyy-mm-dd (UTC)
+  const freeKey = `battle-free:${user.id}:${freeDay}`
+  let entryPaid = true
   try {
+    // Battle pot economy: every entry pays BATTLE_ENTRY_PREMIUM into the pot.
+    // PRIME gets 1 free entry/day; everyone else always pays. Winner takes
+    // 80% of the pot at settle (see cron/battles), platform keeps 20%.
+    if (effectiveTier === "PRIME") {
+      const dayStart = new Date()
+      dayStart.setHours(0, 0, 0, 0)
+      const freeUsed = await prisma.creditTransaction.count({
+        where: { userId: user.id, type: "BATTLE_ENTRY_FREE", createdAt: { gte: dayStart } },
+      })
+      const freeInfo = await getRateLimitInfo(freeKey, CREDIT_CONFIG.BATTLE.PRIME_FREE_ENTRIES_PER_DAY, 24 * 60 * 60 * 1000).catch(() => ({ allowed: true }))
+      if (freeUsed < CREDIT_CONFIG.BATTLE.PRIME_FREE_ENTRIES_PER_DAY && freeInfo.allowed) {
+        entryPaid = false
+      }
+    }
+    if (entryPaid) {
+      try {
+        await creditUser(user.id, "BATTLE_ENTRY", -fee, promptId, {
+          promptId,
+          campus: user.campus,
+          tier: effectiveTier,
+        })
+      } catch (err) {
+        return toCreditErrorResponse(err, "couldn't join the battle.")
+      }
+    } else {
+      await prisma.creditTransaction.create({
+        data: {
+          userId: user.id,
+          type: "BATTLE_ENTRY_FREE",
+          amount: 0,
+          balanceAfter: user.creditsBalance,
+          reference: promptId,
+          metadata: { promptId, campus: user.campus, day: freeDay } as Prisma.InputJsonValue,
+        },
+      }).catch(() => null)
+      // Consume the daily free-entry key so the limit holds even if the
+      // ledger write above is dropped pre-migration. Fail-open: never blocks.
+      await rateLimit(freeKey, CREDIT_CONFIG.BATTLE.PRIME_FREE_ENTRIES_PER_DAY, 24 * 60 * 60 * 1000).catch(() => true)
+    }
     entry = await prisma.battleEntry.create({ data: entryData })
   } catch (error: unknown) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      // Entry raced after the fee was taken — refund so nobody pays for nothing.
+      if (entryPaid) {
+        await creditUser(user.id, "BATTLE_ENTRY", fee, `${promptId}_refund`, {
+          promptId,
+          refund: true,
+        }).catch(() => {})
+      }
       return NextResponse.json({ error: "you already entered this battle." }, { status: 409 })
     }
     throw error
@@ -89,5 +143,13 @@ export async function POST(req: NextRequest) {
     })),
   })
 
-  return NextResponse.json({ entry })
+  const potCredits = entries.length * CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM
+  await trackFeatureEvent({
+    userId: user.id,
+    type: "battle_enter",
+    pathname: "/battles",
+    metadata: { promptId, paid: entryPaid, fee: entryPaid ? fee : 0, potCredits },
+  }).catch(() => {})
+
+  return NextResponse.json({ entry, entryPaid, fee: entryPaid ? fee : 0, potCredits })
 }

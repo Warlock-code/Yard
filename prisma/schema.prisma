@@ -76,12 +76,8 @@ model User {
   creditsBalance   Int       @default(0)
   creditsEarned    Int       @default(0)
   creditsPurchased Int       @default(0)
-  creditsWithdrawn Int       @default(0)
   missedEarnings   Int       @default(0)
   missedEarningsAt DateTime?
-  kycStatus        KycStatus @default(NONE)
-  kycData          Json?
-  kycSubmittedAt   DateTime?
 
   createdAt DateTime @default(now())
 
@@ -91,10 +87,7 @@ model User {
   votes              Vote[]
   transactions       Transaction[]
   reports            Report[]       @relation("ReportedBy")
-  earnings           Earning[]
-  payouts            Payout[]
   creditTransactions CreditTransaction[]
-  creditPayouts      CreditPayout[]
   notifications      Notification[]
   deviceTokens       DeviceToken[]
   uploads            MediaUpload[]
@@ -340,39 +333,11 @@ model Report {
   @@unique([postId, reporterId])
 }
 
-model Earning {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  source   String // "post_vote" | "battle_win" | "leaderboard_bonus"
-  sourceId String? // postId or battleEntryId
-  amount   Int // in pesewas
-
-  createdAt DateTime @default(now())
-}
-
-model Payout {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  amount                Int // in pesewas
-  status                String  @default("pending") // pending | processing | approved | paid | rejected
-  bankCode              String?
-  accountNumber         String?
-  accountName           String?
-  providerTransferRef   String? @unique
-
-  requestedAt DateTime  @default(now())
-  processedAt DateTime?
-}
-
 model CreditTransaction {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type          String   // PURCHASE | VOTE_REWARD | BATTLE_WIN | LEADERBOARD | REFERRAL | TIP_SENT | TIP_RECEIVED | BOOST_PURCHASE | COSMETIC_BUY | WITHDRAWAL | ADMIN_MINT | ADMIN_BURN
+  type          String   // PURCHASE | VOTE_REWARD | BATTLE_WIN | LEADERBOARD | REFERRAL | TIP_SENT | TIP_RECEIVED | BOOST_PURCHASE | COSMETIC_BUY | ADMIN_MINT | ADMIN_BURN (WITHDRAWAL legacy — never written, kept for history)
   amount        Int      // positive = credit, negative = debit
   balanceAfter  Int
   reference     String?  // Paystack ref, postId, battleId, etc.
@@ -393,34 +358,6 @@ model CreditPack {
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-}
-
-model CreditPayout {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  creditsAmount Int
-  ghsAmount     Int      // pesewas to send
-  feePct        Int      @default(20)
-  feeAmount     Int      // pesewas kept by platform
-  netGhsAmount  Int      // pesewas sent to creator
-  status        String   @default("pending") // pending | processing | approved | paid | rejected
-  bankCode      String
-  accountNumber String
-  accountName   String
-  providerRef   String?  @unique
-  adminNotes    String?
-  requestedAt   DateTime @default(now())
-  processedAt   DateTime?
-  @@index([userId, status])
-  @@index([status, requestedAt])
-}
-
-enum KycStatus {
-  NONE
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 model Follow {
@@ -638,6 +575,75 @@ model AskQuestion {
   createdAt DateTime @default(now())
 
   @@index([recipientId, status, createdAt])
+}
+
+// --- Monetization batch 2 (additive, live-safe). Tables may not exist until
+// migration 20261012_batch2 is deployed. All readers/writers must try/catch
+// so the app works before + after deploy.
+model ProfileView {
+  id        String   @id @default(cuid())
+  viewerId  String
+  viewedId  String
+  createdAt DateTime @default(now())
+
+  @@index([viewedId, createdAt])
+  @@index([viewerId, viewedId, createdAt])
+}
+
+model Poll {
+  id        String   @id @default(cuid())
+  userId    String
+  campus    String
+  question  String
+  options   Json     // string[] (2-4 options)
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+
+  votes PollVote[]
+
+  @@index([campus, createdAt])
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId    String
+  optionIdx Int
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+}
+
+model ScheduledPost {
+  id           String    @id @default(cuid())
+  userId       String
+  text         String?
+  imageUrl     String?
+  type         String    @default("confession")
+  visibility   String    @default("school")
+  campusTarget String?
+  runAt        DateTime
+  status       String    @default("pending") // pending | posted | cancelled | failed
+  postIds      Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([status, runAt])
+  @@index([userId, status])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  postId    String?
+  commentId String?
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([commentId])
+  @@index([userId, createdAt])
 }
 
 // --- Usage tracking (additive, live-safe). Tables may not exist until

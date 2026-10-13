@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { apiGet, apiPost } from "@/lib/useApi"
+import { apiGet, apiPost, isNeedsCreditsError } from "@/lib/useApi"
+import { CREDIT_CONFIG } from "@/lib/credit-config"
 import { shareContent, getShareTargets } from "@/lib/share"
 import { useSocket } from "@/lib/socket"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -93,11 +94,15 @@ export default function BattlesClient() {
       setLoading(true)
       load()
     } catch (err: unknown) {
+      // Insufficient credits already redirected to /shop by the api client.
+      if (isNeedsCreditsError(err)) return
       alert(err instanceof Error ? err.message : "something went wrong.")
     } finally {
       setSubmitting(false)
     }
   }
+
+  const potCredits = entries.length * CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM
 
   async function handleVote(entryId: string) {
     try {
@@ -133,6 +138,9 @@ export default function BattlesClient() {
               <p className="text-xs text-white/40 mb-1">today&apos;s prompt</p>
               <p className="post-mono font-semibold">{prompt.text}</p>
               <BattleCountdown endsAt={prompt.endsAt} now={now} />
+              <p className="text-xs font-bold text-[#baff39] mt-1">
+                🔥 {potCredits.toLocaleString()}cr pot — {entries.length} {entries.length === 1 ? "entry" : "entries"} · winner takes 80%
+              </p>
             </div>
             <BattleShareButton onClick={() => setShowShareMenu(true)} />
           </div>
@@ -150,7 +158,7 @@ export default function BattlesClient() {
               onClick={handleEnter}
               disabled={submitting || !entryText.trim()}
             >
-              {submitting ? "entering..." : "enter battle"}
+              {submitting ? "entering..." : `enter battle · ${CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM}cr (prime: 1 free/day)`}
             </button>
           </div>
 
@@ -187,6 +195,8 @@ export default function BattlesClient() {
           {showShareMenu && <BattleShareMenu promptId={prompt.id} promptText={prompt.text} onClose={() => setShowShareMenu(false)} />}
         </React.Fragment>
       )}
+
+      <DuelSection />
     </main>
   )
 }
@@ -243,6 +253,156 @@ function BattleShareMenu({ promptId, promptText, onClose }: { promptId: string; 
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+type Duel = {
+  id: string
+  text: string
+  status: string
+  endsAt: string
+  entries: Entry[]
+  entryCount: number
+  open: boolean
+  potCredits: number
+  winnerPot: number
+}
+
+function DuelSection() {
+  const [duels, setDuels] = useState<Duel[]>([])
+  const [open, setOpen] = useState(false)
+  const [prompt, setPrompt] = useState("")
+  const [take, setTake] = useState("")
+  const [opponent, setOpponent] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [acceptTake, setAcceptTake] = useState<Record<string, string>>({})
+
+  const load = useCallback(() => {
+    apiGet<{ duels: Duel[] }>("/api/duels")
+      .then((d) => setDuels(d.duels || []))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function create() {
+    if (!prompt.trim() || !take.trim() || busy) return
+    setBusy(true)
+    try {
+      await apiPost("/api/duels", { text: prompt, take, opponentGhostId: opponent || undefined })
+      setPrompt("")
+      setTake("")
+      setOpponent("")
+      setOpen(false)
+      load()
+    } catch (err: unknown) {
+      if (!isNeedsCreditsError(err)) alert(err instanceof Error ? err.message : "failed.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function accept(id: string) {
+    const t = (acceptTake[id] || "").trim()
+    if (!t || busy) return
+    setBusy(true)
+    try {
+      await apiPost(`/api/duels/${id}/accept`, { take: t })
+      setAcceptTake((p) => ({ ...p, [id]: "" }))
+      load()
+    } catch (err: unknown) {
+      if (!isNeedsCreditsError(err)) alert(err instanceof Error ? err.message : "failed.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card p-4 mt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-bold">⚔️ ghost duels</p>
+          <p className="text-xs text-white/40">1v1 · 500cr each · winner takes 800cr (80%) · votes free · public, ghostId only, no DMs</p>
+        </div>
+        <button className="btn-ghost !py-1.5 !px-3 !text-xs" onClick={() => setOpen((v) => !v)}>
+          {open ? "close" : "start a duel"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          <input
+            className="input"
+            placeholder="duel prompt — e.g. best jollof spot?"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value.toLowerCase())}
+          />
+          <textarea
+            className="input resize-none"
+            rows={2}
+            placeholder="your take (500cr to enter)"
+            value={take}
+            onChange={(e) => setTake(e.target.value.toLowerCase())}
+          />
+          <input
+            className="input"
+            placeholder="opponent ghost (optional — blank = open duel)"
+            value={opponent}
+            onChange={(e) => setOpponent(e.target.value.toLowerCase())}
+          />
+          <button className="btn-primary w-full" onClick={create} disabled={busy || !prompt.trim() || !take.trim()}>
+            {busy ? "starting…" : `challenge · ${CREDIT_CONFIG.SPEND.DUEL_ENTRY}cr`}
+          </button>
+        </div>
+      )}
+
+      {duels.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {duels.map((d) => (
+            <div key={d.id} className="rounded-xl border border-white/10 bg-black/30 p-3">
+              <p className="text-sm font-semibold">{d.text}</p>
+              <p className="text-[11px] font-bold text-[#baff39] mt-0.5">
+                🔥 {d.potCredits.toLocaleString()}cr pot — {d.entryCount}/2 {d.entryCount === 1 ? "entry" : "entries"} · winner takes {d.winnerPot.toLocaleString()}cr
+              </p>
+              {d.status === "COMPLETED" && d.entries.length > 0 && (
+                <p className="text-[11px] font-bold text-[#facc15] mt-0.5">
+                  🏆 {d.entries[0].user.ghostId} wins {d.winnerPot.toLocaleString()}cr
+                </p>
+              )}
+              <div className="mt-2 space-y-1.5">
+                {d.entries.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 text-sm">
+                    <span>{e.user.avatarEmoji}</span>
+                    <Link href={`/u/${encodeURIComponent(e.user.ghostId)}`} className="font-semibold focus-visible:outline-[#baff39]">
+                      {e.user.ghostId}
+                    </Link>
+                    <span className="text-white/40 text-xs truncate flex-1">{e.text}</span>
+                    <button className="btn-ghost !py-1 !px-2 !text-xs" onClick={() => apiPost("/api/battles/vote", { entryId: e.id }).then(() => load()).catch((err: unknown) => { if (!isNeedsCreditsError(err)) alert(err instanceof Error ? err.message : "vote failed.") })}>
+                      🔥 {e.votes}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {d.open && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    className="input !py-2 text-sm"
+                    placeholder="your take to accept (500cr)"
+                    value={acceptTake[d.id] || ""}
+                    onChange={(e) => setAcceptTake((p) => ({ ...p, [d.id]: e.target.value.toLowerCase() }))}
+                  />
+                  <button className="btn-primary !py-2 !px-4 text-sm shrink-0" onClick={() => accept(d.id)} disabled={busy}>
+                    accept
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

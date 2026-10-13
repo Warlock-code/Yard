@@ -34,6 +34,8 @@ type Profile = {
   isFollowing: boolean
   isOwn: boolean
   championTrophies?: number
+  xp?: number
+  ghostLevel?: { level: number; title: string; emoji: string }
 }
 
 export default function ProfileClient({ ghostId }: { ghostId: string }) {
@@ -151,7 +153,14 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
           {profile.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
           {profile.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
           <ChampionTrophies trophies={profile.championTrophies} />
+          {profile.ghostLevel && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-white/70" title={`${profile.xp ?? 0} xp`}>
+              {profile.ghostLevel.emoji} {profile.ghostLevel.title}
+            </span>
+          )}
         </div>
+        {!profile.isOwn && <NameRevealButton ghostId={profile.ghostId} />}
+        {profile.isOwn && <ProfileViewers />}
 
         {profile.isOwn ? (
           <>
@@ -303,8 +312,90 @@ function ShareMenu({ ghostId, onClose }: { ghostId: string; onClose: () => void 
   )
 }
 
-function QRCodeModal({ qrCodeUrl, onClose }: { qrCodeUrl: string | null; onClose: () => void }) {
+function NameRevealButton({ ghostId }: { ghostId: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle")
+  const [history, setHistory] = useState<string[]>([])
+  const [message, setMessage] = useState("")
+
+  async function reveal() {
+    setState("loading")
+    setMessage("")
+    try {
+      const data = await apiPost<{ history: string[]; historyNote?: string }>("/api/names/reveal", { ghostId })
+      setHistory(data.history || [])
+      setMessage(data.historyNote || "")
+      setState("done")
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : "reveal failed.")
+      setState("error")
+    }
+  }
+
+  if (state === "done") {
+    return (
+      <div className="mt-2 text-center">
+        <p className="text-xs text-white/50">
+          {history.length > 0 ? `past names: ${history.join(", ")}` : (message || "no known previous names.")}
+        </p>
+      </div>
+    )
+  }
+
   return (
+    <div className="mt-2 text-center">
+      <button onClick={reveal} disabled={state === "loading"} className="btn-ghost text-xs px-3 py-1.5 disabled:opacity-50">
+        {state === "loading" ? "revealing..." : "🕵️ reveal past names · 200cr"}
+      </button>
+      {state === "error" && message && <p role="alert" className="text-xs text-white/50 mt-1">{message}</p>}
+    </div>
+  )
+}
+
+function ProfileViewers() {
+  const [views, setViews] = useState<{ ghostId: string; avatarEmoji: string; tier: string; viewedAt: string }[] | null>(null)
+  const [locked, setLocked] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  async function load() {
+    try {
+      const data = await apiGet<{ views: { ghostId: string; avatarEmoji: string; tier: string; viewedAt: string }[] }>("/api/profile/views")
+      setViews(data.views)
+    } catch {
+      setLocked(true)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => { setOpen(true); load() }} className="btn-ghost mt-2 text-xs px-3 py-1.5">
+        👁️ who viewed me
+      </button>
+    )
+  }
+
+  if (locked) {
+    return (
+      <div className="mt-2 text-center">
+        <p className="text-xs text-white/50">profile views are plus exclusive — <Link href="/upgrade" className="text-primary">upgrade to see who&apos;s lurking</Link>.</p>
+      </div>
+    )
+  }
+
+  if (!views) return <p className="text-xs text-white/40 mt-2">loading views...</p>
+  if (views.length === 0) return <p className="text-xs text-white/40 mt-2">no lurkers this week.</p>
+
+  return (
+    <div className="mt-2 flex flex-wrap justify-center gap-1.5 max-w-xs">
+      {views.slice(0, 12).map((v) => (
+        <Link key={`${v.ghostId}-${v.viewedAt}`} href={`/u/${encodeURIComponent(v.ghostId)}`} className="text-xs px-2 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/70">
+          {v.avatarEmoji} {v.ghostId}
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+function QRCodeModal({ qrCodeUrl, onClose }: { qrCodeUrl: string | null; onClose: () => void }) {  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative card p-6 max-w-sm w-full shadow-xl border border-white/10 animate-scale-in">

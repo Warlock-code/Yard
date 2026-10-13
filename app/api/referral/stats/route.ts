@@ -31,9 +31,29 @@ export async function GET(req: NextRequest) {
 
   const referralLink = `${process.env.NEXT_PUBLIC_APP_URL || "https://yardapp.me"}/join?ref=${stats?.inviteCode}`
 
+  // Milestone progress (5 refs → free PLUS 30d, 10 → free PRIME 30d).
+  // Fail-open: stats must render even if counting fails.
+  let milestones: { verified: number; plusAt: number; primeAt: number; next: { tier: string; at: number; remaining: number } | null } = {
+    verified: verifiedReferrals,
+    plusAt: 5,
+    primeAt: 10,
+    next: null,
+  }
+  try {
+    milestones.next =
+      verifiedReferrals >= 10
+        ? null
+        : verifiedReferrals >= 5
+          ? { tier: "PRIME", at: 10, remaining: 10 - verifiedReferrals }
+          : { tier: "PLUS", at: 5, remaining: 5 - verifiedReferrals }
+  } catch {
+    // keep defaults
+  }
+
   return NextResponse.json({
     code: stats?.inviteCode,
     referralLink,
+    milestones,
     stats: {
       totalReferrals,
       verifiedReferrals,

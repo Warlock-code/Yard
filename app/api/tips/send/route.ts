@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
 
@@ -153,6 +153,6 @@ export async function POST(req: NextRequest) {
       message: `tipped ${received} credits!`,
     })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "insufficient credits." }, { status: 400 })
+    return toCreditErrorResponse(err, "tip failed.")
   }
 }

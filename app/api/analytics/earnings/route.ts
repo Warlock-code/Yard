@@ -62,14 +62,26 @@ export async function GET(req: NextRequest) {
   const { startDate, endDate, range } = parseDateRange(new URL(req.url).searchParams)
   const period = (new URL(req.url).searchParams.get("period") as "day" | "week" | "month") || "day"
 
-  const earnings = await prisma.earning.findMany({
+  // Credit-based rewards (in-app only, no cash value). VOTE_REWARD references
+  // a post id, BATTLE_WIN references a prompt id, LEADERBOARD a window key.
+  const txns = await prisma.creditTransaction.findMany({
     where: {
       userId: user.id,
+      amount: { gt: 0 },
+      type: { in: ["VOTE_REWARD", "BATTLE_WIN", "LEADERBOARD"] },
       createdAt: { gte: startDate, lte: endDate },
     },
     orderBy: { createdAt: "asc" },
-    select: { source: true, sourceId: true, amount: true, createdAt: true },
+    select: { type: true, reference: true, amount: true, createdAt: true },
   })
+
+  const earnings = txns.map((t) => ({
+    source:
+      t.type === "VOTE_REWARD" ? "post_vote" : t.type === "BATTLE_WIN" ? "battle_win" : "leaderboard_bonus",
+    sourceId: t.reference,
+    amount: t.amount,
+    createdAt: t.createdAt,
+  }))
 
   const bySource = earnings.reduce((acc, e) => {
     acc[e.source] = (acc[e.source] || 0) + e.amount
@@ -125,27 +137,14 @@ export async function GET(req: NextRequest) {
   })
   const imageMap = new Map(postsWithImages.map((p) => [p.id, p.imageUrl ?? undefined]))
 
-  const battleEntries = await prisma.battleEntry.findMany({
+  // BATTLE_WIN references a battle prompt id (not an entry id).
+  const battlePrompts = await prisma.battlePrompt.findMany({
     where: { id: { in: battleEntryIds } },
-    select: { id: true, text: true, promptId: true, createdAt: true, votes: true },
-  })
-
-  const postMap = new Map(posts.map((p) => [p.id, { ...p, imageUrl: imageMap.get(p.id) }]))
-  const entryMap = new Map(battleEntries.map((e) => [e.id, e]))
-
-  const promptIds = [
-    ...new Set(
-      battleEntries
-        .map((e) => e.promptId)
-        .filter((id): id is string => typeof id === "string" && id.length > 0)
-    ),
-  ]
-
-  const prompts = await prisma.battlePrompt.findMany({
-    where: { id: { in: promptIds } },
     select: { id: true, text: true },
   })
-  const promptMap = new Map(prompts.map((p) => [p.id, p.text]))
+  const promptMap = new Map(battlePrompts.map((p) => [p.id, p.text]))
+
+  const postMap = new Map(posts.map((p) => [p.id, { ...p, imageUrl: imageMap.get(p.id) }]))
 
   const postBreakdown = postIds.map((id) => {
     const post = postMap.get(id)
@@ -160,15 +159,15 @@ export async function GET(req: NextRequest) {
   })
 
   const battleBreakdown = battleEntryIds.map((id) => {
-    const entry = entryMap.get(id)
     const amount = battleEarnings.filter((e) => e.sourceId === id).reduce((s, e) => s + e.amount, 0)
+    const first = battleEarnings.find((e) => e.sourceId === id)
     return {
       battleEntryId: id,
-      promptText: entry ? promptMap.get(entry.promptId) || "" : "",
-      text: entry?.text?.slice(0, 100) || "",
+      promptText: promptMap.get(id) || "",
+      text: "",
       amount,
-      createdAt: entry?.createdAt,
-      votes: entry?.votes || 0,
+      createdAt: first?.createdAt,
+      votes: 0,
     }
   })
 

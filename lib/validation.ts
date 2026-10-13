@@ -47,13 +47,6 @@ export const adminActionSchema = z.object({
   decision: z.enum(["actioned", "dismissed"]),
 })
 
-export const payoutRequestSchema = z.object({
-  amount: z.number().int().positive("amount must be positive"),
-  bankCode: z.string().min(1, "bank code required"),
-  accountNumber: z.string().min(1, "account number required"),
-  accountName: z.string().min(1, "account name required"),
-})
-
 export const verifyEmailSchema = z.object({
   code: z.string().trim().length(6, "code must be 6 digits").regex(/^\d{6}$/, "code must be 6 digits"),
 })

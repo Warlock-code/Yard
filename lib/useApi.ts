@@ -13,13 +13,40 @@ import type {
   AdminUser,
   AdminPost,
   Report,
-  Payout,
   BattlePrompt,
   BattleEntry,
   LeaderboardEntry,
 } from "@/lib/api-types"
 
 type ApiResponse<T> = T extends { error: string } ? T : T
+
+export const NEEDS_CREDITS_PREFIX = "NEEDS_CREDITS:"
+
+// Global rule: insufficient credits → shop to buy more. Servers reply 402 +
+// { needsCredits, shopHref }. Every helper below throws NEEDS_CREDITS:<href>
+// and redirects the browser there (client-side only), so any credit-gated
+// button lands the user in the shop with zero per-call wiring.
+export function isNeedsCreditsError(e: unknown) {
+  return e instanceof Error && e.message.startsWith(NEEDS_CREDITS_PREFIX)
+}
+
+export function shopHrefFromError(e: unknown): string | null {
+  if (!isNeedsCreditsError(e)) return null
+  const href = (e as Error).message.slice(NEEDS_CREDITS_PREFIX.length) || "/shop"
+  return href.startsWith("/") ? href : "/shop"
+}
+
+function throwApiError(res: Response, data: unknown, fallback: string): never {
+  const err = data as { error?: string; message?: string; needsCredits?: boolean; shopHref?: string }
+  if (res.status === 402 || err?.needsCredits) {
+    const href = typeof err?.shopHref === "string" && err.shopHref.startsWith("/") ? err.shopHref : "/shop"
+    if (typeof window !== "undefined") {
+      window.location.href = href.includes("?") ? href : `${href}?need=credits`
+    }
+    throw new Error(`${NEEDS_CREDITS_PREFIX}${href}`)
+  }
+  throw new Error(err?.error || err?.message || fallback)
+}
 
 export async function apiPost<T = unknown>(url: string, body: unknown): Promise<ApiResponse<T>> {
   const res = await fetch(url, {
@@ -38,8 +65,7 @@ export async function apiPost<T = unknown>(url: string, body: unknown): Promise<
   }
 
   if (!res.ok) {
-    const err = data as { error?: string; message?: string }
-    throw new Error(err?.error || err?.message || `Something went wrong (${res.status}). Please try again.`)
+    throwApiError(res, data, `Something went wrong (${res.status}). Please try again.`)
   }
   return data as ApiResponse<T>
 }
@@ -56,8 +82,7 @@ export async function apiGet<T = unknown>(url: string): Promise<ApiResponse<T>> 
   }
 
   if (!res.ok) {
-    const err = data as { error?: string; message?: string }
-    throw new Error(err?.error || err?.message || `Something went wrong (${res.status}).`)
+    throwApiError(res, data, `Something went wrong (${res.status}).`)
   }
   return data as ApiResponse<T>
 }
@@ -72,8 +97,7 @@ export async function apiDelete<T = unknown>(url: string): Promise<ApiResponse<T
     throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
   }
   if (!res.ok) {
-    const err = data as { error?: string; message?: string }
-    throw new Error(err?.error || err?.message || `Something went wrong (${res.status}).`)
+    throwApiError(res, data, `Something went wrong (${res.status}).`)
   }
   return data as ApiResponse<T>
 }
@@ -93,8 +117,7 @@ export async function apiPatch<T = unknown>(url: string, body: unknown): Promise
     throw new Error(text?.slice(0, 200) || `Request failed (${res.status})`)
   }
   if (!res.ok) {
-    const err = data as { error?: string; message?: string }
-    throw new Error(err?.error || err?.message || `Something went wrong (${res.status}).`)
+    throwApiError(res, data, `Something went wrong (${res.status}).`)
   }
   return data as ApiResponse<T>
 }
@@ -142,9 +165,6 @@ export const api = {
   getAdminReports: () => apiGet<{ reports: Report[] }>("/api/admin/reports"),
   actionReport: (reportId: string, decision: "actioned" | "dismissed") =>
     apiPost(`/api/admin/reports/${reportId}/action`, { decision }),
-  getAdminPayouts: (status?: "pending" | "paid" | "all") =>
-    apiGet<{ payouts: Payout[] }>(`/api/admin/payouts${status ? `?status=${status}` : ""}`),
-  approvePayout: (payoutId: string) => apiPost(`/api/admin/payouts/${payoutId}/approve`, {}),
   getAdminUsers: (search?: string, tier?: string) => {
     const params = new URLSearchParams()
     if (search) params.set("search", search)

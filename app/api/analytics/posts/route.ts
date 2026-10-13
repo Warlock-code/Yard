@@ -69,16 +69,11 @@ export async function GET(req: NextRequest) {
 
   const postIds = posts.map((p) => p.id)
 
-  const [views, earnings, postVotes] = await Promise.all([
+  const [views, postVotes] = await Promise.all([
     prisma.postView.groupBy({
       by: ["postId"],
       where: { postId: { in: postIds } },
       _count: { postId: true },
-    }),
-    prisma.earning.groupBy({
-      by: ["sourceId"],
-      where: { userId: user.id, source: "post_vote", sourceId: { in: postIds } },
-      _sum: { amount: true },
     }),
     prisma.postVote.groupBy({
       by: ["postId"],
@@ -88,16 +83,16 @@ export async function GET(req: NextRequest) {
   ])
 
   const viewMap = new Map(views.map((v) => [v.postId, v._count.postId]))
-  const earningsMap = new Map(earnings.map((e) => [e.sourceId!, e._sum.amount || 0]))
   const voteMap = new Map(postVotes.map((v) => [v.postId, v._count.postId]))
 
   const postPerformance = posts.map((post) => {
     const viewsCount = viewMap.get(post.id) || 0
     const yeahs = voteMap.get(post.id) || 0
     const comments = post.commentsCount
-    const earningsAmount = earningsMap.get(post.id) || 0
+    // Cash earnings removed — credits are in-app only. Keep the field as 0 for compat.
+    const earningsAmount = 0
     const engagementRate = viewsCount > 0 ? ((yeahs + comments) / viewsCount) * 100 : 0
-    const earningsPerView = viewsCount > 0 ? earningsAmount / viewsCount : 0
+    const earningsPerView = 0
 
     return {
       id: post.id,

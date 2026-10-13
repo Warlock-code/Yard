@@ -1,10 +1,59 @@
+import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { CREDIT_CONFIG } from "@/lib/credit-config"
-import { getEffectiveTier } from "@/lib/tier"
 import { Prisma } from "@prisma/client"
 
 export { CREDIT_CONFIG } from "@/lib/credit-config"
 export type { CreditConfig } from "@/lib/credit-config"
+
+// Credits are a virtual in-app currency for entertainment only — no monetary
+// value, never redeemable for cash. WITHDRAWAL is a legacy transaction type
+// kept for history; no code path may ever write it.
+
+// Global rule: whenever a user can't afford a credit action, the client must
+// send them to the shop to buy credits. Servers flag it with 402 +
+// needsCredits; the shared api client redirects to SHOP_HREF.
+export const SHOP_HREF = "/shop"
+
+export function isInsufficientCreditsError(err: unknown) {
+  return err instanceof Error && err.message === "Insufficient credits"
+}
+
+export function needsCreditsResponse(message = "not enough credits — top up in the shop to continue.") {
+  return NextResponse.json(
+    { error: message, needsCredits: true, shopHref: SHOP_HREF },
+    { status: 402 }
+  )
+}
+
+export function toCreditErrorResponse(err: unknown, fallback = "credit action failed.") {
+  if (isInsufficientCreditsError(err)) return needsCreditsResponse()
+  return NextResponse.json(
+    { error: err instanceof Error ? err.message : fallback },
+    { status: 400 }
+  )
+}
+
+export async function trackFeatureEvent(input: {  userId?: string | null
+  type: string
+  pathname?: string | null
+  metadata?: Record<string, unknown>
+}) {
+  // Analytics for every monetization feature — admin reads via
+  // /api/admin/credits?action=feature_events. Never throws.
+  try {
+    await prisma.analyticsEvent.create({
+      data: {
+        userId: input.userId ?? null,
+        type: input.type.slice(0, 64),
+        pathname: input.pathname?.slice(0, 200) ?? null,
+        metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
+      },
+    })
+  } catch {
+    // table missing pre-migration — ignore
+  }
+}
 
 export async function creditUser(
   userId: string,
@@ -14,6 +63,7 @@ export async function creditUser(
   metadata?: Record<string, unknown>
 ): Promise<{ newBalance: number; transactionId: string }> {
   if (amount === 0) throw new Error("Amount cannot be zero")
+  if (type === "WITHDRAWAL") throw new Error("Withdrawals are not available. Credits are spendable in-app only.")
 
   const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({
@@ -40,11 +90,10 @@ export async function creditUser(
       where: { id: userId },
       data: {
         creditsBalance: newBalance,
-        ...(amount > 0 && type !== "PURCHASE" && type !== "ADMIN_MINT"
+        ...(amount > 0 && type !== "PURCHASE" && type !== "ADMIN_MINT" && type !== "ADMIN_REFUND"
           ? { creditsEarned: { increment: amount } }
           : {}),
         ...(type === "PURCHASE" ? { creditsPurchased: { increment: amount } } : {}),
-        ...(type === "WITHDRAWAL" ? { creditsWithdrawn: { increment: -amount } } : {}),
       },
     })
 
@@ -71,95 +120,6 @@ export async function purchaseCredits(
   return { creditsAdded: pack.credits, newBalance }
 }
 
-export async function withdrawCredits(
-  userId: string,
-  creditsAmount: number,
-  bankCode: string,
-  accountNumber: string,
-  accountName: string
-): Promise<{ payoutId: string; netGhsAmount: number }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      creditsBalance: true,
-      creditsEarned: true,
-      creditsWithdrawn: true,
-      createdAt: true,
-      tier: true,
-      tierExpiresAt: true,
-    },
-  })
-  if (!user) throw new Error("User not found")
-
-  // Validation
-  if (creditsAmount < CREDIT_CONFIG.MIN_WITHDRAWAL_CREDITS) {
-    throw new Error(`Minimum withdrawal is ${CREDIT_CONFIG.MIN_WITHDRAWAL_CREDITS} credits (GHS ${CREDIT_CONFIG.MIN_WITHDRAWAL_GHS})`)
-  }
-  if (creditsAmount > user.creditsBalance) {
-    throw new Error("Insufficient credits balance")
-  }
-  const accountAgeDays = (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-  if (accountAgeDays < CREDIT_CONFIG.LIMITS.MIN_ACCOUNT_AGE_DAYS) {
-    throw new Error(`Account must be at least ${CREDIT_CONFIG.LIMITS.MIN_ACCOUNT_AGE_DAYS} days old`)
-  }
-  if (user.creditsEarned < CREDIT_CONFIG.LIMITS.MIN_EARNED_CREDITS_TO_WITHDRAW) {
-    throw new Error(`Must earn at least ${CREDIT_CONFIG.LIMITS.MIN_EARNED_CREDITS_TO_WITHDRAW} credits before withdrawal`)
-  }
-
-  const tierConfig = CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(user) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER] || CREDIT_CONFIG.TIER_MULTIPLIER.FREE
-  const feePct = tierConfig.withdrawalFee
-  const ghsAmount = Math.floor((creditsAmount / CREDIT_CONFIG.CREDITS_PER_GHS) * 100) // pesewas
-  const feeAmount = Math.floor(ghsAmount * feePct / 100)
-  const netGhsAmount = ghsAmount - feeAmount
-
-  // Daily withdrawal limit check
-  const dayStart = new Date()
-  dayStart.setHours(0, 0, 0, 0)
-  const dayEnd = new Date(dayStart)
-  dayEnd.setDate(dayEnd.getDate() + 1)
-  const todayWithdrawn = await prisma.creditPayout.aggregate({
-    where: {
-      userId,
-      status: { in: ["pending", "processing", "approved", "paid"] },
-      requestedAt: { gte: dayStart, lt: dayEnd },
-    },
-    _sum: { ghsAmount: true },
-  })
-  const todayTotal = (todayWithdrawn._sum.ghsAmount || 0) + ghsAmount
-  if (todayTotal > CREDIT_CONFIG.LIMITS.MAX_DAILY_WITHDRAWAL_GHS * 100) {
-    throw new Error(`Daily withdrawal limit exceeded (GHS ${CREDIT_CONFIG.LIMITS.MAX_DAILY_WITHDRAWAL_GHS})`)
-  }
-
-  const result = await prisma.$transaction(async (tx) => {
-    // Deduct credits
-    await creditUser(userId, "WITHDRAWAL", -creditsAmount, undefined, {
-      ghsAmount,
-      feePct,
-      feeAmount,
-      netGhsAmount,
-    })
-
-    // Create payout record
-    const payout = await tx.creditPayout.create({
-      data: {
-        userId,
-        creditsAmount,
-        ghsAmount,
-        feePct,
-        feeAmount,
-        netGhsAmount,
-        bankCode,
-        accountNumber,
-        accountName,
-      },
-    })
-
-    return { payoutId: payout.id, netGhsAmount: netGhsAmount / 100 }
-  })
-
-  return result
-}
-
 export async function getUserCredits(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -167,7 +127,6 @@ export async function getUserCredits(userId: string) {
       creditsBalance: true,
       creditsEarned: true,
       creditsPurchased: true,
-      creditsWithdrawn: true,
       tier: true,
     },
   })
@@ -194,13 +153,6 @@ export async function getCreditTransactions(userId: string, limit = 50, cursor?:
   return { transactions, nextCursor }
 }
 
-export async function getCreditPayouts(userId: string) {
-  return prisma.creditPayout.findMany({
-    where: { userId },
-    orderBy: { requestedAt: "desc" },
-  })
-}
-
 export async function mintCreditsAdmin(userId: string, amount: number, reason: string, adminId: string) {
   if (amount <= 0) throw new Error("Amount must be positive")
   return creditUser(userId, "ADMIN_MINT", amount, undefined, { reason, adminId })
@@ -211,45 +163,27 @@ export async function burnCreditsAdmin(userId: string, amount: number, reason: s
   return creditUser(userId, "ADMIN_BURN", -amount, undefined, { reason, adminId })
 }
 
+export async function refundCreditsAdmin(userId: string, amount: number, reason: string, adminId: string) {
+  // Manual credit refund — returns spendable credits via an ADMIN_REFUND
+  // ledger row (never cash). Refunds don't inflate creditsEarned.
+  if (amount <= 0) throw new Error("Amount must be positive")
+  return creditUser(userId, "ADMIN_REFUND", amount, undefined, { reason, adminId })
+}
+
 export async function getTreasuryStats() {
-  const [
-    totalBalance,
-    totalEarned,
-    totalPurchased,
-    totalWithdrawn,
-    pendingPayouts,
-    totalUsers,
-  ] = await Promise.all([
+  const [totalBalance, totalEarned, totalPurchased, totalUsers] = await Promise.all([
     prisma.user.aggregate({ _sum: { creditsBalance: true } }),
     prisma.user.aggregate({ _sum: { creditsEarned: true } }),
     prisma.user.aggregate({ _sum: { creditsPurchased: true } }),
-    prisma.user.aggregate({ _sum: { creditsWithdrawn: true } }),
-    prisma.creditPayout.aggregate({
-      where: { status: { in: ["pending", "processing"] } },
-      _sum: { ghsAmount: true, netGhsAmount: true, feeAmount: true },
-    }),
     prisma.user.count(),
   ])
 
   const creditsOutstanding = totalBalance._sum.creditsBalance || 0
-  const liabilityGhs = creditsOutstanding / CREDIT_CONFIG.CREDITS_PER_GHS
-  const cashInBank = (totalPurchased._sum.creditsPurchased || 0) / CREDIT_CONFIG.CREDITS_PER_GHS * 0.975 // after Paystack
-  const reserveRatio = liabilityGhs > 0 ? cashInBank / liabilityGhs : 0
 
   return {
     creditsOutstanding,
-    liabilityGhs,
-    cashInBank,
-    reserveRatio,
     totalEarned: totalEarned._sum.creditsEarned || 0,
     totalPurchased: totalPurchased._sum.creditsPurchased || 0,
-    totalWithdrawn: totalWithdrawn._sum.creditsWithdrawn || 0,
-    pendingPayouts: {
-      count: await prisma.creditPayout.count({ where: { status: { in: ["pending", "processing"] } } }),
-      totalGhs: (pendingPayouts._sum.ghsAmount || 0) / 100,
-      totalNetGhs: (pendingPayouts._sum.netGhsAmount || 0) / 100,
-      totalFees: (pendingPayouts._sum.feeAmount || 0) / 100,
-    },
     totalUsers,
   }
 }
@@ -260,4 +194,70 @@ export function getPackById(packId: string) {
 
 export function getAllPacks() {
   return CREDIT_CONFIG.PACKS.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+// Tier-aware earn helper — single choke point for turning ON credit earns.
+// PLUS earns base × 1, PRIME earns base × 2 (via TIER_MULTIPLIER); FREE
+// always earns 0 real credits and gets a display-only MISSED_EARNING shadow
+// row via logMissedEarnings instead. Never awards FREE real credits.
+export async function awardCredits(input: {
+  userId: string
+  base: number
+  tier: string
+  multKey?: "earn" | "battle" | "tipReceived"
+  type: string
+  reference?: string
+  metadata?: Record<string, unknown>
+  shadowSource?: string
+  shadowMeta?: Record<string, unknown>
+  streakMult?: number
+}): Promise<{ awarded: number; shadow: number }> {
+  const mult =
+    CREDIT_CONFIG.TIER_MULTIPLIER[input.tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.[
+      input.multKey ?? "earn"
+    ] ?? 0
+  const reward = Math.round(input.base * mult * (input.streakMult ?? 1))
+  if (reward > 0) {
+    await creditUser(input.userId, input.type, reward, input.reference, {
+      ...(input.metadata ?? {}),
+      tier: input.tier,
+    })
+    return { awarded: reward, shadow: 0 }
+  }
+  // FREE (or zero-mult) path: shadow only — never touches the wallet.
+  const shadow = Math.round(input.base * 1)
+  if (shadow > 0) {
+    try {
+      const { logMissedEarnings } = await import("@/lib/missedEarnings")
+      await logMissedEarnings(input.userId, shadow, {
+        source: input.shadowSource ?? input.type.toLowerCase(),
+        ...(input.shadowMeta ?? {}),
+      }).catch(() => {})
+    } catch {
+      // shadow failures never break the calling flow
+    }
+  }
+  return { awarded: 0, shadow: shadow > 0 ? shadow : 0 }
+}
+
+// Streak multiplier — 2x (500cr) or 3x (1,200cr) windows lasting 7 days.
+// Applies to streak milestones + battle wins (cold paths only — vote hot
+// paths stay lean). Stacks with rush hour.
+export async function activeStreakMult(userId: string): Promise<1 | 2 | 3> {
+  try {
+    const rows = await prisma.creditTransaction.findMany({
+      where: { userId, type: "STREAK_MULT", createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      select: { metadata: true },
+      take: 10,
+    })
+    let best: 1 | 2 | 3 = 1
+    for (const r of rows) {
+      const m = r.metadata as { mult?: unknown } | null
+      if (m?.mult === 3) return 3
+      if (m?.mult === 2) best = 2
+    }
+    return best
+  } catch {
+    return 1
+  }
 }

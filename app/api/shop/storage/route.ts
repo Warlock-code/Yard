@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 const STORAGE_PRICE_PESEWAS = 1000 // GHS 10.00 for +100MB
 const STORAGE_BOOST_MB = 100
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ success: true, creditsUsed: STORAGE_CREDIT_COST, newBalance: result.newBalance, message: "storage purchased with credits" })
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+      return toCreditErrorResponse(err, "couldn't buy storage.")
     }
   }
 

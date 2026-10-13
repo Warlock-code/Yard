@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
       plusPricePesewas: Number(process.env.PAYSTACK_PLUS_PRICE_PESEWAS || 1000),
     },
     security: {
-      payoutEncryption: flag(process.env.PAYOUT_ENCRYPTION_KEY),
       jwt: flag(process.env.JWT_SECRET),
       adminJwt: flag(process.env.ADMIN_JWT_SECRET),
       cron: flag(process.env.CRON_SECRET),

@@ -9,11 +9,19 @@ import { emitNewPost } from "@/lib/socket-client"
 import { processPostHashtags } from "@/lib/search"
 import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
 import { textStorageMB } from "@/lib/storage"
-import { getEffectiveStorageLimitMB } from "@/lib/tier"
+import { getEffectiveStorageLimitMB, getEffectiveTier } from "@/lib/tier"
+import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
 const FEED_PAGE_SIZE = 20
+const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
+
+function weekStartUTC(now = new Date()) {
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const shift = (day.getUTCDay() + 6) % 7
+  return new Date(day.getTime() - shift * 86_400_000)
+}
 
 export const dynamic = "force-dynamic"
 
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  const { text: rawText, imageUrl, type, visibility } = await req.json()
+  const { text: rawText, imageUrl, type, visibility, campusTarget } = await req.json()
   const text = typeof rawText === "string" ? rawText.toLowerCase() : rawText
   const textSizeMB = textStorageMB(text)
 
@@ -112,21 +120,104 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "image not found in your storage." }, { status: 400 })
   }
 
-  const post = await prisma.post.create({
-    data: {
+  // Voice posts cost 100cr to publish (public only — no voice DMs exist).
+  if (type === "voice") {
+    try {
+      await creditUser(user.id, "VOICE_POST", -CREDIT_CONFIG.SPEND.VOICE_POST, `voice_${user.id}_${Date.now()}`, {})
+    } catch (err) {
+      const { toCreditErrorResponse } = await import("@/lib/credits")
+      return toCreditErrorResponse(err, "voice posts cost 100cr.")
+    }
+  }
+
+  // Cross-campus posting: another campus 500cr, all campuses 2,000cr.
+  // PRIME gets 3 free cross-posts/week. Anonymous throughout — the ghost
+  // name travels, never the identity behind it.
+  let targetCampuses = [user.campus]
+  if (typeof campusTarget === "string" && campusTarget.length > 0) {
+    if (campusTarget === "all") {
+      targetCampuses = [...CAMPUSES]
+    } else if (campusTarget !== user.campus) {
+      if (!CAMPUSES.includes(campusTarget)) {
+        return NextResponse.json({ error: "unknown campus." }, { status: 400 })
+      }
+      targetCampuses = [campusTarget]
+    }
+  }
+  const isCrossPost = targetCampuses.length > 1 || targetCampuses[0] !== user.campus
+  if (isCrossPost) {
+    const { toCreditErrorResponse } = await import("@/lib/credits")
+    const allCampuses = targetCampuses.length > 1
+    let useFree = false
+    if (getEffectiveTier(user) === "PRIME") {
+      try {
+        const used = await prisma.creditTransaction.count({
+          where: {
+            userId: user.id,
+            type: { in: ["XCAMPUS_POST", "XCAMPUS_FREE"] },
+            createdAt: { gte: weekStartUTC() },
+          },
+        })
+        useFree = used < 3
+      } catch {
+        useFree = false
+      }
+    }
+    if (useFree) {
+      await prisma.creditTransaction
+        .create({
+          data: {
+            userId: user.id,
+            type: "XCAMPUS_FREE",
+            amount: 0,
+            balanceAfter: user.creditsBalance,
+            reference: `xcampus_${user.id}_${Date.now()}`,
+            metadata: { targets: targetCampuses } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => null)
+    } else {
+      const fee = allCampuses ? CREDIT_CONFIG.SPEND.ALLCAMPUS_POST : CREDIT_CONFIG.SPEND.XCAMPUS_POST
+      try {
+        await creditUser(user.id, "XCAMPUS_POST", -fee, `xcampus_${user.id}_${Date.now()}`, {
+          targets: targetCampuses,
+        })
+      } catch (err) {
+        return toCreditErrorResponse(err, "cross-campus posts need credits.")
+      }
+    }
+  }
+
+  const { trackFeatureEvent } = await import("@/lib/credits")
+  if (isCrossPost) {
+    await trackFeatureEvent({
       userId: user.id,
-      text,
-      imageUrl,
-      type: type || "confession",
-      campus: user.campus,
-      program: user.program,
-      programLevel: user.programLevel,
-      cohortYear: user.cohortYear,
-      programKey: user.programKey,
-      isPrime: false, // Prime tier removed — no post is Prime-flagged anymore
-      visibility: visibility === "program" ? "program" : "school",
-    },
-  })
+      type: "xpost",
+      metadata: { targets: targetCampuses },
+    })
+  }
+
+  const createdPosts = []
+  for (const campus of targetCampuses) {
+    createdPosts.push(
+      await prisma.post.create({
+        data: {
+          userId: user.id,
+          text,
+          imageUrl,
+          type: type || "confession",
+          campus,
+          program: user.program,
+          programLevel: user.programLevel,
+          cohortYear: user.cohortYear,
+          programKey: user.programKey,
+          isPrime: false,
+          visibility: visibility === "program" ? "program" : "school",
+        },
+      })
+    )
+  }
+  const post = createdPosts[0]
 
   if (upload) {
     await prisma.mediaUpload.update({
@@ -155,20 +246,45 @@ export async function POST(req: NextRequest) {
     const postedYesterday = lastPosted && lastPosted.getTime() === yesterday.getTime()
     const frozen = user.streakFreezeUntil && new Date(user.streakFreezeUntil) > new Date()
     const streakBroke = !postedYesterday && !frozen && user.streakCount > 0
+    const newStreak = postedYesterday || frozen ? user.streakCount + 1 : 1
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
         lastPostedAt: new Date(),
-        streakCount: postedYesterday || frozen ? user.streakCount + 1 : 1,
+        streakCount: newStreak,
         ...(streakBroke && { lastStreakCount: user.streakCount, streakBrokenAt: new Date() }),
       },
     })
+
+    // Streak milestones: 7d → 100cr (PLUS) / 200cr (PRIME), 30d → 500/1000.
+    // Streak-multiplier purchases stack on top. FREE earns 0 (shadow only).
+    if (newStreak === 7 || newStreak === 30) {
+      const base = newStreak === 7 ? CREDIT_CONFIG.EARN.STREAK_7D : CREDIT_CONFIG.EARN.STREAK_30D
+      const mult = CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(user) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn ?? 0
+      const { activeStreakMult } = await import("@/lib/credits")
+      const smult = await activeStreakMult(user.id).catch(() => 1)
+      const reward = Math.round(base * mult * smult)
+      if (reward > 0) {
+        await creditUser(user.id, "STREAK", reward, `streak_${newStreak}d`, {
+          streak: newStreak,
+          tier: getEffectiveTier(user),
+        }).catch(() => {})
+      } else {
+        const shadow = Math.round(base * 1)
+        if (shadow > 0) {
+          const { logMissedEarnings } = await import("@/lib/missedEarnings")
+          await logMissedEarnings(user.id, shadow, { source: "streak", streak: newStreak }).catch(() => {})
+        }
+      }
+    }
   }
 
   if (text) {
     await notifyMentions({ text, senderUser: user, href: `/post/${post.id}`, excludeUserId: user.id }).catch(() => {})
-    await processPostHashtags(post.id, text, user.campus).catch(() => {})
+    for (const p of createdPosts) {
+      await processPostHashtags(p.id, text, p.campus).catch(() => {})
+    }
   }
 
   const postWithUser = await prisma.post.findUnique({
@@ -198,7 +314,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ post })
+  return NextResponse.json({ post, posts: createdPosts })
 }
 
 export async function GET(req: NextRequest) {

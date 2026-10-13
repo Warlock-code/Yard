@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
 
@@ -54,6 +54,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "pin failed, credits refunded. try again." }, { status: 500 })
     }
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "insufficient credits." }, { status: 400 })
+    return toCreditErrorResponse(err, "pin failed.")
   }
 }

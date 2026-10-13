@@ -35,8 +35,9 @@ export async function validatePaystackCharge(reference: string, charge: Paystack
   })
   if (!tx) throw new Error("Unknown transaction.")
 
-  // For subscription plans (plus/prime) Paystack amount is authoritative — allow stored amount to be corrected
-  const isSubscription = tx.kind === "plus" || tx.kind === "prime"
+  // For subscription plans (plus/prime, monthly + annual) Paystack amount is
+  // authoritative — allow stored amount to be corrected
+  const isSubscription = tx.kind === "plus" || tx.kind === "prime" || tx.kind === "plus_annual" || tx.kind === "prime_annual"
   const amountMatches = isSubscription
     ? Number.isSafeInteger(charge.amount) && (charge.amount as number) > 0
     : charge.amount === tx.amount
@@ -84,6 +85,13 @@ export async function fulfillPaidTransaction(reference: string) {
 
     const meta = metadata(transaction.metadata)
     const userId = transaction.userId
+
+    // Single-use win-back promo marker (never blocks fulfillment).
+    if (meta?.promo === "winback_50") {
+      await db.analyticsEvent
+        .create({ data: { userId, type: "winback_promo_used", metadata: { reference } } })
+        .catch(() => null)
+    }
 
     switch (transaction.kind) {
       case "boost": {
@@ -202,6 +210,38 @@ export async function fulfillPaidTransaction(reference: string) {
         const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
         const next = new Date(base + 31 * 24 * 60 * 60 * 1000)
         await db.user.update({ where: { id: userId }, data: { tier, tierExpiresAt: next } })
+        break
+      }
+      case "plus_annual":
+      case "prime_annual": {
+        // Annual plans: cash upfront, 365 days. Bundle kinds below also land
+        // here for the tier leg (they carry their own credit grant).
+        const annualTier = transaction.kind === "prime_annual" ? ("PRIME" as const) : ("PLUS" as const)
+        const u = await db.user.findUnique({ where: { id: userId }, select: { tierExpiresAt: true } })
+        const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
+        const next = new Date(base + 365 * 24 * 60 * 60 * 1000)
+        await db.user.update({ where: { id: userId }, data: { tier: annualTier, tierExpiresAt: next } })
+        break
+      }
+      case "bundle_plus":
+      case "bundle_prime": {
+        // Tier + credits bundle: 31 days of tier plus a credit grant.
+        const bundleTier = transaction.kind === "bundle_prime" ? ("PRIME" as const) : ("PLUS" as const)
+        const packCredits = meta?.credits
+        if (typeof packCredits !== "number" || !Number.isSafeInteger(packCredits) || packCredits <= 0) {
+          throw new Error("Invalid bundle metadata.")
+        }
+        const u = await db.user.findUnique({ where: { id: userId }, select: { tierExpiresAt: true, creditsBalance: true } })
+        if (!u) throw new Error("User not found.")
+        const base = Math.max(Date.now(), u?.tierExpiresAt?.getTime() ?? 0)
+        const balanceAfter = u.creditsBalance + packCredits
+        await db.creditTransaction.create({
+          data: { userId, type: "PURCHASE", amount: packCredits, balanceAfter, reference, metadata: { bundle: transaction.kind } },
+        })
+        await db.user.update({
+          where: { id: userId },
+          data: { tier: bundleTier, tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000), creditsBalance: balanceAfter, creditsPurchased: { increment: packCredits } },
+        })
         break
       }
       default:

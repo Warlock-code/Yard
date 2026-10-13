@@ -26,8 +26,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid pack" }, { status: 400 })
   }
 
+  // First-buy discount: 20% off the first-ever credit pack. Credits granted
+  // stay the same — only the Paystack charge drops. Stored amount is the
+  // discounted one so webhook validation matches exactly.
+  let firstBuy = false
+  try {
+    const prior = await prisma.transaction.findFirst({
+      where: { userId: user.id, kind: "credits", status: "success" },
+      select: { id: true },
+    })
+    firstBuy = !prior
+  } catch {
+    firstBuy = false
+  }
+
 try {
-    const amountInPesewas = pack.ghs * 100
+    const listPrice = pack.ghs * 100
+    const amountInPesewas = firstBuy ? Math.round(listPrice * 0.8) : listPrice
     const reference = `credits_${user.id}_${packId}_${Date.now()}`
 
     await prisma.transaction.create({
@@ -36,7 +51,7 @@ try {
         kind: "credits",
         reference,
         amount: amountInPesewas,
-        metadata: { packId, credits: pack.credits, ghsAmount: pack.ghs, bonusPct: pack.bonusPct },
+        metadata: { packId, credits: pack.credits, ghsAmount: pack.ghs, bonusPct: pack.bonusPct, firstBuy, listPrice },
       },
     })
 
@@ -46,6 +61,8 @@ try {
       authorization_url: payment.data.authorization_url,
       reference: payment.data.reference,
       pack,
+      firstBuy,
+      amountCharged: amountInPesewas,
     })
   } catch (err) {
     await reportServerError({ route: "/api/credits/purchase", error: err, metadata: { packId } })

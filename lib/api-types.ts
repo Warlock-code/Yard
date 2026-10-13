@@ -189,16 +189,6 @@ export interface Report {
   reporter: { ghostId: string }
 }
 
-export interface Payout {
-  id: string
-  amount: number
-  status: string
-  accountName: string | null
-  accountNumber: string | null
-  bankCode: string | null
-  user: { ghostId: string; email: string }
-}
-
 export interface BattlePrompt {
   id: string
   text: string

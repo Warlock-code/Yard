@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 const FREEZE_PRICE_PESEWAS = 200 // GHS 2.00
 const FREEZE_CREDIT_COST = CREDIT_CONFIG.SPEND.STREAK_FREEZE_48H // 200 credits
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ success: true, creditsUsed: FREEZE_CREDIT_COST, newBalance: result.newBalance, message: "streak freeze purchased with credits" })
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+      return toCreditErrorResponse(err, "couldn't buy the freeze.")
     }
   }
 

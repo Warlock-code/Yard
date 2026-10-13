@@ -5,7 +5,6 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 const ALLOWED_FEATURES = new Set([
   "trending",
   "analytics",
-  "payout",
   "battle",
   "edit",
   "boost",
@@ -52,6 +51,13 @@ export async function POST(req: NextRequest) {
       pathname: cleanPathname,
     },
   })
+
+  // Analytics beacon — live-safe, never breaks the main flow.
+  try {
+    await prisma.analyticsEvent.create({
+      data: { userId, type: "paywall_hit", pathname: cleanPathname ?? null, metadata: { feature } },
+    }).catch(() => {})
+  } catch {}
 
   return NextResponse.json({ ok: true })
 }

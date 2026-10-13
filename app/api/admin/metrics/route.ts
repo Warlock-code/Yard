@@ -37,7 +37,6 @@ export async function GET(req: NextRequest) {
     userCount,
     plusCount,
     revenueAgg,
-    paidOutAgg,
     payers,
     signups,
     everPayers,
@@ -54,7 +53,6 @@ export async function GET(req: NextRequest) {
     prisma.user.count(),
     prisma.user.count({ where: { tier: "PLUS" } }),
     prisma.transaction.aggregate({ where: paidWhereWindow, _sum: { amount: true } }),
-    prisma.payout.aggregate({ where: { status: "paid", requestedAt: windowFilter }, _sum: { amount: true } }),
     prisma.transaction.findMany({
       where: paidWhereWindow,
       select: { userId: true },
@@ -210,11 +208,13 @@ export async function GET(req: NextRequest) {
   const windowPayRate = userCount > 0 ? payers.length / userCount : 0
 
   const revenuePesewas = revenueAgg._sum.amount ?? 0
-  const paidOutPesewas = paidOutAgg._sum.amount ?? 0
+  // payouts removed — credits are in-app only with no monetary value.
+  const paidOutPesewas = 0
   // ARPPU = average revenue per paying user (window revenue / window payers).
   const arppuPesewas = payers.length > 0 ? revenuePesewas / payers.length : 0
   const lifetimeArppuPesewas = everPayers.length > 0 ? everRevenuePesewas / everPayers.length : 0
-  const payoutRatio = revenuePesewas > 0 ? paidOutPesewas / revenuePesewas : 0
+  // payouts removed — kept as 0 for admin UI compat.
+  const payoutRatio = 0
 
   // Posts per active user per day
   const postsPerUserByDay = days.map((day) => {
@@ -315,6 +315,13 @@ export async function GET(req: NextRequest) {
   } catch {
     // table missing — keep zeroed usage
   }
+
+  // Analytics beacon — live-safe, never breaks the main flow.
+  try {
+    await prisma.analyticsEvent.create({
+      data: { userId: null, type: "admin_metrics_view", metadata: { range } },
+    }).catch(() => {})
+  } catch {}
 
   return NextResponse.json({
     range,

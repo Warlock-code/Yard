@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 const RESTORE_PRICE_PESEWAS = 300
 const RESTORE_CREDIT_COST = CREDIT_CONFIG.SPEND.STREAK_RESTORE // 500 credits
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ success: true, creditsUsed: RESTORE_CREDIT_COST, newBalance: result.newBalance, message: "streak restored with credits" })
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+      return toCreditErrorResponse(err, "couldn't restore the streak.")
     }
   }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 const BOOST_CREDIT_PRICE_PESEWAS = 500
 const BOOST_CREDIT_COST = CREDIT_CONFIG.SPEND.BOOST_24H // 300 credits
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ success: true, creditsUsed: BOOST_CREDIT_COST, newBalance: result.newBalance, message: "boost credit purchased with credits" })
     } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+      return toCreditErrorResponse(err, "couldn't buy the boost credit.")
     }
   }
 

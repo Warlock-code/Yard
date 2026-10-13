@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 // Ghost name changes are credits-only (500 credits). Real money is only
 // for buying credits + subscription — no Paystack checkout here.
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const reference = `custom_name_${user.id}_${Date.now()}`
   try {
-    const result = await creditUser(user.id, "CUSTOM_NAME", -CUSTOM_NAME_CREDIT_COST, reference, { newName: rawName })
+    const result = await creditUser(user.id, "CUSTOM_NAME", -CUSTOM_NAME_CREDIT_COST, reference, { oldName: user.ghostId.toLowerCase(), newName: rawName })
     try {
       await prisma.user.update({ where: { id: user.id }, data: { ghostId: rawName } })
     } catch {
@@ -42,6 +42,6 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true, creditsUsed: CUSTOM_NAME_CREDIT_COST, newBalance: result.newBalance, ghostId: rawName, message: "ghost name changed!" })
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient credits" }, { status: 400 })
+    return toCreditErrorResponse(err, "rename failed.")
   }
 }

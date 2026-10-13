@@ -23,20 +23,10 @@ type Report = {
   reporter: { ghostId: string }
 }
 
-type Payout = {
-  id: string
-  amount: number
-  status?: string
-  accountName: string | null
-  accountNumber: string | null
-  bankCode: string | null
-  user: { ghostId: string; email: string }
-}
-
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Payouts" | "Battles" | "Announce" | "Drafts" | "Credits" | "Contest"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Battles" | "Announce" | "Drafts" | "Credits" | "Contest"
 
 type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
 
@@ -51,7 +41,6 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Battles", label: "battles", icon: "⚔", desc: "create prompts", group: "moderation" },
   { key: "Announce", label: "announce", icon: "📢", desc: "pin posts & notify all", group: "moderation" },
   { key: "Drafts", label: "drafts", icon: "✎", desc: "review ai posts", group: "moderation" },
-  { key: "Payouts", label: "payouts", icon: "₵", desc: "creator payments", group: "finance" },
   { key: "Credits", label: "credits", icon: "🔥", desc: "treasury & balances", group: "finance" },
   { key: "Contest", label: "contest", icon: "🏆", desc: "referral contest", group: "moderation" },
 ]
@@ -70,7 +59,7 @@ async function adminFetch(url: string, opts: RequestInit = {}) {
   let data: Record<string, unknown> = {}
   try { data = text ? (JSON.parse(text) as Record<string, unknown>) : {} } catch { data = { error: text || "request failed." } }
   if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : `request failed (${res.status})`)
-  return data as unknown as { reports?: Report[]; payouts?: Payout[]; users?: AdminUser[]; posts?: AdminPost[] } & Stats
+  return data as unknown as { reports?: Report[]; users?: AdminUser[]; posts?: AdminPost[] } & Stats
 }
 
 function errMsg(e: unknown, fallback: string) {
@@ -152,7 +141,6 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<Stats | null>(null)
   const [reports, setReports] = useState<Report[]>([])
-  const [payouts, setPayouts] = useState<Payout[]>([])
   const [users, setUsers] = useState<AdminUser[]>([])
   const [posts, setPosts] = useState<AdminPost[]>([])
   const [metrics, setMetrics] = useState<null | {
@@ -214,7 +202,6 @@ export default function AdminPage() {
   const [userSearch, setUserSearch] = useState("")
   const [tierFilter, setTierFilter] = useState("ALL")
   const [postSearch, setPostSearch] = useState("")
-  const [payoutTab, setPayoutTab] = useState<"pending" | "paid" | "all">("pending")
 
   const [promptText, setPromptText] = useState("")
   const [campus, setCampus] = useState("")
@@ -246,25 +233,29 @@ export default function AdminPage() {
   const [draftsLoading, setDraftsLoading] = useState(false)
 
   type TreasuryStats = { totalMinted?: number; totalBurned?: number; circulating?: number; userCount?: number } & Record<string, unknown>
-  type CreditUser = { id: string; ghostId: string; email: string; tier: string; creditsBalance: number; creditsEarned: number; creditsPurchased: number; creditsWithdrawn: number; kycStatus: string }
+  type CreditUser = { id: string; ghostId: string; email: string; tier: string; creditsBalance: number; creditsEarned: number; creditsPurchased: number }
   const [treasury, setTreasury] = useState<TreasuryStats | null>(null)
   const [creditUsers, setCreditUsers] = useState<CreditUser[]>([])
+  const [featureEvents, setFeatureEvents] = useState<{ type: string; count: number }[]>([])
   const [creditsLoading, setCreditsLoading] = useState(false)
   const [mintUserId, setMintUserId] = useState("")
   const [mintAmount, setMintAmount] = useState("")
   const [mintReason, setMintReason] = useState("")
+  const [refundRef, setRefundRef] = useState("")
+  const [refundReason, setRefundReason] = useState("")
+  const [refundCreditUserId, setRefundCreditUserId] = useState("")
+  const [refundCreditAmount, setRefundCreditAmount] = useState("")
+  const [refundCreditReason, setRefundCreditReason] = useState("")
 
   const loadAll = useCallback((isCurrent: () => boolean = () => true) => {
     return Promise.all([
       adminFetch("/api/admin/stats"),
       adminFetch("/api/admin/reports"),
-      adminFetch("/api/admin/payouts"),
     ])
-      .then(([s, r, p]) => {
+      .then(([s, r]) => {
         if (!isCurrent()) return
         setStats(s)
         setReports(r.reports || [])
-        setPayouts(p.payouts || [])
       })
       .catch((err: unknown) => {
         if (isCurrent() && err instanceof Error && (err.message.includes("not authorized") || err.message.includes("403"))) setNotAllowed(true)
@@ -300,17 +291,6 @@ export default function AdminPage() {
     if (section !== "Announce") return
     loadAnnouncements()
   }, [section])
-
-  // Payout tab fetch (pending is default set, paid/all fetched on demand)
-  useEffect(() => {
-    if (section !== "Payouts") return
-    if (payoutTab === "pending") {
-      adminFetch("/api/admin/payouts").then((d) => setPayouts(d.payouts || [])).catch(() => {})
-    } else {
-      const q = payoutTab === "paid" ? "?status=paid" : "?status=all"
-      adminFetch(`/api/admin/payouts${q}`).then((d) => setPayouts(d.payouts || [])).catch(() => {})
-    }
-  }, [section, payoutTab])
 
   // Battle drafts (dormant UPCOMING prompts — hall packs, exam szn).
   // Loading flag is set in go() to avoid set-state-in-effect.
@@ -351,11 +331,13 @@ export default function AdminPage() {
     Promise.all([
       adminFetch("/api/admin/credits?action=treasury").catch(() => ({})),
       adminFetch("/api/admin/credits?action=users").catch(() => ({})),
+      adminFetch("/api/admin/credits?action=feature_events&days=30").catch(() => ({})),
     ])
-      .then(([t, u]) => {
+      .then(([t, u, f]) => {
         if (!active) return
         setTreasury((t as unknown as { stats?: TreasuryStats }).stats || null)
         setCreditUsers((u as unknown as { users?: CreditUser[] }).users || [])
+        setFeatureEvents((f as unknown as { events?: { type: string; count: number }[] }).events || [])
       })
       .catch(() => {})
       .finally(() => { if (active) setCreditsLoading(false) })
@@ -492,18 +474,6 @@ export default function AdminPage() {
       })
       await loadAll()
     } catch (e: unknown) { alert(errMsg(e, "failed to update report")) }
-    finally { setBusyId(null) }
-  }
-
-  async function handleApprovePayout(id: string) {
-    if (busyId) return
-    if (!confirm("approve this payout via paystack? this sends real money.")) return
-    setBusyId(id)
-    try {
-      await adminFetch(`/api/admin/payouts/${id}/approve`, { method: "POST" })
-      alert("payout approved — transfer initiated.")
-      await loadAll()
-    } catch (e: unknown) { alert(errMsg(e, "transfer failed. check paystack balance / keys.")) }
     finally { setBusyId(null) }
   }
 
@@ -756,6 +726,38 @@ export default function AdminPage() {
     finally { setBusyId(null) }
   }
 
+  async function handleRefund() {
+    if (!refundRef.trim() || !refundReason.trim()) { alert("reference and reason required"); return }
+    if (!confirm(`refund payment ${refundRef.trim()}? this claws back granted credits.`)) return
+    setBusyId("refund")
+    try {
+      await adminFetch("/api/admin/credits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refund", reference: refundRef.trim(), reason: refundReason.trim() }),
+      })
+      alert("refunded.")
+      setRefundRef(""); setRefundReason("")
+    } catch (e: unknown) { alert(errMsg(e, "refund failed.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleRefundCredits() {
+    if (!refundCreditUserId.trim() || !refundCreditAmount.trim() || !refundCreditReason.trim()) { alert("user, amount and reason required"); return }
+    const amount = parseInt(refundCreditAmount, 10)
+    if (!Number.isFinite(amount) || amount <= 0) { alert("amount must be a positive number"); return }
+    if (!confirm(`refund ${amount} credits to ${refundCreditUserId.trim()}? in-app only, never cash.`)) return
+    setBusyId("refund-credits")
+    try {
+      await adminFetch("/api/admin/credits", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refund_credits", userId: refundCreditUserId.trim(), amount, reason: refundCreditReason.trim() }),
+      })
+      alert("credits refunded.")
+      setRefundCreditUserId(""); setRefundCreditAmount(""); setRefundCreditReason("")
+    } catch (e: unknown) { alert(errMsg(e, "credit refund failed.")) }
+    finally { setBusyId(null) }
+  }
+
   const freeCount = Math.max(0, stats ? stats.userCount - stats.plusCount : 0)
   const total = Math.max(1, stats?.userCount || 1)
   const paidTotal = stats?.plusCount || 0
@@ -800,7 +802,7 @@ export default function AdminPage() {
           <div className="space-y-1">
             {NAV.filter((n) => n.group === g).map((n) => {
               const active = section === n.key
-              const count = n.key === "Reports" ? reports.length : n.key === "Payouts" ? payouts.length : 0
+              const count = n.key === "Reports" ? reports.length : 0
               return (
                 <button
                   key={n.key}
@@ -854,12 +856,6 @@ export default function AdminPage() {
         {sidebarNav}
 
         <div className="p-3 border-t border-white/[0.06] space-y-2">
-          {(payouts.length > 0) && (
-            <button onClick={() => go("Payouts")} className="w-full rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2.5 flex items-center justify-between hover:bg-amber-500/[0.12] transition-colors">
-              <span className="text-xs font-bold text-amber-300">⏳ {payouts.length} payouts pending</span>
-              <span className="text-xs font-black text-amber-300">→</span>
-            </button>
-          )}
           <button onClick={() => router.push("/feed")} className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white transition-colors">
             ← back to yard
           </button>
@@ -904,9 +900,6 @@ export default function AdminPage() {
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/25">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />{reports.length} open
               </span>
-            )}
-            {section === "Payouts" && payouts.length > 0 && (
-              <span className="hidden sm:inline-flex text-xs font-bold px-3 py-1.5 rounded-full bg-[#baff39]/10 text-[#baff39] border border-[#baff39]/25">{payouts.length} pending</span>
             )}
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-white/30"><span className="w-1.5 h-1.5 rounded-full bg-[#baff39]" />live</span>
             <button onClick={refresh} disabled={refreshing} className="rounded-xl border border-white/10 px-3.5 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-50 transition-colors">
@@ -981,20 +974,6 @@ export default function AdminPage() {
 
                     <div className="space-y-4">
                       <Card>
-                        <CardHeader title="payouts" sub="money in flight" />
-                        <div className="p-4 space-y-2.5">
-                          <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3.5 flex items-center justify-between">
-                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-amber-300/80">pending</p><p className="text-xl font-black text-amber-300 mt-0.5">{ghs(stats.pendingPayoutPesewas)}</p></div>
-                            <span className="text-2xl opacity-40">⏳</span>
-                          </div>
-                          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3.5 flex items-center justify-between">
-                            <div><p className="text-[11px] uppercase tracking-wider font-bold text-emerald-300/80">paid out</p><p className="text-xl font-black text-emerald-300 mt-0.5">{ghs(stats.paidOutPesewas)}</p></div>
-                            <span className="text-2xl opacity-40">✅</span>
-                          </div>
-                          <button onClick={() => go("Payouts")} className="w-full rounded-xl bg-[#baff39] text-black text-sm font-bold py-2.5 hover:bg-[#d4ff70] transition-colors">review payouts →</button>
-                        </div>
-                      </Card>
-                      <Card>
                         <CardHeader title="quick actions" sub="jump to work queues" />
                         <div className="p-4 grid grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-2">
                           <button onClick={() => go("Reports")} className="rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:bg-white/5 hover:text-white transition-colors">⚑ reports{reports.length > 0 ? ` (${reports.length})` : ""}</button>
@@ -1020,15 +999,9 @@ export default function AdminPage() {
                       </div>
                     </Card>
                     <Card>
-                      <CardHeader title="pending payouts" sub={`${payouts.length} awaiting approval`} right={<button onClick={() => go("Payouts")} className="text-xs font-bold text-[#baff39] hover:underline">view all →</button>} />
+                      <CardHeader title="credit treasury" sub="in-app currency — no cash value" right={<button onClick={() => go("Credits")} className="text-xs font-bold text-[#baff39] hover:underline">view all →</button>} />
                       <div className="divide-y divide-white/[0.05]">
-                        {payouts.slice(0, 3).map((p) => (
-                          <div key={p.id} className="px-5 py-3 flex items-center gap-3">
-                            <div className="min-w-0 flex-1"><p className="text-[13px] font-bold truncate">{p.user.ghostId}</p><p className="text-[11px] text-white/30 truncate">{p.accountName || "—"} · {p.accountNumber || "—"}</p></div>
-                            <span className="text-[13px] font-black text-[#baff39] shrink-0">{ghs(p.amount)}</span>
-                          </div>
-                        ))}
-                        {payouts.length === 0 && <p className="px-5 py-6 text-sm text-white/30 text-center">💸 no pending payouts.</p>}
+                        <p className="px-5 py-6 text-sm text-white/30 text-center">🔥 credits live in-app only — manage balances under credits.</p>
                       </div>
                     </Card>
                   </div>
@@ -1067,8 +1040,6 @@ export default function AdminPage() {
                         const paywallPct = dauSum > 0 ? (hits / dauSum) * 100 : 0
                         const plusP = metrics.conversion ? (metrics.conversion.plusRate > 1 ? metrics.conversion.plusRate : metrics.conversion.plusRate * 100) : 0
                         const payP = (metrics.payingConversion ?? 0) > 1 ? (metrics.payingConversion ?? 0) : (metrics.payingConversion ?? 0) * 100
-                        const ratio = metrics.payoutRatio || 0
-                        const over = ratio > 1
                         return (
                           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                             <StatCard label="dau today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
@@ -1078,21 +1049,7 @@ export default function AdminPage() {
                             <StatCard label="plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} plus`} icon="★" accent="#38bdf8" />
                             <StatCard label="paying conv %" value={`${payP.toFixed(1)}%`} sub={`${(metrics.everPayersCount ?? 0).toLocaleString()} ever paid · trial excluded`} icon="💳" accent="#34d399" />
                             <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev / ${(metrics.windowPayersCount ?? 0).toLocaleString()} payers`} icon="💰" accent="#baff39" />
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 flex flex-col justify-between min-h-[128px] hover:border-white/20 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/40">payout ratio</p>
-                                <span className="w-7 h-7 rounded-lg grid place-items-center text-sm border" style={{ background: `${over ? "#f87171" : "#34d399"}14`, borderColor: `${over ? "#f87171" : "#34d399"}30` }}>₵</span>
-                              </div>
-                              <div className="mt-3">
-                                <p className={`text-[26px] leading-none font-black tracking-tight ${over ? "text-red-400" : "text-white"}`}>{ratio.toFixed(2)}x</p>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <p className="text-xs text-white/35">{ghs(metrics.paidOutPesewas || 0)} paid</p>
-                                </div>
-                              </div>
-                              <div className="h-1 rounded-full bg-white/[0.06] mt-3 overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, ratio * 100)}%`, background: over ? "#f87171" : "#34d399", opacity: 0.7 }} />
-                              </div>
-                            </div>
+                            <StatCard label="credit spend" value="see below" sub="in-app only · no cash value" icon="🔥" accent="#34d399" />
                           </div>
                         )
                       })()}
@@ -1270,7 +1227,7 @@ export default function AdminPage() {
                             <p className="text-xs text-white/40 leading-relaxed">funnel and paywall-hit % need the paywall-hit instrumentation. if hits stay at 0, the client is not logging paywall views and checkout events to <span className="text-white/70 font-mono">/api/admin/metrics</span> yet — wire that up to unlock growth and money reads.</p>
                             <div className="mt-4 rounded-xl border border-[#baff39]/25 bg-[#baff39]/[0.06] p-3">
                               <p className="text-[11px] font-bold text-[#baff39]">arppu = window revenue / window payers · trial excluded</p>
-                              <p className="text-[11px] text-white/40 mt-1">paying conv = ever-paid / users · mau = action-based rolling 30d. payout ratio over 1x means paying out more than revenue.</p>
+                              <p className="text-[11px] text-white/40 mt-1">paying conv = ever-paid / users · mau = action-based rolling 30d. credits are in-app only with no cash value.</p>
                             </div>
                           </div>
                         </Card>
@@ -1506,54 +1463,6 @@ export default function AdminPage() {
                         </Card>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* ============ PAYOUTS ============ */}
-              {section === "Payouts" && (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.05] p-4">
-                    <p className="text-xs font-black text-amber-300 uppercase tracking-wider">⚠️ real money — check before approving</p>
-                    <p className="text-xs text-white/50 mt-1.5 leading-relaxed">verify earnings + readable bank/momo details. approve → paystack transfer (needs balance). status flows <span className="text-white/80 font-semibold">pending → approved → paid / rejected</span>. failed transfers revert to pending.</p>
-                  </div>
-
-                  <Card>
-                    <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex gap-1.5 bg-black/40 border border-white/10 rounded-xl p-1 w-fit">
-                        {(["pending", "paid", "all"] as const).map((t) => (
-                          <button key={t} onClick={() => setPayoutTab(t)} className={`text-xs font-bold px-4 py-2 rounded-lg capitalize transition-colors ${payoutTab === t ? "bg-[#baff39] text-black" : "text-white/50 hover:text-white"}`}>{t}</button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-white/35 sm:ml-auto">{payouts.length} result{payouts.length !== 1 ? "s" : ""} · total <span className="text-white font-bold">{ghs(payouts.reduce((a, p) => a + p.amount, 0))}</span></p>
-                    </div>
-                  </Card>
-
-                  {payouts.length === 0 ? (
-                    <EmptyState icon="💸" title={`no ${payoutTab} payouts`} sub={payoutTab === "pending" ? "approved / paid and failed are hidden under other tabs." : "nothing here yet."} />
-                  ) : (
-                    <Card>
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[760px]">
-                          <thead><tr className="border-b border-white/[0.06]">{["user", "amount", "recipient", "status", "action"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
-                          <tbody>
-                            {payouts.map((p, i) => (
-                              <tr key={p.id} className={`border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] ${i % 2 === 1 ? "bg-white/[0.012]" : ""}`}>
-                                <td className={td}><p className="font-bold">{p.user.ghostId}</p><p className="text-[11px] text-white/30 truncate max-w-[200px]">{p.user.email}</p></td>
-                                <td className={td}><span className="font-black text-[#baff39] whitespace-nowrap">{ghs(p.amount)}</span></td>
-                                <td className={`${td} max-w-[260px]`}><p className="text-xs text-white/70 truncate">{p.accountName || "—"} · {p.accountNumber || "—"}</p><p className="text-[11px] font-mono text-white/30">{p.bankCode || "—"}</p></td>
-                                <td className={td}><span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/60 uppercase">{p.status || payoutTab}</span></td>
-                                <td className={td}>
-                                  {(!p.status || p.status === "pending") ? (
-                                    <button disabled={!!busyId} onClick={() => handleApprovePayout(p.id)} className="whitespace-nowrap text-xs font-black px-4 py-2 rounded-xl bg-[#baff39] text-black hover:bg-[#d4ff70] disabled:opacity-40 shadow-[0_0_20px_rgba(186,255,57,0.25)]">{busyId === p.id ? "paying…" : "approve & pay"}</button>
-                                  ) : <span className="text-xs text-white/25">—</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </Card>
                   )}
                 </div>
               )}
@@ -1803,6 +1712,38 @@ export default function AdminPage() {
                     </div>
                   </Card>
                   <Card>
+                    <CardHeader title="paystack refund" sub="manual refund by payment reference — claws back granted credits, marks tx refunded" />
+                    <div className="p-4 grid sm:grid-cols-3 gap-2">
+                      <input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} placeholder="payment reference" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono placeholder:text-white/25 placeholder:font-sans focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="reason — e.g. duplicate charge" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <button disabled={busyId === "refund"} onClick={handleRefund} className="rounded-xl border border-amber-500/40 text-xs font-black py-2.5 text-amber-300 hover:bg-amber-500/10 disabled:opacity-50 transition-colors">refund payment</button>
+                    </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="refund credits to user" sub="manual credit refund — writes an ADMIN_REFUND ledger row, in-app only, never cash" />
+                    <div className="p-4 grid sm:grid-cols-4 gap-2">
+                      <input value={refundCreditUserId} onChange={(e) => setRefundCreditUserId(e.target.value)} placeholder="user id" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono placeholder:text-white/25 placeholder:font-sans focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={refundCreditAmount} onChange={(e) => setRefundCreditAmount(e.target.value)} placeholder="amount" inputMode="numeric" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={refundCreditReason} onChange={(e) => setRefundCreditReason(e.target.value)} placeholder="reason — e.g. failed boost" className="bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <button disabled={busyId === "refund-credits"} onClick={handleRefundCredits} className="rounded-xl border border-[#baff39]/40 text-xs font-black py-2.5 text-[#baff39] hover:bg-[#baff39]/10 disabled:opacity-50 transition-colors">refund credits</button>
+                    </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="what converts" sub="feature events · last 30d" />
+                    {featureEvents.length === 0 ? (
+                      <p className="p-5 text-xs text-white/40">no feature events yet.</p>
+                    ) : (
+                      <div className="p-4 grid sm:grid-cols-2 gap-2">
+                        {featureEvents.slice(0, 20).map((e) => (
+                          <div key={e.type} className="rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2 flex items-center justify-between">
+                            <span className="text-xs font-bold text-white/70">{e.type}</span>
+                            <span className="text-sm font-black text-[#baff39]">{e.count.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                  <Card>
                     <CardHeader title="top balances" sub={`${creditUsers.length} users holding credits`} />
                     {creditsLoading ? (
                       <p className="p-5 text-xs text-white/40">loading balances…</p>
@@ -1835,7 +1776,7 @@ export default function AdminPage() {
 
         <footer className="border-t border-white/[0.05] mt-auto">
           <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-1.5">
-            <p className="text-[11px] text-white/25">yard admin · be careful with money actions</p>
+            <p className="text-[11px] text-white/25">yard admin · credits are in-app only, no cash value</p>
             <p className="text-[11px] text-white/25 font-mono">auditlog · {stats?.userCount || 0} users · {stats?.postCount || 0} posts</p>
           </div>
         </footer>

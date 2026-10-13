@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { recordBattleWin } from "@/lib/champions"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { creditUser, activeStreakMult, trackFeatureEvent, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 import { sendPush } from "@/lib/sendPush"
 import { createNotification } from "@/lib/notifications"
@@ -108,22 +108,30 @@ export async function GET(req: NextRequest) {
           data: { wonRound: true },
         })
 
-        // Round-advancer prize: +1 free boost each (non-cash).
-        // Credit path kept but guarded — EARN of 0 throws in creditUser.
+        // Round-advancer prize: +1 free boost each (non-cash) + credit reward.
+        // FREE tier still earns 0 here (shadow ledger only) — no farming.
         for (const w of winners) {
           const winnerUser = await prisma.user.findUnique({ where: { id: w.userId } })
           if (winnerUser) {
             const tier = getEffectiveTier(winnerUser)
             const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
             const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * multiplier)
-            if (winReward > 0) {
-              await creditUser(w.userId, "BATTLE_WIN", winReward, prompt.id, {
+            const smult = await activeStreakMult(w.userId).catch(() => 1)
+            const boostedReward = winReward * smult
+            if (boostedReward > 0) {
+              await creditUser(w.userId, "BATTLE_WIN", boostedReward, prompt.id, {
                 promptId: prompt.id,
                 entryId: w.id,
                 battleType: "bracket_round",
                 round: prompt.roundNumber,
                 tier
               })
+              await trackFeatureEvent({
+                userId: w.userId,
+                type: "battle_win_payout",
+                pathname: "/battles",
+                metadata: { promptId: prompt.id, entryId: w.id, battleType: "bracket_round", awarded: boostedReward, tier },
+              }).catch(() => {})
             } else if (tier === "FREE") {
               // FREE shadow: what PLUS (battle 1x) would have paid. Display-only.
               const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * 1)
@@ -136,6 +144,12 @@ export async function GET(req: NextRequest) {
                   battleType: "bracket_round",
                 }).catch(() => {})
               }
+              await trackFeatureEvent({
+                userId: w.userId,
+                type: "battle_win_payout",
+                pathname: "/battles",
+                metadata: { promptId: prompt.id, entryId: w.id, battleType: "bracket_round", awarded: 0, shadow, tier },
+              }).catch(() => {})
             }
             await prisma.user.update({
               where: { id: w.userId },
@@ -195,20 +209,18 @@ export async function GET(req: NextRequest) {
         await recordBattleWin(winner.userId, prompt.campus)
         await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
-        // Credit reward for BRACKET FINAL win (guarded — 0 throws).
+        // Credit reward for BRACKET FINAL win: base win reward or 80% of the
+        // entry-fee pot, whichever is bigger. Platform keeps the other 20%
+        // (burned — never credited; recorded as rake in metadata).
+        // FREE never earns real credits — shadow MISSED row only.
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
           const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
-          const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * multiplier)
-          if (winReward > 0) {
-            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
-              promptId: prompt.id,
-              entryId: winner.id,
-              battleType: "bracket_final",
-              tier
-            })
-          } else if (tier === "FREE") {
+          const baseReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * multiplier)
+          const pot = await battlePotStats(prompt.id)
+          const smult = await activeStreakMult(winner.userId).catch(() => 1)
+          if (tier === "FREE") {
             const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_FINAL * 1)
             if (shadow > 0) {
               const { logMissedEarnings } = await import("@/lib/missedEarnings")
@@ -217,6 +229,33 @@ export async function GET(req: NextRequest) {
                 promptId: prompt.id,
                 entryId: winner.id,
                 battleType: "bracket_final",
+                potSize: pot.pot,
+              }).catch(() => {})
+            }
+            await trackFeatureEvent({
+              userId: winner.userId,
+              type: "battle_win_payout",
+              pathname: "/battles",
+              metadata: { promptId: prompt.id, entryId: winner.id, battleType: "bracket_final", awarded: 0, shadow, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+            }).catch(() => {})
+          } else {
+            const winReward = Math.max(baseReward * smult, pot.winnerShare)
+            if (winReward > 0) {
+              await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+                promptId: prompt.id,
+                entryId: winner.id,
+                battleType: "bracket_final",
+                potSize: pot.pot,
+                rake: pot.rake,
+                potShare: pot.winnerShare,
+                baseReward,
+                tier
+              })
+              await trackFeatureEvent({
+                userId: winner.userId,
+                type: "battle_win_payout",
+                pathname: "/battles",
+                metadata: { promptId: prompt.id, entryId: winner.id, battleType: "bracket_final", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
               }).catch(() => {})
             }
           }
@@ -253,20 +292,18 @@ export async function GET(req: NextRequest) {
         await recordBattleWin(winner.userId, prompt.campus)
         await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
-        // Credit reward for single battle win (guarded — 0 throws).
+        // Credit reward for single battle win: base (500 PLUS / 1000 PRIME
+        // via battle multiplier × streak) or 80% of the pot, whichever is
+        // bigger. Platform keeps the other 20% (burned — rake in metadata).
+        // FREE never earns real credits — shadow MISSED row only.
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
           const tier = getEffectiveTier(winnerUser)
           const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
-          const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
-          if (winReward > 0) {
-            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
-              promptId: prompt.id,
-              entryId: winner.id,
-              battleType: "single",
-              tier
-            })
-          } else if (tier === "FREE") {
+          const baseReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
+          const pot = await battlePotStats(prompt.id)
+          const smult = await activeStreakMult(winner.userId).catch(() => 1)
+          if (tier === "FREE") {
             const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * 1)
             if (shadow > 0) {
               const { logMissedEarnings } = await import("@/lib/missedEarnings")
@@ -275,6 +312,33 @@ export async function GET(req: NextRequest) {
                 promptId: prompt.id,
                 entryId: winner.id,
                 battleType: "single",
+                potSize: pot.pot,
+              }).catch(() => {})
+            }
+            await trackFeatureEvent({
+              userId: winner.userId,
+              type: "battle_win_payout",
+              pathname: "/battles",
+              metadata: { promptId: prompt.id, entryId: winner.id, battleType: "single", awarded: 0, shadow, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+            }).catch(() => {})
+          } else {
+            const winReward = Math.max(baseReward * smult, pot.winnerShare)
+            if (winReward > 0) {
+              await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+                promptId: prompt.id,
+                entryId: winner.id,
+                battleType: "single",
+                potSize: pot.pot,
+                rake: pot.rake,
+                potShare: pot.winnerShare,
+                baseReward,
+                tier
+              })
+              await trackFeatureEvent({
+                userId: winner.userId,
+                type: "battle_win_payout",
+                pathname: "/battles",
+                metadata: { promptId: prompt.id, entryId: winner.id, battleType: "single", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
               }).catch(() => {})
             }
           }
@@ -310,6 +374,55 @@ export async function GET(req: NextRequest) {
       })
       await recordBattleWin(winner.userId, prompt.campus)
       await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
+      // VOTING-close win: same pot-share prize as a single win.
+      // FREE never earns real credits — shadow MISSED row only.
+      const vw = await prisma.user.findUnique({ where: { id: winner.userId } })
+      if (vw) {
+        const tier = getEffectiveTier(vw)
+        const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
+        const baseReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * multiplier)
+        const pot = await battlePotStats(prompt.id)
+        const smult = await activeStreakMult(winner.userId).catch(() => 1)
+        if (tier === "FREE") {
+          const shadow = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_SINGLE * 1)
+          if (shadow > 0) {
+            const { logMissedEarnings } = await import("@/lib/missedEarnings")
+            await logMissedEarnings(winner.userId, shadow, {
+              source: "battle_win",
+              promptId: prompt.id,
+              entryId: winner.id,
+              battleType: "voting_close",
+              potSize: pot.pot,
+            }).catch(() => {})
+          }
+          await trackFeatureEvent({
+            userId: winner.userId,
+            type: "battle_win_payout",
+            pathname: "/battles",
+            metadata: { promptId: prompt.id, entryId: winner.id, battleType: "voting_close", awarded: 0, shadow, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+          }).catch(() => {})
+        } else {
+          const winReward = Math.max(baseReward * smult, pot.winnerShare)
+          if (winReward > 0) {
+            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+              promptId: prompt.id,
+              entryId: winner.id,
+              battleType: "voting_close",
+              potSize: pot.pot,
+              rake: pot.rake,
+              potShare: pot.winnerShare,
+              baseReward,
+              tier,
+            }).catch(() => {})
+            await trackFeatureEvent({
+              userId: winner.userId,
+              type: "battle_win_payout",
+              pathname: "/battles",
+              metadata: { promptId: prompt.id, entryId: winner.id, battleType: "voting_close", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+            }).catch(() => {})
+          }
+        }
+      }
     }
   }
 
@@ -372,6 +485,30 @@ async function createStartingSoonNotifications(prompt: { id: string; text: strin
       )
     }
   }
+}
+
+/** Battle pot stats: total entry fees paid into this prompt (pot), the 20%
+ * platform rake (burned — never credited to anyone), and the 80% winner
+ * share. Sums actual BATTLE_ENTRY / DUEL_ENTRY debits so ghost duels (500cr)
+ * and normal battles (200cr) both settle correctly. */
+async function battlePotStats(promptId: string): Promise<{ pot: number; rake: number; winnerShare: number }> {
+  try {
+    const fees = await prisma.creditTransaction.findMany({
+      where: { reference: promptId, type: { in: ["BATTLE_ENTRY", "DUEL_ENTRY"] }, amount: { lt: 0 } },
+      select: { amount: true },
+    })
+    const pot = fees.reduce((s, f) => s + Math.abs(f.amount), 0)
+    const rake = Math.floor((pot * CREDIT_CONFIG.BATTLE.RAKE_PCT) / 100)
+    const winnerShare = Math.floor((pot * CREDIT_CONFIG.BATTLE.WINNER_PCT) / 100)
+    return { pot, rake, winnerShare }
+  } catch {
+    return { pot: 0, rake: 0, winnerShare: 0 }
+  }
+}
+
+/** Winner's 80% cut of the entry-fee pot (see battlePotStats). */
+async function battlePotShare(promptId: string) {
+  return (await battlePotStats(promptId)).winnerShare
 }
 
 /** Winner prize: free boosts (non-cash) + in-app/push/socket win alert.

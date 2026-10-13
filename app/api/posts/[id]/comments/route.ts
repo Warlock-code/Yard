@@ -37,6 +37,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!parent) return NextResponse.json({ error: "comment not found." }, { status: 404 })
   }
 
+  // Anonymous reply threads (the DM replacement — everything stays public).
+  // First 3 replies per ghost per post are free, then 20cr/reply.
+  // Any @ghost mention in the text adds a flat 50cr mention fee.
+  // Reportability: Report targets Post only — flagging the post covers its
+  // whole thread (comment-level reports are not yet supported; comments
+  // inherit the post's reportability).
+  const { creditUser, toCreditErrorResponse, trackFeatureEvent, CREDIT_CONFIG } = await import("@/lib/credits")
+  const myReplies = await prisma.comment.count({ where: { postId: id, userId: user.id } })
+  if (myReplies >= 3) {
+    try {
+      await creditUser(user.id, "REPLY", -CREDIT_CONFIG.SPEND.REPLY_EXTRA, `reply_${user.id}_${id}_${Date.now()}`, {
+        postId: id,
+        parentId: parentId || null,
+      })
+    } catch (err) {
+      return toCreditErrorResponse(err, "replies cost 20cr after your first 3.")
+    }
+  }
+  const hasMention = /(^|\s)@[a-z0-9_]{3,24}/.test(text)
+  if (hasMention) {
+    try {
+      await creditUser(user.id, "MENTION", -CREDIT_CONFIG.SPEND.ANON_MENTION, `mention_${user.id}_${id}_${Date.now()}`, {
+        postId: id,
+      })
+    } catch (err) {
+      // Reply fee already taken above (if any) — refund it so a failed
+      // mention never leaves a half-paid reply behind.
+      if (myReplies >= 3) {
+        await creditUser(user.id, "REPLY", CREDIT_CONFIG.SPEND.REPLY_EXTRA, `reply_${user.id}_${id}_${Date.now()}_refund`, {
+          refund: true,
+        }).catch(() => {})
+      }
+      return toCreditErrorResponse(err, "mentions cost 50cr.")
+    }
+  }
+  await trackFeatureEvent({
+    userId: user.id,
+    type: "reply",
+    metadata: { postId: id, threaded: !!parentId, mention: hasMention },
+  })
+
   const comment = await prisma.comment.create({
     data: {
       postId: id,

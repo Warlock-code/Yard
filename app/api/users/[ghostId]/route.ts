@@ -14,9 +14,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   const { ghostId } = await params
   const user = await prisma.user.findUnique({
     where: { ghostId },
-    select: { id: true, ghostId: true, avatarEmoji: true, campus: true, tier: true, streakCount: true },
+    select: { id: true, ghostId: true, avatarEmoji: true, campus: true, tier: true, streakCount: true, referralCount: true },
   })
   if (!user) return NextResponse.json({ error: "ghost not found." }, { status: 404 })
+
+  // Who-viewed ledger (PLUS/PRIME read it via /api/profile/views).
+  if (viewer.id !== user.id) {
+    import("@/app/api/profile/views/route")
+      .then((m) => m.recordProfileView(viewer.id, user.id))
+      .catch(() => {})
+  }
 
   if (viewer.id !== user.id) {
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000)
@@ -71,6 +78,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
     }),
   ])
 
+  // Ghost levels (XP) — free engagement driver. Post/vote/comment/battle
+  // activity earns XP; levels unlock bragging rights next to the ghost name.
+  const xp =
+    postCount * 10 +
+    (yeahsAgg._sum.yeahs || 0) * 2 +
+    (battleVotesAgg._sum.votes || 0) * 3 +
+    user.streakCount * 5 +
+    user.referralCount * 20 +
+    followersCount
+  const LEVELS = [
+    { level: 1, xp: 0, title: "hatchling", emoji: "👻" },
+    { level: 2, xp: 100, title: "lurker", emoji: "🌙" },
+    { level: 3, xp: 300, title: "sparker", emoji: "🔥" },
+    { level: 4, xp: 600, title: "battler", emoji: "⚔️" },
+    { level: 5, xp: 1000, title: "haunter", emoji: "💀" },
+    { level: 6, xp: 2000, title: "legend", emoji: "👑" },
+  ]
+  const ghostLevel = [...LEVELS].reverse().find((l) => xp >= l.xp) ?? LEVELS[0]
+
   return NextResponse.json({
     user: {
       ...user,
@@ -81,6 +107,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
       followingCount,
       score: (yeahsAgg._sum.yeahs || 0) + (battleVotesAgg._sum.votes || 0),
       isFollowing: !!following,
+      xp,
+      ghostLevel,
     },
     posts: posts.slice(0, 30),
     nextCursor: posts.length > 30 ? posts[29].id : null,

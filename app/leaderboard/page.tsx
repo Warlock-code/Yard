@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { apiGet } from "@/lib/useApi"
+import { apiGet, apiPost, isNeedsCreditsError } from "@/lib/useApi"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 
 type Ranked = { id: string; ghostId: string; avatarEmoji: string; tier: string; score: number; championTrophies?: number }
@@ -140,6 +140,7 @@ function WarBoard({ war, myCampus, loading }: { war: WarCampus[]; myCampus: stri
   const gap = mine && mine.campus !== leader.campus ? leader.score - mine.score : 0
   return (
     <div className="space-y-2">
+      <WarFund />
       <div className="card p-3 flex items-center justify-between border-[#facc15]/25">
         <span className="text-xs font-bold text-white/60">this week&apos;s heat • resets monday</span>
         {gap > 0 && mine ? (
@@ -173,6 +174,56 @@ function WarBoard({ war, myCampus, loading }: { war: WarCampus[]; myCampus: stri
         )
       })}
       <p className="text-center text-white/30 text-xs pt-2">post + get yeahed to push your campus up.</p>
+    </div>
+  )
+}
+
+function WarFund() {
+  const [fund, setFund] = useState<{ totals: { campus: string; points: number; contributions: number }[]; myPoints: number } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    apiGet<{ totals: { campus: string; points: number; contributions: number }[]; myPoints: number }>("/api/war/fund")
+      .then((d) => setFund({ totals: d.totals || [], myPoints: d.myPoints || 0 }))
+      .catch(() => {})
+  }, [])
+
+  async function donate(tier: "small" | "med" | "large") {
+    setBusy(tier)
+    setMsg(null)
+    try {
+      const d = await apiPost<{ points: number }>("/api/war/fund", { tier })
+      setMsg(`+${d.points} war pts for your campus 🔥`)
+      const f = await apiGet<{ totals: { campus: string; points: number; contributions: number }[]; myPoints: number }>("/api/war/fund").catch(() => null)
+      if (f) setFund({ totals: f.totals || [], myPoints: f.myPoints || 0 })
+    } catch (err: unknown) {
+      if (!isNeedsCreditsError(err)) setMsg(err instanceof Error ? err.message : "failed.")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const top = fund?.totals?.[0]
+  return (
+    <div className="card p-4 border-[#facc15]/25">
+      <p className="font-bold text-sm">💰 fund the war</p>
+      <p className="text-white/40 text-xs mb-1">100cr = 100 pts · 1,000 = 1,200 · 5,000 = 7,000. winning campus gets the crown + boosts.</p>
+      {top && <p className="text-xs font-bold text-[#facc15] mb-2">{top.campus} leads funding with {top.points.toLocaleString()} pts</p>}
+      {fund && fund.myPoints > 0 && <p className="text-xs text-white/50 mb-2">you gave {fund.myPoints.toLocaleString()} pts this week 🔥</p>}
+      <div className="grid grid-cols-3 gap-2">
+        {(["small", "med", "large"] as const).map((t) => (
+          <button
+            key={t}
+            className="rounded-xl border border-white/10 py-2 text-xs font-bold text-white/70 hover:bg-white/5 disabled:opacity-50"
+            disabled={busy !== null}
+            onClick={() => donate(t)}
+          >
+            {busy === t ? "…" : t === "small" ? "100cr" : t === "med" ? "1,000cr" : "5,000cr"}
+          </button>
+        ))}
+      </div>
+      {msg && <p className="text-xs text-white/60 mt-2">{msg}</p>}
     </div>
   )
 }
