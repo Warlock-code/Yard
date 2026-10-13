@@ -165,6 +165,8 @@ export default function AdminPage() {
   everPayersCount?:number;
   windowPayersCount?:number;
   mauAction?:number;
+  emitSink?: { emitted: number; spent: number; ratio: number };
+  emitSinkAlert?: boolean;
   signupPostDay0: {day:string;count:number;rate:number}[];
   signupPostDay1: {day:string;count:number;rate:number}[];
   signupsPerDay?: {day:string;count:number}[];
@@ -371,7 +373,9 @@ export default function AdminPage() {
           windowPayRate?:number;
           everPayersCount?:number;
           windowPayersCount?:number;
-          mauAction?:number;
+  mauAction?:number;
+  emitSink?: { emitted: number; spent: number; ratio: number };
+  emitSinkAlert?: boolean;
           signupPostDay0: {day:string;count:number;rate:number}[];
           signupPostDay1: {day:string;count:number;rate:number}[];
           signupsPerDay?: {day:string;count:number}[];
@@ -1040,7 +1044,16 @@ export default function AdminPage() {
                         const paywallPct = dauSum > 0 ? (hits / dauSum) * 100 : 0
                         const plusP = metrics.conversion ? (metrics.conversion.plusRate > 1 ? metrics.conversion.plusRate : metrics.conversion.plusRate * 100) : 0
                         const payP = (metrics.payingConversion ?? 0) > 1 ? (metrics.payingConversion ?? 0) : (metrics.payingConversion ?? 0) * 100
+                        const es = metrics.emitSink ?? { emitted: 0, spent: 0, ratio: 0 }
+                        const esAccent = es.ratio > 1.2 ? "#f87171" : es.ratio >= 0.9 ? "#facc15" : "#34d399"
                         return (
+                          <>
+                          {metrics.emitSinkAlert && (
+                            <div className="mb-3 rounded-2xl border border-red-500/40 bg-red-500/10 p-4">
+                              <p className="font-bold text-sm text-red-300">🚨 emission alert — emit/sink &gt; 1.5 for 3 days straight</p>
+                              <p className="text-xs text-white/60 mt-1">credits are being created faster than they sink. consider cutting faucet rewards or running a sink event (battles, drops, war).</p>
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                             <StatCard label="dau today" value={dauToday.toLocaleString()} sub={`last ${metrics.range || range}d`} icon="⚡" accent="#baff39" />
                             <StatCard label="mau action" value={(metrics.mauAction ?? 0).toLocaleString()} sub="posters/commenters/voters · 30d" icon="🌙" accent="#a855f7" />
@@ -1049,8 +1062,10 @@ export default function AdminPage() {
                             <StatCard label="plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} plus`} icon="★" accent="#38bdf8" />
                             <StatCard label="paying conv %" value={`${payP.toFixed(1)}%`} sub={`${(metrics.everPayersCount ?? 0).toLocaleString()} ever paid · trial excluded`} icon="💳" accent="#34d399" />
                             <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev / ${(metrics.windowPayersCount ?? 0).toLocaleString()} payers`} icon="💰" accent="#baff39" />
+                            <StatCard label="emit vs sink 7d" value={es.ratio === 0 ? "—" : `${es.ratio.toFixed(2)}×`} sub={`${es.emitted.toLocaleString()}cr in / ${es.spent.toLocaleString()}cr out`} icon="⚖️" accent={esAccent} />
                             <StatCard label="credit spend" value="see below" sub="in-app only · no cash value" icon="🔥" accent="#34d399" />
                           </div>
+                          </>
                         )
                       })()}
 

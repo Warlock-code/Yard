@@ -79,23 +79,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   ])
 
   // Ghost levels (XP) — free engagement driver. Post/vote/comment/battle
-  // activity earns XP; levels unlock bragging rights next to the ghost name.
-  const xp =
-    postCount * 10 +
-    (yeahsAgg._sum.yeahs || 0) * 2 +
-    (battleVotesAgg._sum.votes || 0) * 3 +
-    user.streakCount * 5 +
-    user.referralCount * 20 +
-    followersCount
-  const LEVELS = [
-    { level: 1, xp: 0, title: "hatchling", emoji: "👻" },
-    { level: 2, xp: 100, title: "lurker", emoji: "🌙" },
-    { level: 3, xp: 300, title: "sparker", emoji: "🔥" },
-    { level: 4, xp: 600, title: "battler", emoji: "⚔️" },
-    { level: 5, xp: 1000, title: "haunter", emoji: "💀" },
-    { level: 6, xp: 2000, title: "legend", emoji: "👑" },
-  ]
-  const ghostLevel = [...LEVELS].reverse().find((l) => xp >= l.xp) ?? LEVELS[0]
+  // activity earns XP; levels unlock avatar grants + perks next to the ghost
+  // name. Levels + thresholds live in lib/levels.ts (single source of truth).
+  const { xpForActivity, levelForXp } = await import("@/lib/levels")
+  const xp = xpForActivity({
+    postCount,
+    yeahs: yeahsAgg._sum.yeahs || 0,
+    battleVotes: battleVotesAgg._sum.votes || 0,
+    streakCount: user.streakCount,
+    referralCount: user.referralCount,
+    followersCount,
+  })
+  const ghostLevel = levelForXp(xp)
 
   return NextResponse.json({
     user: {

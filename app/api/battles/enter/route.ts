@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   try {
     // Battle pot economy: every entry pays BATTLE_ENTRY_PREMIUM into the pot.
     // PRIME gets 1 free entry/day; everyone else always pays. Winner takes
-    // 80% of the pot at settle (see cron/battles), platform keeps 20%.
+    // 75% of the pot at settle (see cron/battles), platform keeps 25% rake.
     if (effectiveTier === "PRIME") {
       const dayStart = new Date()
       dayStart.setHours(0, 0, 0, 0)

@@ -63,6 +63,7 @@ type Post = {
   pinnedUntil?: string | null
   heating?: boolean
   freshLove?: boolean
+  cotd?: boolean
   isFollowing: boolean
   seen?: boolean
   createdAt: string
@@ -925,6 +926,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       <ChampionTrophies trophies={post.user.championTrophies} />
                       {post.boosted && <span className="badge badge-boosted">boosted</span>}
                       {post.pinned && <span className="badge badge-boosted">📌 pinned</span>}
+                      {post.cotd && <span className="badge badge-prime" title="top post of the last 24 hours">👑 confession of the day</span>}
                       {post.heating && <span className="badge badge-heating" title="lots of replies right now">🔥 heating</span>}
                       {post.freshLove && <span className="badge badge-fresh" title="fresh post getting its first eyes">✨ fresh</span>}
                       <span className="text-white/30">· {timeAgo(post.createdAt)}</span>

@@ -19,14 +19,14 @@ export const CREDIT_CONFIG = {
     BATTLE_WIN_SINGLE: 500,
     BATTLE_WIN_BRACKET_ROUND: 500,
     BATTLE_WIN_FINAL: 500,
-    LEADERBOARD_WEEKLY_1: 2_000,
-    LEADERBOARD_WEEKLY_2: 1_000,
-    LEADERBOARD_WEEKLY_3: 500,
+    LEADERBOARD_WEEKLY_1: 1_200,
+    LEADERBOARD_WEEKLY_2: 700,
+    LEADERBOARD_WEEKLY_3: 400,
     LEADERBOARD_MONTHLY_1: 2_000,
     LEADERBOARD_MONTHLY_2: 1_000,
     LEADERBOARD_MONTHLY_3: 500,
-    REFERRAL_REFERRER: 1_000,
-    REFERRAL_REFEREE: 500,
+    REFERRAL_REFERRER: 700,
+    REFERRAL_REFEREE: 300,
     STREAK_7D: 100,
     STREAK_30D: 500,
     COTD_WIN: 500,
@@ -83,8 +83,8 @@ export const CREDIT_CONFIG = {
 
   BATTLE: {
     ENTRY_FEE: 200,
-    RAKE_PCT: 20,
-    WINNER_PCT: 80,
+    RAKE_PCT: 25,
+    WINNER_PCT: 75,
     PRIME_FREE_ENTRIES_PER_DAY: 1,
     DUEL_ENTRY: 500,
   },
@@ -92,7 +92,6 @@ export const CREDIT_CONFIG = {
   FEE: {
     TIP_PCT: 10,
     PAYSTACK_DEPOSIT_PCT: 2.5,
-    PAYSTACK_PAYOUT_FLAT: 1.5,
   },
 
   TIER_MULTIPLIER: {
@@ -102,10 +101,10 @@ export const CREDIT_CONFIG = {
   },
 } as const
 
-// --- Limited-time drops (Workstream E, task 4) ---
+// --- Limited-time drops ---
 // Weekly 48h FOMO drop: one avatar/theme at base price, 2x after expiry.
-// Shop route TODO: consume getWeeklyDrop(), show `isLimited` + `endsAt`
-// countdown, charge priceCredits while live else afterPriceCredits.
+// Sold via /api/shop/drop (GET current drop + endsAt, POST to buy at the
+// live/expired price). Broadcasts fire once per drop in daily-engagement §9.
 export const DROP_CONFIG = {
   DURATION_HOURS: 48,
   PRICE_MULT_AFTER: 2,

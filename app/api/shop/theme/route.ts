@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 import { creditUser, toCreditErrorResponse } from "@/lib/credits"
-import { THEME_MAP, isThemeId, themeCosmeticId } from "@/lib/themes"
+import { THEME_MAP, isThemeId, isThemeBuyable, themeCosmeticId } from "@/lib/themes"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
   const theme = THEME_MAP[themeId]
   if (theme.pricePesewas <= 0) {
     return NextResponse.json({ error: "this theme isn't purchasable." }, { status: 400 })
+  }
+  if (!isThemeBuyable(theme)) {
+    return NextResponse.json({ error: "this limited drop expired." }, { status: 410 })
   }
 
   const cosmeticId = themeCosmeticId(theme.id)

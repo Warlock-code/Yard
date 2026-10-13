@@ -570,6 +570,33 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch {}
+  // Confession of the day: the live COTD post (isCOTD + cotdDate < 24h)
+  // leads the first page with a cotd flag for its distinct card. Deduped
+  // against announcements/pins/page rows. Live-safe pre-migration.
+  let cotdId: string | null = null
+  try {
+    if (!cursor) {
+      const cotdCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      const cotdRows = await prisma.post.findMany({
+        where: { isCOTD: true, cotdDate: { gt: cotdCutoff }, archived: false },
+        orderBy: [{ cotdDate: "desc" }],
+        take: 1,
+        include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
+      })
+      const seenIds = new Set(fullPage.map((p) => p.id))
+      const freshCotd = cotdRows.filter((p) => !seenIds.has(p.id))
+      if (freshCotd.length > 0) {
+        cotdId = freshCotd[0].id
+        const withMeta = freshCotd.map((post) => ({
+          ...post,
+          boosted: false,
+          isFollowing: followingIds.has(post.userId),
+          seen: viewedPostIds.has(post.id),
+        }))
+        fullPage.unshift(...withMeta)
+      }
+    }
+  } catch {}
   await attachChampionTrophies(fullPage)
 
   return NextResponse.json({
@@ -579,6 +606,7 @@ export async function GET(req: NextRequest) {
       pinned: Boolean(post.pinnedUntil && new Date(post.pinnedUntil).getTime() > now.getTime()),
       heating: heatingIds.has(post.id),
       freshLove: lovedId !== null && post.id === lovedId,
+      cotd: cotdId !== null && post.id === cotdId,
     })),
     nextCursor,
   }, { headers: { "Cache-Control": "private, no-store" } })

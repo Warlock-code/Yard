@@ -3,6 +3,8 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "crons": [
+    { "path": "/api/cron/battles", "schedule": "0 * * * *" },
+    { "path": "/api/cron/leaderboard", "schedule": "5 0 * * *" },
     { "path": "/api/cron/daily-maintenance", "schedule": "0 2 * * *" },
     { "path": "/api/cron/free-grants", "schedule": "0 3 * * *" },
     { "path": "/api/cron/daily-engagement", "schedule": "0 9 * * *" }

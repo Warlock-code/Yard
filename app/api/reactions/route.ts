@@ -7,14 +7,15 @@ import {
   trackFeatureEvent,
   CREDIT_CONFIG,
 } from "@/lib/credits"
+import { REACTION_EMOJI } from "@/lib/reactions"
 
 export const dynamic = "force-dynamic"
 
 // Custom reactions — 🔥 😂 💀 ❤️ 🐐 + more. 50cr unlocks an emoji forever
 // (stored in ownedCosmetics as `reaction:<emoji>`), 10cr per use. Counts are
 // public aggregates — no de-anonymization.
-// (module-private: Next.js route files may only export HTTP handlers)
-const REACTION_EMOJI = ["🔥", "😂", "💀", "❤️", "🐐", "👻", "⚔️", "🏆", "💧", "🤡"] as const
+// Custom reactions — counts are public aggregates, no de-anonymization.
+// Catalog lives in lib/reactions.ts (route files may only export handlers).
 
 function reactionKey(emoji: string) {
   return `reaction:${emoji}`

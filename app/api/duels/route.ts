@@ -16,9 +16,9 @@ const DUEL_MS = 24 * 60 * 60 * 1000
 
 // Ghost duel — anonymous 1v1. Challenger puts up 500cr with their take;
 // the opponent (named or any campus ghost) answers with 500cr. Spectators
-// vote free via /api/battles/vote. Winner takes 80% of the 1,000cr pot at
-// settle (cron/battles single-win path), platform keeps 20%. Everything
-// public + reportable — no DMs, no de-anonymization.
+// vote free via POST /api/duels/[id]/vote. Winner takes 75% of the 1,000cr
+// pot at settle (cron/battles single-win path), platform keeps 25% rake.
+// Everything public + reportable — no DMs, no de-anonymization.
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       userId: opponent.id,
       type: "duel_challenge",
       title: "⚔️ you got duel-challenged!",
-      body: `${user.ghostId} put up 500cr — answer with your take within 24h. winner takes 800cr.`,
+        body: `${user.ghostId} put up 500cr — answer with your take within 24h. winner takes 750cr.`,
       href: "/battles",
       actorName: user.ghostId,
     }).catch(() => {})

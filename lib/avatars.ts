@@ -6,6 +6,11 @@ export type AvatarItem = {
   emoji: string
   pricePesewas: number
   rarity: AvatarRarity
+  /** Limited-time drop flag. Static config has no DB row, so `limitedUntil`
+   *  is a fixed epoch-ms: while set and past, the item is unbuyable and
+   *  hidden from the shop (enforced in shop routes + pickers). */
+  isLimited?: boolean
+  limitedUntil?: number
 }
 
 export const AVATARS: AvatarItem[] = [
@@ -92,4 +97,12 @@ export function getRarityGlow(rarity: AvatarRarity): string {
     case "epic": return "bg-fuchsia-500/10"
     case "legendary": return "bg-[#facc15]/10"
   }
+}
+
+/** Limited-drop liveness: expired limited items are unbuyable + hidden from
+ *  the shop. Non-limited items are always buyable. */
+export function isAvatarBuyable(avatar: AvatarItem, now: number = Date.now()): boolean {
+  if (!avatar.isLimited) return true
+  if (typeof avatar.limitedUntil !== "number") return true
+  return avatar.limitedUntil > now
 }

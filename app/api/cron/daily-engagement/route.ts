@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
 import { battleCountdownText } from "@/lib/battle-countdown"
-import { GET as battlesCron } from "@/app/api/cron/battles/route"
-import { GET as leaderboardCron } from "@/app/api/cron/leaderboard/route"
 
 export const dynamic = "force-dynamic"
 
@@ -16,22 +14,10 @@ export async function GET(req: NextRequest) {
   const now = Date.now()
   const results: Record<string, unknown> = {}
 
-  // 0. Run battle finalization + board prizes. Those two crons have no
-  // Vercel schedule of their own, so they piggyback here daily at 9am
-  // ("morning results" ritual). Fully isolated — failures never touch
-  // engagement work below. Both are idempotent per period/prompt.
-  try {
-    const cronReq = () =>
-      new NextRequest(new URL("http://localhost/api/cron/piggyback"), {
-        headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-      })
-    const [battlesRes, boardsRes] = await Promise.allSettled([battlesCron(cronReq()), leaderboardCron(cronReq())])
-    results.battles = battlesRes.status === "fulfilled" ? await battlesRes.value.json().catch(() => ({})) : { error: "failed" }
-    results.leaderboards = boardsRes.status === "fulfilled" ? await boardsRes.value.json().catch(() => ({})) : { error: "failed" }
-  } catch {
-    results.battles = { error: "failed" }
-    results.leaderboards = { error: "failed" }
-  }
+  // NOTE: battle finalization (/api/cron/battles, hourly) and board prizes
+  // (/api/cron/leaderboard, daily 00:05 UTC) run on their own Vercel
+  // schedules and must stay standalone — this route no longer invokes them.
+  // Their references are period-scoped, so each schedule owns its payouts.
 
   // 1. Return reminder
   let sent = 0
@@ -167,10 +153,17 @@ export async function GET(req: NextRequest) {
 
   results.battleCountdowns = { sent: countdownSent }
 
-  // 4. Confession of the day — top post of the last 24h by yeahs gets pinned
-  // 24h + 500cr (PLUS/PRIME; FREE shadow). Idempotent via cotd:<postId>.
+  // 4. Confession of the day — top post of the last 24h by yeahs is
+  // featured 24h (isCOTD flag + cotdDate, rendered as a distinct card at
+  // the top of the feed) + 500cr (PLUS/PRIME; FREE shadow). Stale flags
+  // (>24h) are cleared first so only one COTD is ever live. Idempotent via
+  // cotd:<postId> notifications.
   try {
     const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
+    await prisma.post.updateMany({
+      where: { isCOTD: true, cotdDate: { lt: dayAgo } },
+      data: { isCOTD: false },
+    }).catch(() => {})
     const top = await prisma.post.findFirst({
       where: { createdAt: { gte: dayAgo }, archived: false },
       orderBy: [{ yeahs: "desc" }, { commentsCount: "desc" }],
@@ -200,7 +193,7 @@ export async function GET(req: NextRequest) {
         }
         await prisma.post.update({
           where: { id: top.id },
-          data: { pinnedUntil: new Date(now + 24 * 60 * 60 * 1000) },
+          data: { pinnedUntil: new Date(now + 24 * 60 * 60 * 1000), isCOTD: true, cotdDate: new Date(now) },
         }).catch(() => {})
         await createNotification({
           userId: top.userId,
@@ -523,6 +516,40 @@ export async function GET(req: NextRequest) {
     }
   } catch {
     results.dropLive = { error: "failed" }
+  }
+
+  // 10. Emit-vs-sink guardrail — snapshot yesterday's full-day ratio, then
+  // alert if emission ran >1.5× sinking for 3 straight days. The alert lands
+  // in the admin error-alert channel (Discord/Slack) + an `emit_sink_alert`
+  // event the Insights panel surfaces as a red banner (deduped 1/day).
+  try {
+    const { snapshotEmitSink, emitSinkStreak, EMIT_SINK_ALERT, EMIT_SINK_ALERT_DAYS } = await import("@/lib/emitSink")
+    const snap = await snapshotEmitSink(new Date(now))
+    const streak = await emitSinkStreak()
+    results.emitSink = { emitted: snap.emitted, spent: snap.spent, ratio: snap.ratio, alert: streak.alert }
+    if (streak.alert) {
+      const dedupe = await prisma.analyticsEvent.findFirst({
+        where: { userId: null, type: "emit_sink_alert", createdAt: { gte: new Date(now - 24 * 60 * 60 * 1000) } },
+        select: { id: true },
+      }).catch(() => ({ id: "skip" }))
+      if (!dedupe) {
+        await prisma.analyticsEvent.create({
+          data: {
+            userId: null,
+            type: "emit_sink_alert",
+            metadata: { ratio: snap.ratio, snapshots: streak.snapshots },
+          },
+        }).catch(() => null)
+        const { reportServerError } = await import("@/lib/errorAlerts")
+        await reportServerError({
+          route: "emit-sink-guard",
+          error: `emit/sink ${snap.ratio.toFixed(2)}× — over ${EMIT_SINK_ALERT}× for ${EMIT_SINK_ALERT_DAYS} days`,
+          metadata: { emitted: snap.emitted, spent: snap.spent, ratio: Number(snap.ratio.toFixed(3)) },
+        }).catch(() => {})
+      }
+    }
+  } catch {
+    results.emitSink = { error: "failed" }
   }
 
   return NextResponse.json({ success: true, ...results })

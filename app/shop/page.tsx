@@ -4,8 +4,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
-import { AVATARS, getAvatarPriceForTier, getRarityColor, isAvatarUnlockedForTier } from "@/lib/avatars"
-import { THEMES, isThemeUnlocked, type ThemeId } from "@/lib/themes"
+import { AVATARS, getAvatarPriceForTier, getRarityColor, isAvatarBuyable, isAvatarUnlockedForTier } from "@/lib/avatars"
+import { THEMES, isThemeBuyable, isThemeUnlocked, type ThemeId } from "@/lib/themes"
 import { getAllPacks } from "@/lib/credits"
 import type { CreditPack } from "@/lib/credit-config"
 
@@ -36,6 +36,7 @@ function ThemesPicker({
   // you can buy, tier ones as an upsell.
   const visibleThemes = THEMES.filter((theme) => {
     if (isThemeUnlocked(theme.id, tier, ownedCosmetics)) return false
+    if (!isThemeBuyable(theme)) return false
     return true
   })
 
@@ -179,6 +180,7 @@ export default function ShopPage() {
   const [needBanner, setNeedBanner] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
+  const [levelInfo, setLevelInfo] = useState<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] } | null>(null)
   useEffect(() => {
     // Landed here from an insufficient-credits redirect? Say why.
     try {
@@ -193,6 +195,7 @@ export default function ShopPage() {
       }
     }).catch(() => {})
     apiGet<{ balance: number }>("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
+    apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
@@ -451,7 +454,7 @@ export default function ShopPage() {
         // Anything you already have — bought or included with your tier —
         // lives in owned, never in the shop. API still guards both cases.
         const visibleAvatars = AVATARS.filter(
-          (c) => !(me?.ownedCosmetics?.includes(c.id) || (me && isAvatarUnlockedForTier(me.tier, c.id)))
+          (c) => isAvatarBuyable(c) && !(me?.ownedCosmetics?.includes(c.id) || (me && isAvatarUnlockedForTier(me.tier, c.id)))
         )
         if (visibleAvatars.length === 0) {
           return (
@@ -471,21 +474,37 @@ export default function ShopPage() {
               {visibleAvatars.map((c) => {
                 const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
                 const rarityClass = getRarityColor(c.rarity)
+                const lvl = levelInfo?.items.find((i) => i.id === c.id)
+                const claimable = !!lvl?.levelUnlocked
+                const lockedLevel = !claimable ? lvl?.levelUnlock ?? null : null
                 return (
                   <div key={c.id} className="card p-4 text-center">
                     <p className="text-3xl mb-2">{c.emoji}</p>
                     <p className="font-semibold text-sm">{c.name}</p>
                     <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
                     <p className="text-xs mb-3 text-white/40">
-                      {`${price / 100} credits`}
+                      {claimable ? "🔓 free at your level" : lockedLevel ? `🔓 unlocked at level ${lockedLevel}` : `${price / 100} credits`}
                     </p>
-                    <button
-                      className="w-full text-sm btn-primary"
-                      disabled={loading === c.id}
-                      onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
-                    >
-                      {loading === c.id ? "..." : `buy — ${price / 100} credits`}
-                    </button>
+                    {claimable ? (
+                      <button
+                        className="w-full text-sm btn-primary"
+                        disabled={loading === c.id}
+                        onClick={async () => {
+                          await buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })
+                          apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
+                        }}
+                      >
+                        {loading === c.id ? "..." : "claim free 🎁"}
+                      </button>
+                    ) : (
+                      <button
+                        className="w-full text-sm btn-primary disabled:opacity-50"
+                        disabled={loading === c.id || lockedLevel !== null}
+                        onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
+                      >
+                        {loading === c.id ? "..." : `buy — ${price / 100} credits`}
+                      </button>
+                    )}
                   </div>
                 )
               })}

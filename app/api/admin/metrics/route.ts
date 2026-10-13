@@ -323,8 +323,26 @@ export async function GET(req: NextRequest) {
     }).catch(() => {})
   } catch {}
 
+  // Emitter vs sink (7d inflation guardrail): credits created vs credits
+  // spent in the last 7 days + the 3-day >1.5 alert streak. Best-effort.
+  let emitSink = { emitted: 0, spent: 0, ratio: 0 }
+  let emitSinkAlert = false
+  try {
+    const { computeEmitSink, emitSinkStreak } = await import("@/lib/emitSink")
+    const [es, streak] = await Promise.all([
+      computeEmitSink(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+      emitSinkStreak(),
+    ])
+    emitSink = es
+    emitSinkAlert = streak.alert
+  } catch {
+    // guardrail failures never break metrics
+  }
+
   return NextResponse.json({
     range,
+    emitSink,
+    emitSinkAlert,
     dau: days.map((day) => ({ day, count: dauByDay.get(day)?.size ?? 0 })),
     postsPerDay: days.map((day) => ({ day, count: postsByDay.get(day) ?? 0 })),
     postsPerUserByDay,

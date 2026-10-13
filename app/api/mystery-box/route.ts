@@ -11,12 +11,14 @@ import {
 
 export const dynamic = "force-dynamic"
 
-// Mystery box — 100cr, random reward 10–500cr + 8% rare avatar/theme drop.
-// Weighted tiers (house margin by design):
-//   50% → 10–70 (avg 40) · 27% → 70–160 (avg 115) · 14% → 160–300 (avg 230)
-//   7% → 300–450 (avg 375) · 2% → 450–500 (avg 475)
-// EV ≈ 0.50*40 + 0.27*115 + 0.14*230 + 0.07*375 + 0.02*475
-//    ≈ 20 + 31.05 + 32.2 + 26.25 + 9.5 ≈ 119cr on a 100cr box.
+// Mystery box — 100cr, random reward 10–410cr + 8% rare avatar/theme drop.
+// Weighted tiers (house margin by design — EV is deliberately BELOW cost so
+// the box is a credit sink, not a faucet):
+//   56% → 10–60 (avg 35) · 25% → 60–125 (avg 92.5) · 11.5% → 125–225 (avg 175)
+//   5.5% → 225–330 (avg 277.5) · 2% → 330–410 (avg 370)
+// EV ≈ 0.56*35 + 0.25*92.5 + 0.115*175 + 0.055*277.5 + 0.02*370
+//    ≈ 19.6 + 23.13 + 20.13 + 15.26 + 7.4 ≈ 85cr on a 100cr box.
+// Rare cosmetics (8%) are non-fungible — no credit emission.
 // Credits-only, no cash value.
 function roll(min: number, max: number) {
   return min + Math.floor(Math.random() * (max - min + 1))
@@ -24,19 +26,19 @@ function roll(min: number, max: number) {
 
 function rollBox(): number {
   const r = Math.random()
-  if (r < 0.5) return roll(10, 70)
-  if (r < 0.77) return roll(70, 160)
-  if (r < 0.91) return roll(160, 300)
-  if (r < 0.98) return roll(300, 450)
-  return roll(450, 500)
+  if (r < 0.56) return roll(10, 60)
+  if (r < 0.81) return roll(60, 125)
+  if (r < 0.925) return roll(125, 225)
+  if (r < 0.98) return roll(225, 330)
+  return roll(330, 410)
 }
 
 export async function GET() {
   return NextResponse.json({
     cost: CREDIT_CONFIG.SPEND.MYSTERY_BOX,
     min: 10,
-    max: 500,
-    ev: 119,
+    max: 410,
+    ev: 85,
     rareChance: 0.08,
     rareKinds: ["avatar", "theme"] as const,
   })

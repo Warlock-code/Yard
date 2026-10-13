@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { REFERRAL_CONFIG } from "@/lib/referral-config"
+import { CREDIT_CONFIG } from "@/lib/credits"
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -61,8 +62,10 @@ export async function GET(req: NextRequest) {
       pendingReferrals,
       creditsEarned,
       dailyCap: REFERRAL_CONFIG.DAILY_CAP,
-      referrerReward: REFERRAL_CONFIG.REFERRER_REWARD,
-      refereeReward: REFERRAL_CONFIG.REFEREE_REWARD,
+      // Displayed rewards = actual payout values (EARN), not the legacy
+      // REFERRAL_CONFIG figures.
+      referrerReward: CREDIT_CONFIG.EARN.REFERRAL_REFERRER,
+      refereeReward: CREDIT_CONFIG.EARN.REFERRAL_REFEREE,
     },
     referrals: referrals.map((r) => ({
       id: r.id,

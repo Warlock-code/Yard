@@ -139,7 +139,7 @@ export default function BattlesClient() {
               <p className="post-mono font-semibold">{prompt.text}</p>
               <BattleCountdown endsAt={prompt.endsAt} now={now} />
               <p className="text-xs font-bold text-[#baff39] mt-1">
-                🔥 {potCredits.toLocaleString()}cr pot — {entries.length} {entries.length === 1 ? "entry" : "entries"} · winner takes 80%
+                🔥 {potCredits.toLocaleString()}cr pot — {entries.length} {entries.length === 1 ? "entry" : "entries"} · winner takes 75%
               </p>
             </div>
             <BattleShareButton onClick={() => setShowShareMenu(true)} />
@@ -325,7 +325,7 @@ function DuelSection() {
       <div className="flex items-center justify-between">
         <div>
           <p className="font-bold">⚔️ ghost duels</p>
-          <p className="text-xs text-white/40">1v1 · 500cr each · winner takes 800cr (80%) · votes free · public, ghostId only, no DMs</p>
+          <p className="text-xs text-white/40">1v1 · 500cr each · winner takes 750cr (75%) · votes free · public, ghostId only, no DMs</p>
         </div>
         <button className="btn-ghost !py-1.5 !px-3 !text-xs" onClick={() => setOpen((v) => !v)}>
           {open ? "close" : "start a duel"}
@@ -380,7 +380,7 @@ function DuelSection() {
                       {e.user.ghostId}
                     </Link>
                     <span className="text-white/40 text-xs truncate flex-1">{e.text}</span>
-                    <button className="btn-ghost !py-1 !px-2 !text-xs" onClick={() => apiPost("/api/battles/vote", { entryId: e.id }).then(() => load()).catch((err: unknown) => { if (!isNeedsCreditsError(err)) alert(err instanceof Error ? err.message : "vote failed.") })}>
+                    <button className="btn-ghost !py-1 !px-2 !text-xs" onClick={() => apiPost(`/api/duels/${d.id}/vote`, { entryId: e.id }).then(() => load()).catch((err: unknown) => { if (!isNeedsCreditsError(err)) alert(err instanceof Error ? err.message : "vote failed.") })}>
                       🔥 {e.votes}
                     </button>
                   </div>

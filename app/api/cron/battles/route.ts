@@ -209,8 +209,8 @@ export async function GET(req: NextRequest) {
         await recordBattleWin(winner.userId, prompt.campus)
         await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
-        // Credit reward for BRACKET FINAL win: base win reward or 80% of the
-        // entry-fee pot, whichever is bigger. Platform keeps the other 20%
+        // Credit reward for BRACKET FINAL win: base win reward or 75% of the
+        // entry-fee pot, whichever is bigger. Platform keeps the other 25%
         // (burned — never credited; recorded as rake in metadata).
         // FREE never earns real credits — shadow MISSED row only.
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
@@ -293,8 +293,8 @@ export async function GET(req: NextRequest) {
         await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
 
         // Credit reward for single battle win: base (500 PLUS / 1000 PRIME
-        // via battle multiplier × streak) or 80% of the pot, whichever is
-        // bigger. Platform keeps the other 20% (burned — rake in metadata).
+        // via battle multiplier × streak) or 75% of the pot, whichever is
+        // bigger. Platform keeps the other 25% (burned — rake in metadata).
         // FREE never earns real credits — shadow MISSED row only.
         const winnerUser = await prisma.user.findUnique({ where: { id: winner.userId } })
         if (winnerUser) {
@@ -487,8 +487,8 @@ async function createStartingSoonNotifications(prompt: { id: string; text: strin
   }
 }
 
-/** Battle pot stats: total entry fees paid into this prompt (pot), the 20%
- * platform rake (burned — never credited to anyone), and the 80% winner
+/** Battle pot stats: total entry fees paid into this prompt (pot), the 25%
+ * platform rake (burned — never credited to anyone), and the 75% winner
  * share. Sums actual BATTLE_ENTRY / DUEL_ENTRY debits so ghost duels (500cr)
  * and normal battles (200cr) both settle correctly. */
 async function battlePotStats(promptId: string): Promise<{ pot: number; rake: number; winnerShare: number }> {
@@ -506,7 +506,7 @@ async function battlePotStats(promptId: string): Promise<{ pot: number; rake: nu
   }
 }
 
-/** Winner's 80% cut of the entry-fee pot (see battlePotStats). */
+/** Winner's 75% cut of the entry-fee pot (see battlePotStats). */
 async function battlePotShare(promptId: string) {
   return (await battlePotStats(promptId)).winnerShare
 }

@@ -13,6 +13,9 @@ export type ThemeDef = {
   swatchTo: string
   /** Class applied to <html> when this theme is active. */
   className: `theme-${string}`
+  /** Limited-time drop flag (same semantics as AvatarItem.isLimited). */
+  isLimited?: boolean
+  limitedUntil?: number
   activeTextClass: string
   activeBorderClass: string
   activeBgClass: string
@@ -136,9 +139,17 @@ export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && THEME_IDS.includes(value as ThemeId)
 }
 
-/** Purchasable (non-free) themes shown in the Shop with a price tag. */
-export function getPurchasableThemes(): ThemeDef[] {
-  return THEMES.filter((t) => t.pricePesewas > 0)
+/** Purchasable (non-free) themes shown in the Shop with a price tag.
+ *  Expired limited drops are excluded — unbuyable + invisible. */
+export function getPurchasableThemes(now: number = Date.now()): ThemeDef[] {
+  return THEMES.filter((t) => t.pricePesewas > 0 && isThemeBuyable(t, now))
+}
+
+/** Limited-drop liveness (same semantics as isAvatarBuyable). */
+export function isThemeBuyable(theme: ThemeDef, now: number = Date.now()): boolean {
+  if (!theme.isLimited) return true
+  if (typeof theme.limitedUntil !== "number") return true
+  return theme.limitedUntil > now
 }
 
 /** Free themes gated by subscription tier (Default is free-for-all, handled separately). */
