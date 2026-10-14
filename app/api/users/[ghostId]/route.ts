@@ -92,11 +92,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   })
   const ghostLevel = levelForXp(xp)
 
+  // Never expose the internal cuid: the response carries only the public
+  // ghost identity (ghostId, avatar, tier, campus) plus public social stats.
+  const { id: internalId, ...publicUser } = user
   return NextResponse.json({
     user: {
-      ...user,
-      championTrophies: (await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())).get(user.id) ?? 0,
-      isOwn: user.id === viewer.id,
+      ...publicUser,
+      championTrophies: (await getChampionTrophies([{ id: internalId, campus: user.campus }]).catch(() => new Map<string, number>())).get(internalId) ?? 0,
+      isOwn: internalId === viewer.id,
       postCount,
       followersCount,
       followingCount,

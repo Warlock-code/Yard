@@ -27,6 +27,15 @@ export default function TermsPage() {
           <p className="mt-2">Credits live in the app and can only be spent on boosts, pins, and shop items — they can never be withdrawn, transferred, or exchanged for money, MoMo, or bank payouts of any kind.</p>
         </section>
         <section>
+          <h2 className="font-semibold text-white mb-1">anonymity</h2>
+          <p>yard is anonymous by design: you appear to others only as your ghost id, avatar, tier, and campus.</p>
+          <p className="mt-2">there are no direct messages and no private voice or video calls — every interaction stays public and reportable.</p>
+          <p className="mt-2">there are no read receipts, no profile bio links, and no verified identity badges of any kind.</p>
+          <p className="mt-2">we never ask for kyc documents and never show your email, program, level, or storage to other users.</p>
+          <p className="mt-2">credits have no cash value and can never be cashed out, withdrawn, or exchanged for money, momo, or bank payouts.</p>
+          <p className="mt-2">if anyone tries to reveal your real identity, report them — doxxing is prohibited and accounts that dox are removed.</p>
+        </section>
+        <section>
           <h2 className="font-semibold text-white mb-1">account actions</h2>
           <p>we may remove content or suspend accounts that violate these terms or our community guidelines, including after a user report and review.</p>
         </section>

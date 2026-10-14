@@ -113,12 +113,13 @@ export async function GET(req: NextRequest) {
         for (const w of winners) {
           const winnerUser = await prisma.user.findUnique({ where: { id: w.userId } })
           if (winnerUser) {
+            const alreadyPaid = await prisma.creditTransaction.findFirst({ where: { userId: w.userId, type: "BATTLE_WIN", reference: prompt.id }, select: { id: true } })
             const tier = getEffectiveTier(winnerUser)
             const multiplier = CREDIT_CONFIG.TIER_MULTIPLIER[tier as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.battle ?? 1
             const winReward = Math.round(CREDIT_CONFIG.EARN.BATTLE_WIN_BRACKET_ROUND * multiplier)
             const smult = await activeStreakMult(w.userId).catch(() => 1)
             const boostedReward = winReward * smult
-            if (boostedReward > 0) {
+            if (boostedReward > 0 && !alreadyPaid) {
               await creditUser(w.userId, "BATTLE_WIN", boostedReward, prompt.id, {
                 promptId: prompt.id,
                 entryId: w.id,
@@ -151,10 +152,12 @@ export async function GET(req: NextRequest) {
                 metadata: { promptId: prompt.id, entryId: w.id, battleType: "bracket_round", awarded: 0, shadow, tier },
               }).catch(() => {})
             }
-            await prisma.user.update({
-              where: { id: w.userId },
-              data: { freeBoosts: { increment: 1 } },
-            })
+            if (!alreadyPaid) {
+              await prisma.user.update({
+                where: { id: w.userId },
+                data: { freeBoosts: { increment: 1 } },
+              })
+            }
           }
         }
 
@@ -241,22 +244,25 @@ export async function GET(req: NextRequest) {
           } else {
             const winReward = Math.max(baseReward * smult, pot.winnerShare)
             if (winReward > 0) {
-              await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
-                promptId: prompt.id,
-                entryId: winner.id,
-                battleType: "bracket_final",
-                potSize: pot.pot,
-                rake: pot.rake,
-                potShare: pot.winnerShare,
-                baseReward,
-                tier
-              })
-              await trackFeatureEvent({
-                userId: winner.userId,
-                type: "battle_win_payout",
-                pathname: "/battles",
-                metadata: { promptId: prompt.id, entryId: winner.id, battleType: "bracket_final", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
-              }).catch(() => {})
+              const alreadyPaid = await prisma.creditTransaction.findFirst({ where: { userId: winner.userId, type: "BATTLE_WIN", reference: prompt.id }, select: { id: true } })
+              if (!alreadyPaid) {
+                await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+                  promptId: prompt.id,
+                  entryId: winner.id,
+                  battleType: "bracket_final",
+                  potSize: pot.pot,
+                  rake: pot.rake,
+                  potShare: pot.winnerShare,
+                  baseReward,
+                  tier
+                })
+                await trackFeatureEvent({
+                  userId: winner.userId,
+                  type: "battle_win_payout",
+                  pathname: "/battles",
+                  metadata: { promptId: prompt.id, entryId: winner.id, battleType: "bracket_final", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+                }).catch(() => {})
+              }
             }
           }
         }
@@ -324,22 +330,25 @@ export async function GET(req: NextRequest) {
           } else {
             const winReward = Math.max(baseReward * smult, pot.winnerShare)
             if (winReward > 0) {
-              await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
-                promptId: prompt.id,
-                entryId: winner.id,
-                battleType: "single",
-                potSize: pot.pot,
-                rake: pot.rake,
-                potShare: pot.winnerShare,
-                baseReward,
-                tier
-              })
-              await trackFeatureEvent({
-                userId: winner.userId,
-                type: "battle_win_payout",
-                pathname: "/battles",
-                metadata: { promptId: prompt.id, entryId: winner.id, battleType: "single", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
-              }).catch(() => {})
+              const alreadyPaid = await prisma.creditTransaction.findFirst({ where: { userId: winner.userId, type: "BATTLE_WIN", reference: prompt.id }, select: { id: true } })
+              if (!alreadyPaid) {
+                await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+                  promptId: prompt.id,
+                  entryId: winner.id,
+                  battleType: "single",
+                  potSize: pot.pot,
+                  rake: pot.rake,
+                  potShare: pot.winnerShare,
+                  baseReward,
+                  tier
+                })
+                await trackFeatureEvent({
+                  userId: winner.userId,
+                  type: "battle_win_payout",
+                  pathname: "/battles",
+                  metadata: { promptId: prompt.id, entryId: winner.id, battleType: "single", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+                }).catch(() => {})
+              }
             }
           }
         }
@@ -404,25 +413,30 @@ export async function GET(req: NextRequest) {
         } else {
           const winReward = Math.max(baseReward * smult, pot.winnerShare)
           if (winReward > 0) {
-            await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
-              promptId: prompt.id,
-              entryId: winner.id,
-              battleType: "voting_close",
-              potSize: pot.pot,
-              rake: pot.rake,
-              potShare: pot.winnerShare,
-              baseReward,
-              tier,
-            }).catch(() => {})
-            await trackFeatureEvent({
-              userId: winner.userId,
-              type: "battle_win_payout",
-              pathname: "/battles",
-              metadata: { promptId: prompt.id, entryId: winner.id, battleType: "voting_close", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
-            }).catch(() => {})
+            const alreadyPaid = await prisma.creditTransaction.findFirst({ where: { userId: winner.userId, type: "BATTLE_WIN", reference: prompt.id }, select: { id: true } })
+            if (!alreadyPaid) {
+              await creditUser(winner.userId, "BATTLE_WIN", winReward, prompt.id, {
+                promptId: prompt.id,
+                entryId: winner.id,
+                battleType: "voting_close",
+                potSize: pot.pot,
+                rake: pot.rake,
+                potShare: pot.winnerShare,
+                baseReward,
+                tier,
+              }).catch(() => {})
+              await trackFeatureEvent({
+                userId: winner.userId,
+                type: "battle_win_payout",
+                pathname: "/battles",
+                metadata: { promptId: prompt.id, entryId: winner.id, battleType: "voting_close", awarded: winReward, potSize: pot.pot, rake: pot.rake, potShare: pot.winnerShare, tier },
+              }).catch(() => {})
+            }
           }
         }
       }
+    } else {
+      await prisma.battlePrompt.update({ where: { id: prompt.id }, data: { status: "COMPLETED" } })
     }
   }
 

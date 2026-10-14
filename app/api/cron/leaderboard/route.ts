@@ -75,6 +75,8 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
   const weekStart = new Date(now)
   weekStart.setDate(weekStart.getDate() - 7)
   weekStart.setHours(0, 0, 0, 0)
+  const weekKey = weekStart.toISOString().slice(0, 10)
+  const periodRef = `weekly_${campus}_${weekKey}`
 
   const users = await prisma.user.findMany({
     where: { campus, status: "ACTIVE" },
@@ -117,9 +119,12 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
     else if (i === 2) reward = CREDIT_CONFIG.EARN.LEADERBOARD_WEEKLY_3
 
     const finalReward = Math.round(reward * multiplier)
+
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, WEEKLY_BOOSTS[i] ?? 1, "weekly", campus, weekStart)
+    if (!prizeGranted) continue
     
     if (finalReward > 0) {
-      await creditUser(user.id, "LEADERBOARD", finalReward, `weekly_${campus}`, {
+      await creditUser(user.id, "LEADERBOARD", finalReward, periodRef, {
         campus,
         rank: i + 1,
         period: "weekly",
@@ -143,7 +148,6 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
     }
 
     // Board prize every week regardless of credit config (non-cash).
-    const prizeGranted = await grantBoardPrize(user.id, i + 1, WEEKLY_BOOSTS[i] ?? 1, "weekly", campus, weekStart)
     if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: WEEKLY_BOOSTS[i] ?? 1, campus })
   }
 
@@ -153,6 +157,8 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
 async function processMonthlyLeaderboard(campus: string, now: Date) {
   const monthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const monthEnd = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthKey = `${monthStart.getFullYear()}-${monthStart.getMonth()}`
+  const periodRef = `monthly_${campus}_${monthKey}`
 
   const users = await prisma.user.findMany({
     where: { campus, status: "ACTIVE" },
@@ -195,9 +201,12 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
     else if (i === 2) reward = CREDIT_CONFIG.EARN.LEADERBOARD_MONTHLY_3
 
     const finalReward = Math.round(reward * multiplier)
+
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, MONTHLY_BOOSTS[i] ?? 2, "monthly", campus, monthStart)
+    if (!prizeGranted) continue
     
     if (finalReward > 0) {
-      await creditUser(user.id, "LEADERBOARD", finalReward, `monthly_${campus}`, {
+      await creditUser(user.id, "LEADERBOARD", finalReward, periodRef, {
         campus,
         rank: i + 1,
         period: "monthly",
@@ -220,7 +229,6 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
     }
 
     // Board prize every month regardless of credit config (non-cash).
-    const prizeGranted = await grantBoardPrize(user.id, i + 1, MONTHLY_BOOSTS[i] ?? 2, "monthly", campus, monthStart)
     if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: MONTHLY_BOOSTS[i] ?? 2, campus })
   }
 

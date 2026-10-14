@@ -239,7 +239,10 @@ export async function GET(req: NextRequest) {
       })
       for (const u of users) {
         if (t.credits > 0) {
-          await creditUser(u.id, "WINBACK", t.credits, `${t.type}_${u.id}`, {}).catch(() => {})
+          const wbSeen = await prisma.creditTransaction.findFirst({ where: { userId: u.id, type: "WINBACK", reference: `${t.type}_${u.id}` }, select: { id: true } })
+          if (!wbSeen) {
+            await creditUser(u.id, "WINBACK", t.credits, `${t.type}_${u.id}`, {}).catch(() => {})
+          }
         } else {
           // 50% off PLUS promo (single-use, checked in /api/subscribe).
           try {
@@ -275,7 +278,7 @@ export async function GET(req: NextRequest) {
   try {
     const { creditUser, CREDIT_CONFIG } = await import("@/lib/credits")
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
-    const weekKey = new Date(now).toISOString().slice(0, 10)
+    const _d = new Date(now); const _day = new Date(Date.UTC(_d.getUTCFullYear(), _d.getUTCMonth(), _d.getUTCDate())); const _thisMon = new Date(_day.getTime() - ((_day.getUTCDay() + 6) % 7) * 86400000); const weekKey = _thisMon.toISOString().slice(0, 10)
     const tipped = await prisma.creditTransaction.findMany({
       where: { type: "TIP_SENT", amount: { lt: 0 }, createdAt: { gte: weekAgo } },
       select: { userId: true, amount: true },
@@ -382,6 +385,8 @@ export async function GET(req: NextRequest) {
           }).catch(() => {})
         }
         for (const [uid] of top3) {
+          const warSeen = await prisma.notification.findFirst({ where: { userId: uid, type: `war_win:${lastMon.toISOString().slice(0, 10)}` }, select: { id: true } })
+          if (warSeen) continue
           await prisma.user.update({ where: { id: uid }, data: { freeBoosts: { increment: 2 } } }).catch(() => {})
           await createNotification({
             userId: uid,
