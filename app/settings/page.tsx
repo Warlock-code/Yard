@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPatch } from "@/lib/useApi"
 import Avatar from "@/app/components/Avatar"
+import { subscribeForPush } from "@/app/components/PushNotifications"
 
 type Me = {
   ghostId: string
@@ -23,6 +24,9 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletePassword, setDeletePassword] = useState("")
   const [deleting, setDeleting] = useState(false)
+  const [pushPermission, setPushPermission] = useState("default")
+  const [pushSubscribed, setPushSubscribed] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
 
   const admissionYears = useMemo(() => {
     const current = new Date().getFullYear() + 1
@@ -46,6 +50,35 @@ export default function SettingsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    setPushPermission(Notification.permission)
+    if (Notification.permission !== "granted") return
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
+    try {
+      const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+      if (cap?.isNativePlatform?.()) return
+    } catch {}
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => setPushSubscribed(!!sub))
+      .catch(() => {})
+  }, [])
+
+  async function handleEnablePush() {
+    if (pushBusy) return
+    setPushBusy(true)
+    try {
+      const ok = await subscribeForPush({ requestPermission: true })
+      if (typeof window !== "undefined" && "Notification" in window) {
+        setPushPermission(Notification.permission)
+      }
+      setPushSubscribed(ok)
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   async function handleYearSave() {
     if (!yearDraft || yearSaving) return
@@ -149,6 +182,28 @@ export default function SettingsPage() {
           </button>
         </div>
         {yearMsg && <p className="text-xs text-white/50 mt-2">{yearMsg}</p>}
+      </div>
+
+      <div className="card p-4 mb-3">
+        <p className="font-semibold mb-1">🔔 notifications</p>
+        {pushPermission === "denied" ? (
+          <>
+            <p className="text-sm text-white/60">blocked — enable in browser settings</p>
+            <p className="text-xs text-white/40 mt-1">
+              push is blocked for this site. open your browser&apos;s site settings for this app and allow
+              notifications, then come back here.
+            </p>
+          </>
+        ) : pushPermission === "granted" && pushSubscribed ? (
+          <p className="text-sm text-[#baff39]">✓ enabled — you&apos;ll get notified even when the app is closed</p>
+        ) : (
+          <>
+            <p className="text-sm text-white/50 mb-3">get notified even when the app is closed.</p>
+            <button className="btn-primary w-full text-sm" onClick={handleEnablePush} disabled={pushBusy}>
+              {pushBusy ? "enabling..." : "enable push notifications"}
+            </button>
+          </>
+        )}
       </div>
 
       <div className="card p-2 mb-3">

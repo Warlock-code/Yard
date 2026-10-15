@@ -62,17 +62,15 @@ export async function GET(req: NextRequest) {
       return
     }
     try {
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: "tier_expired",
-          title: "Your Yard tier ended",
-          body:
-            tier === "PRIME"
-              ? "Your PRIME expired. Renew at yardapp.me/upgrade to keep gold perks & credit rewards."
-              : "Your Plus expired. Renew at yardapp.me/upgrade to keep your perks.",
-          href: "/upgrade",
-        },
+      await createNotification({
+        userId,
+        type: "tier_expired",
+        title: "Your Yard tier ended",
+        body:
+          tier === "PRIME"
+            ? "Your PRIME expired. Renew at yardapp.me/upgrade to keep gold perks & credit rewards."
+            : "Your Plus expired. Renew at yardapp.me/upgrade to keep your perks.",
+        href: "/upgrade",
       })
     } catch {}
   }

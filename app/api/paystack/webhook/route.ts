@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
+import { createNotification } from "@/lib/notifications"
 import { handleCors, addCorsHeaders } from "@/lib/cors"
 import { validatePaystackCharge, fulfillPaidTransaction } from "@/lib/paystackFulfillment"
 import { reportServerError } from "@/lib/errorAlerts"
@@ -131,14 +132,12 @@ export async function POST(req: NextRequest) {
       const user = await prisma.user.findUnique({ where: { email } })
       if (user && user.tier !== "FREE") {
         try {
-          await prisma.notification.create({
-            data: {
-              userId: user.id,
-              type: "subscription_payment_failed",
-              title: "Auto-renew failed",
-              body: "Your Yard subscription auto-deduct failed (MoMo/card). We'll retry for 3 days before downgrade. Update payment at yardapp.me/upgrade.",
-              href: "/upgrade",
-            },
+          await createNotification({
+            userId: user.id,
+            type: "subscription_payment_failed",
+            title: "Auto-renew failed",
+            body: "Your Yard subscription auto-deduct failed (MoMo/card). We'll retry for 3 days before downgrade. Update payment at yardapp.me/upgrade.",
+            href: "/upgrade",
           })
         } catch {}
       }

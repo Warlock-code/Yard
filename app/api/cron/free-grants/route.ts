@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { createNotification } from "@/lib/notifications"
 import { getEffectiveTier, getWeeklyBoostGrant, getMonthlyFreezeGrant, shouldGrantWeeklyBoost, shouldGrantMonthlyFreeze } from "@/lib/tier"
 
 export const dynamic = "force-dynamic"
@@ -72,28 +73,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Create notifications in batch
+  // Create notifications in batch (inbox + push + socket via createNotification)
   for (const n of notifications) {
     try {
       if (n.type === "weekly_boost_grant") {
-        await prisma.notification.create({
-          data: {
-            userId: n.userId,
-            type: "weekly_boost_grant",
-            title: "Weekly boosts granted!",
-            body: "Your free post boosts for this week are ready.",
-            href: "/shop",
-          },
+        await createNotification({
+          userId: n.userId,
+          type: "weekly_boost_grant",
+          title: "Weekly boosts granted!",
+          body: "Your free post boosts for this week are ready.",
+          href: "/shop",
         })
       } else if (n.type === "monthly_freeze_grant") {
-        await prisma.notification.create({
-          data: {
-            userId: n.userId,
-            type: "monthly_freeze_grant",
-            title: "Monthly streak freeze granted!",
-            body: "Your free streak freeze(s) for this month are ready — prime gets 2.",
-            href: "/shop",
-          },
+        await createNotification({
+          userId: n.userId,
+          type: "monthly_freeze_grant",
+          title: "Monthly streak freeze granted!",
+          body: "Your free streak freeze(s) for this month are ready — prime gets 2.",
+          href: "/shop",
         })
       }
     } catch {}

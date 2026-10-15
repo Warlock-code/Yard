@@ -14,8 +14,8 @@ const TABS = [
   { href: "/feed", icon: "🏠", label: "feed" },
   { href: "/lair", icon: "👻", label: "lair", alsoActiveOn: ["/lair/activity"] },
   { href: "/battles", icon: "⚔️", label: "battles" },
-  { href: "/leaderboard", icon: "🏆", label: "boards" },
-  { href: "/shop", icon: "🛍️", label: "market" },
+  { href: "/leaderboard", icon: "🏆", label: "ranks" },
+  { href: "/shop", icon: "🛍️", label: "shop" },
   { href: "/notifications", icon: "🔔", label: "notifications" },
 ]
 
@@ -108,7 +108,8 @@ export default function BottomNav() {
   return (
     <nav
       aria-label="primary"
-      className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-4"
+      className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-20 flex justify-center px-4 pt-[env(safe-area-inset-top,0px)]"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="flex gap-0.5 bg-[#0a0a0a]/20 backdrop-blur-sm border border-white/10 rounded-full px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
         {TABS.map((tab) => {

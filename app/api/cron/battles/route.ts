@@ -456,48 +456,57 @@ async function createNotificationsForRoundStart(prompt: { id: string; text: stri
   const winnerUserIds = winners.map(w => w.userId)
   const users = await prisma.user.findMany({
     where: { id: { in: winnerUserIds }, campus: prompt.campus },
-    select: { id: true, pushToken: true, deviceTokens: { select: { token: true } } },
+    select: { id: true },
   })
 
+  // /battles/[id] does not exist (404) — link to the existing /battles page
+  // with the prompt id as a query param (ignored by the client, but keeps
+  // the link working instead of 404ing).
+  const href = `/battles?prompt=${prompt.id}`
   for (const user of users) {
-    const tokens = new Set([
-      ...user.deviceTokens.map(d => d.token),
-      user.pushToken,
-    ].filter((t): t is string => Boolean(t)))
-
-    for (const token of tokens) {
-      // Direct dispatch: never throws (sendPush swallows transport errors),
-      // so one bad token can't abort the remaining notifications.
-      await sendPush(
-        token,
-        `Round ${prompt.roundNumber} Starting!`,
-        `Your entry advanced! "${prompt.text}"`,
-        `/battles/${prompt.id}`
-      )
-    }
+    try {
+      const existing = await prisma.notification.findFirst({
+        where: { userId: user.id, type: "battle_round_start", href },
+        select: { id: true },
+      })
+      if (existing) continue
+      // Inbox + push to ALL deviceTokens + socket (never throws).
+      await createNotification({
+        userId: user.id,
+        type: "battle_round_start",
+        title: `Round ${prompt.roundNumber} Starting!`,
+        body: `Your entry advanced! "${prompt.text}"`,
+        href,
+      })
+    } catch {}
   }
 }
 
 async function createStartingSoonNotifications(prompt: { id: string; text: string; campus: string }) {
   const users = await prisma.user.findMany({
     where: { campus: prompt.campus },
-    select: { id: true, pushToken: true, deviceTokens: { select: { token: true } } },
+    select: { id: true },
   })
 
+  // /battles/[id] does not exist (404) — link to the existing /battles page
+  // with the prompt id as a query param.
+  const href = `/battles?prompt=${prompt.id}`
   for (const user of users) {
-    const tokens = new Set([
-      ...user.deviceTokens.map(d => d.token),
-      user.pushToken,
-    ].filter((t): t is string => Boolean(t)))
-
-    for (const token of tokens) {
-      await sendPush(
-        token,
-        "Battle Starting Soon!",
-        `"${prompt.text}" starts in 10 minutes. Get ready!`,
-        `/battles/${prompt.id}`
-      )
-    }
+    try {
+      const existing = await prisma.notification.findFirst({
+        where: { userId: user.id, type: "battle_starting_soon", href },
+        select: { id: true },
+      })
+      if (existing) continue
+      // Inbox + push to ALL deviceTokens + socket (never throws).
+      await createNotification({
+        userId: user.id,
+        type: "battle_starting_soon",
+        title: "Battle Starting Soon!",
+        body: `"${prompt.text}" starts in 10 minutes. Get ready!`,
+        href,
+      })
+    } catch {}
   }
 }
 
@@ -528,8 +537,13 @@ async function battlePotShare(promptId: string) {
 /** Winner prize: free boosts (non-cash) + in-app/push/socket win alert.
  * Idempotent per prompt — reruns never double-grant. */
 async function grantWinPrize(userId: string, promptId: string, promptText: string, boosts: number) {
+  // /battles/[id] does not exist (404) — completed battles live at the
+  // existing /battles/history page. Match both old and new hrefs so reruns
+  // after the href migration never double-grant.
+  const href = `/battles/history`
+  const legacyHref = `/battles/${promptId}`
   const existing = await prisma.notification.findFirst({
-    where: { userId, type: "battle_win", href: `/battles/${promptId}` },
+    where: { userId, type: "battle_win", href: { in: [href, legacyHref] } },
     select: { id: true },
   })
   if (existing) return
@@ -542,7 +556,7 @@ async function grantWinPrize(userId: string, promptId: string, promptText: strin
     type: "battle_win",
     title: "🏆 you won the battle!",
     body: `your take won — +${boosts} free boosts added. spend them in feed.`,
-    href: `/battles/${promptId}`,
+    href,
   }).catch(() => {})
 }
 

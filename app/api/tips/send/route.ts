@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { createNotification } from "@/lib/notifications"
 import { getEffectiveTier } from "@/lib/tier"
 import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
@@ -130,17 +131,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "tip failed, credits refunded. try again." }, { status: 500 })
     }
 
-    // Notify the author — best effort, never breaks the tip.
+    // Notify the author — inbox + push + socket, best effort, never breaks the tip.
     try {
-      await prisma.notification.create({
-        data: {
-          userId: author.id,
-          type: "tip",
-          title: "you got a tip 🎉",
-          body: `${user.ghostId} tipped you ${received} credits.`,
-          href: `/post/${postId}`,
-          actorName: user.ghostId,
-        },
+      await createNotification({
+        userId: author.id,
+        type: "tip",
+        title: "you got a tip 🎉",
+        body: `${user.ghostId} tipped you ${received} credits.`,
+        href: `/post/${postId}`,
+        actorName: user.ghostId,
       })
     } catch {}
 

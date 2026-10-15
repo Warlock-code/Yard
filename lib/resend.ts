@@ -22,8 +22,9 @@ export async function sendVerifyEmail(email: string, code: string) {
     const { error } = await resend.emails.send({
       from: "Yard <noreply@yardapp.me>",
       to: email,
-      subject: "Your Yard verification code",
-      html: `<p>Your code is: <strong>${code}</strong></p><p>Enter it in the app to verify your account.</p><p>This code expires in 30 minutes.</p>`,
+      subject: `👻 your yard code: ${code}`,
+      html: `<div style="background:#050505;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:32px 24px;text-align:center;"><div style="font-weight:900;letter-spacing:-0.04em;font-size:28px;color:#baff39;">YARD.</div><p style="color:rgba(245,245,245,0.6);font-size:14px;">your campus whisper network</p><p style="font-size:14px;">your verification code:</p><div style="font-size:36px;font-weight:900;letter-spacing:8px;color:#baff39;background:rgba(186,255,57,0.08);border:1px solid rgba(186,255,57,0.3);border-radius:12px;padding:16px;margin:16px auto;max-width:320px;">${code}</div><p style="color:rgba(245,245,245,0.6);font-size:13px;">enter it in the app to verify your account. this code expires in 30 minutes.</p><p style="color:rgba(245,245,245,0.35);font-size:12px;margin-top:24px;">yardapp.me</p></div>`,
+      text: `YARD. — your campus whisper network\n\nyour verification code: ${code}\n\nenter it in the app to verify your account. this code expires in 30 minutes.\n\nyardapp.me`,
     })
     if (error) {
       console.error("[resend] send failed:", error)

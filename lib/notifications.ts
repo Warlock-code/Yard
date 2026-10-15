@@ -67,3 +67,7 @@ export async function createNotification(input: NotificationInput) {
 
   return notification
 }
+
+// Backwards-compatible alias: createAndPush === createNotification
+// (inbox row + push to ALL deviceTokens + pushToken + socket).
+export const createAndPush = createNotification

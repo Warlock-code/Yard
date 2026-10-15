@@ -73,9 +73,15 @@ function ensureVapid(): boolean {
 
 async function sendWebPush(subscriptionJson: string, title: string, body: string, href?: string) {
   if (!ensureVapid()) return
-  const subscription = JSON.parse(subscriptionJson) as {
-    endpoint: string
-    keys?: { p256dh?: string; auth?: string }
+  let subscription: { endpoint: string; keys?: { p256dh?: string; auth?: string } }
+  try {
+    subscription = JSON.parse(subscriptionJson) as {
+      endpoint: string
+      keys?: { p256dh?: string; auth?: string }
+    }
+  } catch (error) {
+    console.error("Web Push notification skipped: invalid subscription JSON", error instanceof Error ? error.message : error)
+    return
   }
   try {
     await webpush.sendNotification(

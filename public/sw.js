@@ -185,3 +185,26 @@ self.addEventListener('notificationclick', (event) => {
     })
   )
 })
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const oldSub = event.oldSubscription || await self.registration.pushManager.getSubscription()
+        const key = oldSub ? oldSub.options.applicationServerKey : null
+        if (!key) return
+        const sub = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        })
+        await fetch('/api/notifications/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: JSON.stringify(sub), platform: 'web-push' }),
+        }).catch(() => {})
+      } catch {
+        // fail-open: next foreground visit re-registers via notifications page
+      }
+    })()
+  )
+})

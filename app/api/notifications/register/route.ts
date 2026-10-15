@@ -7,13 +7,44 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  const { token, platform } = await req.json()
-  if (typeof token !== "string" || !token.trim()) {
+  let rawBody: unknown
+  try {
+    rawBody = await req.json()
+  } catch {
+    return NextResponse.json({ error: "a push token is required." }, { status: 400 })
+  }
+  const body = (rawBody ?? {}) as { token?: unknown; subscription?: unknown; platform?: unknown }
+
+  // Accept BOTH transports:
+  // - Web Push: JSON subscription, either as a stringified JSON string in
+  //   `token`, as an object in `token`, as `subscription`, or as the raw
+  //   POST body itself (a PushSubscription-like { endpoint, keys } object).
+  // - Android FCM: opaque string in `token`.
+  let candidate: unknown = body.token ?? body.subscription ?? null
+  if (candidate == null && typeof body === "object" && body !== null) {
+    const maybe = body as { endpoint?: unknown; keys?: unknown }
+    if (typeof maybe.endpoint === "string") candidate = body
+  }
+  let token: string
+  if (typeof candidate === "string") {
+    token = candidate
+  } else if (candidate !== null && typeof candidate === "object") {
+    try {
+      token = JSON.stringify(candidate)
+    } catch {
+      return NextResponse.json({ error: "a push token is required." }, { status: 400 })
+    }
+  } else {
+    return NextResponse.json({ error: "a push token is required." }, { status: 400 })
+  }
+  if (!token.trim()) {
     return NextResponse.json({ error: "a push token is required." }, { status: 400 })
   }
   if (token.length > 4096) {
     return NextResponse.json({ error: "push token is too long." }, { status: 400 })
   }
+
+  const platform = body.platform
 
   // Web Push subscriptions are JSON blobs; native (Android/iOS) tokens are
   // opaque strings. Storing the right platform keeps the sender from pushing

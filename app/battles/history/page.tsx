@@ -158,9 +158,13 @@ export default function BattleHistoryPage() {
                            {battle.winnerEntry.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                           <ChampionTrophies trophies={battle.winnerEntry.user.championTrophies} />
                         </div>
-                        <p className="text-white/80 text-sm mt-2">
-                          {battle.winnerEntry.text || battle.winnerEntry.imageUrl ? "📷 image entry" : battle.winnerEntry.voiceUrl ? "🎤 voice entry" : ""}
-                        </p>
+                        {battle.winnerEntry.imageUrl ? (
+                          <img src={battle.winnerEntry.imageUrl} alt="winning battle entry" className="mt-2 max-h-48 rounded-lg border border-white/10 object-cover" loading="lazy" />
+                        ) : battle.winnerEntry.voiceUrl ? (
+                          <audio src={battle.winnerEntry.voiceUrl} controls className="mt-2 w-full" />
+                        ) : (
+                          <p className="text-white/80 text-sm mt-2">{battle.winnerEntry.text}</p>
+                        )}
                         <p className="text-xs text-white/40 mt-1">🔥 {battle.winnerEntry.votes} votes</p>
                       </div>
                     )}
@@ -183,9 +187,13 @@ export default function BattleHistoryPage() {
                               {entry.user.tier === "PRIME" && <span className="badge badge-prime text-[10px] flex-shrink-0">👑 prime</span>}
                               <ChampionTrophies trophies={entry.user.championTrophies} className="text-[10px] leading-none" />
                             </div>
-                            <p className="text-white/60 text-xs truncate">
-                              {entry.text || entry.imageUrl ? "📷 image" : entry.voiceUrl ? "🎤 voice" : ""}
-                            </p>
+                            {entry.imageUrl ? (
+                              <img src={entry.imageUrl} alt="battle entry" className="mt-1 h-12 w-12 rounded-lg border border-white/10 object-cover" loading="lazy" />
+                            ) : entry.voiceUrl ? (
+                              <audio src={entry.voiceUrl} controls className="mt-1 h-8 w-full max-w-[180px]" />
+                            ) : (
+                              <p className="text-white/60 text-xs truncate">{entry.text}</p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-primary">🔥 {entry.votes}</p>

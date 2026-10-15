@@ -31,22 +31,52 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
+let pushRegisterInFlight: Promise<void> | null = null
+
 async function registerPushToken() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !VAPID_PUBLIC_KEY) return
-
+  if (typeof window === "undefined") return
   try {
-    const registration = await navigator.serviceWorker.ready
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    })
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+    if (cap?.isNativePlatform?.()) return
+  } catch {}
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || !VAPID_PUBLIC_KEY) return
 
-    const token = JSON.stringify(subscription)
-    await apiPost("/api/notifications/register", { token, platform: "web-push" })
-    console.log("Push token registered")
-  } catch (error) {
-    console.error("Push registration failed:", error)
+  if (Notification.permission === "denied") {
+    console.info("[push] permission denied, skipping subscribe")
+    return
   }
+  // "default" means the user has not opted in yet — stay silent until the
+  // settings page "enable push notifications" button requests permission.
+  if (Notification.permission !== "granted") return
+
+  // Avoid double-subscribe loops (StrictMode remounts, repeat visits).
+  if (pushRegisterInFlight) {
+    await pushRegisterInFlight
+    return
+  }
+
+  pushRegisterInFlight = (async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const existing = await registration.pushManager.getSubscription()
+      const subscription =
+        existing ??
+        (await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        }))
+
+      const token = JSON.stringify(subscription)
+      await apiPost("/api/notifications/register", { token, platform: "web-push" })
+      console.log("Push token registered")
+    } catch (error) {
+      console.error("Push registration failed:", error)
+    } finally {
+      pushRegisterInFlight = null
+    }
+  })()
+
+  await pushRegisterInFlight
 }
 
 export default function NotificationsPage() {

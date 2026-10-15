@@ -122,10 +122,98 @@ const TABS = [
 ]
 
 const EMPTY_MESSAGES: Record<string, string> = {
-  campus: "no posts from your school/program yet",
-  following: "no posts from ghosts you follow yet — tap + on posts to follow ghosts",
-  all: "no posts from any school yet",
-  program: "no posts from your program yet — be first in class",
+  campus: "no posts yet — be the first 👻",
+  following: "no posts yet — be the first 👻",
+  all: "no posts yet — be the first 👻",
+  program: "no posts yet — be the first 👻",
+}
+
+function isPlusTrialBanner(user: Me | null): { trial: boolean; daysLeft: number } {
+  if (!user || user.tier !== "PLUS") return { trial: false, daysLeft: 0 }
+  if (user.isTrial) return { trial: true, daysLeft: user.tierDaysLeft ?? 0 }
+  if (!user.tierExpiresAt || !user.createdAt) return { trial: false, daysLeft: user.tierDaysLeft ?? 0 }
+  const created = new Date(user.createdAt).getTime()
+  const expires = new Date(user.tierExpiresAt).getTime()
+  if (!Number.isFinite(created) || !Number.isFinite(expires)) return { trial: false, daysLeft: user.tierDaysLeft ?? 0 }
+  const diff = expires - created
+  const sevenDays = 7 * 24 * 60 * 60 * 1000
+  if (diff > 0 && diff <= sevenDays + 24 * 60 * 60 * 1000) {
+    return { trial: true, daysLeft: user.tierDaysLeft ?? Math.max(0, Math.ceil((expires - Date.now()) / (24 * 60 * 60 * 1000))) }
+  }
+  return { trial: false, daysLeft: user.tierDaysLeft ?? 0 }
+}
+
+function FeedPostText({ text }: { text: string }) {
+  const nodes: React.ReactNode[] = []
+  const combined = /(@[A-Za-z0-9_]{2,30}|#\w+)/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let key = 0
+  while ((m = combined.exec(text)) !== null) {
+    if (m.index > last) nodes.push(<span key={key++}>{text.slice(last, m.index)}</span>)
+    const token = m[0]
+    if (token.startsWith("@")) {
+      const handle = token.slice(1)
+      nodes.push(
+        <Link key={key++} href={`/u/${handle}`} onClick={(e) => e.stopPropagation()} className="text-[#baff39]">
+          {token}
+        </Link>
+      )
+    } else {
+      const tag = token.slice(1).toLowerCase()
+      nodes.push(
+        <Link
+          key={key++}
+          href={`/explore?tag=${encodeURIComponent(tag)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-[#baff39] lowercase"
+        >
+          #{tag}
+        </Link>
+      )
+    }
+    last = m.index + token.length
+  }
+  if (last < text.length) nodes.push(<span key={key++}>{text.slice(last)}</span>)
+  return <>{nodes}</>
+}
+
+function HoldAction({ emoji, label, titleText, onAction }: { emoji: string; label: string; titleText: string; onAction: (e: React.MouseEvent | React.TouchEvent) => void }) {
+  const [showTip, setShowTip] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function startHold() {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setShowTip(true), 400)
+  }
+  function endHold() {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+    if (showTip) setTimeout(() => setShowTip(false), 1200)
+  }
+  return (
+    <span className="relative inline-flex flex-col items-center">
+      <button
+        onClick={(e) => { e.stopPropagation(); onAction(e) }}
+        onTouchStart={startHold}
+        onTouchEnd={endHold}
+        onTouchCancel={endHold}
+        onMouseEnter={() => setShowTip(false)}
+        className="hover:text-primary touch-manipulation flex flex-col items-center leading-none"
+        title={titleText}
+        aria-label={titleText}
+      >
+        <span aria-hidden="true">{emoji}</span>
+        <span className="text-[10px] leading-none text-white/40 mt-0.5">{label}</span>
+      </button>
+      {showTip && (
+        <span className="absolute -top-8 whitespace-nowrap rounded-lg border border-white/10 bg-black px-2 py-1 text-[11px] text-white/80 shadow-lg z-10">
+          {titleText}
+        </span>
+      )}
+    </span>
+  )
 }
 
 function CohortPrompt({ onSaved }: { onSaved: (year: number) => void }) {
@@ -230,6 +318,21 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
   const [hintsOpenId, setHintsOpenId] = useState<string | null>(null)
   const [hintsData, setHintsData] = useState<Record<string, PostHints>>({})
   const [hintsLoading, setHintsLoading] = useState<Record<string, boolean>>({})
+  // Free plus trial banner: PLUS trial only, dismiss persists in localStorage.
+  const [showTrialBanner, setShowTrialBanner] = useState(false)
+  useEffect(() => {
+    if (guest || !me || !authReady) return
+    try {
+      if (localStorage.getItem("trial_banner_dismissed") === "1") return
+    } catch { return }
+    const { trial } = isPlusTrialBanner(me)
+    if (trial) setShowTrialBanner(true)
+  }, [guest, me, authReady])
+
+  function dismissTrialBanner() {
+    try { localStorage.setItem("trial_banner_dismissed", "1") } catch {}
+    setShowTrialBanner(false)
+  }
   // Onboarding invite ask: day 2–3 after signup, zero referrals, once ever.
   useEffect(() => {
     if (guest || !me || !authReady || showInviteNudge) return
@@ -843,6 +946,20 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         </div>
       )}
       {!loading && <SmartNudge />}
+      {!loading && !guest && showTrialBanner && me && (() => {
+        const { trial, daysLeft } = isPlusTrialBanner(me)
+        if (!trial) return null
+        const d = daysLeft ?? me.tierDaysLeft ?? 0
+        return (
+          <div className="mx-4 mt-3 rounded-xl border border-[#baff39]/40 bg-[#baff39]/[0.08] p-3 flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-[#baff39]">✨ free plus trial — {d}d left / edits, blue check, weekly boost. keep it for ghs 10/mo →</p>
+            </div>
+            <button onClick={() => router.push("/upgrade")} className="bg-[#baff39] text-black text-xs font-bold rounded-full px-3 py-1.5 shrink-0">keep</button>
+            <button onClick={dismissTrialBanner} aria-label="dismiss trial banner" className="text-white/30 hover:text-white/60 text-sm shrink-0 px-1">✕</button>
+          </div>
+        )
+      })()}
       {rushStatus.live && (
         <div className="mx-4 mt-3 rounded-xl border border-[#facc15]/40 bg-[#facc15]/[0.07] p-3 flex items-center gap-3 animate-pulse">
           <span className="text-xl">🔥</span>
@@ -874,6 +991,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
         <div className="text-center mt-14 px-8">
           <p className="text-3xl mb-3">👻</p>
           <p className="text-white/50 text-sm">{EMPTY_MESSAGES[mode]}</p>
+          <button onClick={() => router.push(guest ? "/signup" : "/compose")} className="btn-primary mt-4 text-sm px-5 py-2">+ drop your first gist →</button>
         </div>
       ) : (
         <div>
@@ -943,7 +1061,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                           className={`post-mono text-white/90 mt-1 whitespace-pre-wrap leading-relaxed text-base ${expanded ? "" : "clamp-3 line-clamp-3"}`}
                           style={{ lineHeight: 1.5 }}
                         >
-                          <RichText text={post.text} />
+                          <FeedPostText text={post.text} />
                         </p>
                         {!expanded && isLong && <span className="text-xs text-white/40">… show more</span>}
                       </motion.div>
@@ -1007,14 +1125,10 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         💬 {post.commentsCount}
                       </button>
                       {isOwn && (
-                        <button onClick={(e) => { e.stopPropagation(); handleBoost(post.id) }} className="hover:text-primary touch-manipulation" title="boost 24h">
-                          🚀
-                        </button>
+                        <HoldAction emoji="🚀" label="boost" titleText="🚀 boost 24h — 300cr" onAction={() => handleBoost(post.id)} />
                       )}
                       {isOwn && !post.pinned && (
-                        <button onClick={(e) => { e.stopPropagation(); handlePin(post.id) }} className="hover:text-primary touch-manipulation" title="pin top of campus for 1hr — 1000 credits">
-                          📌
-                        </button>
+                        <HoldAction emoji="📌" label="pin" titleText="📌 pin 1h — 1000cr" onAction={() => handlePin(post.id)} />
                       )}
                       {isOwn && (
                         <button

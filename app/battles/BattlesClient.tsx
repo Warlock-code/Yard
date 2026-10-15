@@ -129,7 +129,7 @@ export default function BattlesClient() {
       {!prompt ? (
         <div className="text-center mt-14 px-8">
           <p className="text-3xl mb-3">⚔️</p>
-          <p className="text-white/50 text-sm">no battle running right now. check back soon, or ask an admin to start one.</p>
+          <p className="text-white/50 text-sm">no battle running right now. check back soon.</p>
         </div>
       ) : (
         <React.Fragment>

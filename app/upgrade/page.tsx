@@ -19,7 +19,6 @@ const ROWS: { label: string; free: string; plus: string; prime: string; primeWin
   { label: "Post hints (who's watching)", free: "counts", plus: "programs", prime: "programs + years", primeWin: true },
   { label: "Storage", free: "50 MB", plus: "50 + 50 MB", prime: "50 + 100 MB", primeWin: true },
   { label: "Theme", free: "default green", plus: "+ plus blue", prime: "+ gold", primeWin: true },
-  { label: "Cash payouts", free: "—", plus: "—", prime: "—", primeWin: false },
   { label: "Shop (epic / legendary, boosts, freeze)", free: "buy separately", plus: "buy separately", prime: "buy separately", primeWin: false },
 ]
 
@@ -80,9 +79,10 @@ export default function UpgradePage() {
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
       <div className="flex items-center gap-3 pt-5 pb-3">
         <button onClick={() => router.back()} className="text-white/60">←</button>
-        <h1 className="text-xl font-bold">plus vs free</h1>
+        <h1 className="text-xl font-bold">plans</h1>
       </div>
-      <p className="text-white/50 text-sm mb-4">every upgrade button lands here — compare, then decide. plus and prime renew monthly, cancel anytime.</p>
+      <p className="text-white/50 text-sm mb-1">every upgrade button lands here — compare, then decide.</p>
+      <p className="text-white/50 text-sm mb-4">plus and prime renew monthly, cancel anytime</p>
 
       {me?.tier === "FREE" && missed && missed.weekly > 0 && (
         <div className="card p-4 mb-4 border-[#baff39]/30 bg-[#baff39]/5">

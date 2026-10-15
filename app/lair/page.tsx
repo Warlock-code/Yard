@@ -272,7 +272,7 @@ export default function LairPage() {
             spend in the shop →
           </button>
         </div>
-      ) : (
+      ) : me.tier === "FREE" ? (
         <button
           className="card w-full p-4 mb-4 flex items-center justify-between border-[#facc15]/20"
           onClick={() => router.push("/upgrade")}
@@ -280,7 +280,7 @@ export default function LairPage() {
           <span className="font-semibold text-sm">👑 prime <span className="text-white/40 font-normal">gold + 2x boosts</span></span>
           <span className="text-xs font-bold text-[#facc15]">👑 prime →</span>
         </button>
-      )}
+      ) : null}
 
       {me.tier === "FREE" && missed && missed.weekly > 0 && (
         <button
