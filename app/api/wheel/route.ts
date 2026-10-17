@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
-import { AVATARS } from "@/lib/avatars"
 import {
   creditUser,
   toCreditErrorResponse,
   trackFeatureEvent,
   CREDIT_CONFIG,
 } from "@/lib/credits"
+import {
+  rollInt,
+  rollWheelPaid,
+  WHEEL_FREE_RANGE,
+  WHEEL_PAID_RANGE,
+  WHEEL_RARE_BONUS_CHANCE,
+  WHEEL_RARE_BONUS_RANGE,
+} from "@/lib/luck"
 
 export const dynamic = "force-dynamic"
 
 // Haunt wheel — daily habit spinner. Free spin 1/day (5–50cr). Paid spin
-// 100cr (50–500cr + 5% rare avatar drop). 10x bundle 800cr. All credits-only,
-// no cash value. Free-spin claim is guarded by a unique RateLimit row per
-// user per day, so double-taps can't double-claim.
-function roll(min: number, max: number) {
-  return min + Math.floor(Math.random() * (max - min + 1))
-}
-
+// 100cr draws from the rebalanced luck table in lib/luck.ts (EV ≈ 89.5cr,
+// mostly 20–80, rare 1000 jackpot + 5% bonus credits). 10x bundle 950cr
+// (EV ≈ 894.5 → still a credit sink). Prizes are credits only — permanent
+// shop cosmetics are never granted here, so the wheel can't cannibalize
+// shop sales. Free-spin claim is guarded by a unique RateLimit row per user
+// per day, so double-taps can't double-claim.
 function dayKey(d = new Date()) {
   return d.toISOString().slice(0, 10)
 }
@@ -59,8 +65,10 @@ export async function GET(req: NextRequest) {
     freeAvailable,
     spinCost: CREDIT_CONFIG.SPEND.WHEEL_SPIN,
     bundleCost: CREDIT_CONFIG.SPEND.WHEEL_BUNDLE_10,
-    freeRange: [5, 50],
-    paidRange: [50, 500],
+    freeRange: WHEEL_FREE_RANGE,
+    paidRange: WHEEL_PAID_RANGE,
+    rareBonusChance: WHEEL_RARE_BONUS_CHANCE,
+    rareBonusRange: WHEEL_RARE_BONUS_RANGE,
   })
 }
 
@@ -91,7 +99,7 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "free spin already used today — come back tomorrow." }, { status: 400 })
     }
-    const reward = roll(5, 50)
+    const reward = rollInt(WHEEL_FREE_RANGE)
     try {
       const r = await creditUser(user.id, "WHEEL_WIN", reward, `wheel_free_${dayKey()}`, {
         kind: "free",
@@ -112,22 +120,31 @@ export async function POST(req: NextRequest) {
     return toCreditErrorResponse(err, "not enough credits for a spin.")
   }
 
-  const results: { reward: number; rareDrop?: string; rareKind?: "avatar" | "theme" }[] = []
+  const results: { reward: number; bonusCredits?: number }[] = []
   let total = 0
   let balance = 0
   try {
     for (let i = 0; i < spins; i++) {
-      const reward = roll(50, 500)
+      const reward = rollWheelPaid()
       const r = await creditUser(user.id, "WHEEL_WIN", reward, `${reference}_${i}`, { kind, reward })
       balance = r.newBalance
       total += reward
-      const row: { reward: number; rareDrop?: string; rareKind?: "avatar" | "theme" } = { reward }
-      // 5% rare avatar/theme drop per paid spin.
-      if (Math.random() < 0.05) {
-        const drop = await grantRareDrop(user.id, "wheel_drop").catch(() => null)
-        if (drop) {
-          row.rareDrop = drop.id
-          row.rareKind = drop.kind
+      const row: { reward: number; bonusCredits?: number } = { reward }
+      // 5% bonus-credit drop per paid spin. Credits only — never shop
+      // cosmetics, so a lucky spin can't remove items from the shop.
+      if (Math.random() < WHEEL_RARE_BONUS_CHANCE) {
+        const bonus = rollInt(WHEEL_RARE_BONUS_RANGE)
+        try {
+          const rb = await creditUser(user.id, "WHEEL_WIN", bonus, `${reference}_${i}_bonus`, {
+            kind,
+            reward: bonus,
+            rareBonus: true,
+          })
+          balance = rb.newBalance
+          total += bonus
+          row.bonusCredits = bonus
+        } catch {
+          // bonus failures never break a paid spin — the base reward stands
         }
       }
       results.push(row)
@@ -138,44 +155,4 @@ export async function POST(req: NextRequest) {
 
   await trackFeatureEvent({ userId: user.id, type: "wheel_spin", metadata: { kind, spins, total } })
   return NextResponse.json({ success: true, kind, spins: results, total, newBalance: balance })
-}
-
-// Rare drop: locked rare/epic avatar OR locked purchasable theme, granted
-// via ownedCosmetics. Shared shape with mystery-box (kept local: this route
-// is Workstream E owned; no cross-workstream helper edits).
-async function grantRareDrop(
-  userId: string,
-  notifType: "wheel_drop" | "mystery_drop"
-): Promise<{ id: string; kind: "avatar" | "theme" } | null> {
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { ownedCosmetics: true, ghostId: true },
-  })
-  if (!u) return null
-  const lockedAvatars = AVATARS.filter((a) => !u.ownedCosmetics.includes(a.id) && (a.rarity === "rare" || a.rarity === "epic"))
-  let lockedThemes: { cosmeticId: string; name: string }[] = []
-  try {
-    const { getPurchasableThemes, themeCosmeticId } = await import("@/lib/themes")
-    lockedThemes = getPurchasableThemes()
-      .filter((t) => !u.ownedCosmetics.includes(themeCosmeticId(t.id)))
-      .map((t) => ({ cosmeticId: themeCosmeticId(t.id), name: t.name }))
-  } catch {
-    lockedThemes = []
-  }
-  const pool: { id: string; kind: "avatar" | "theme"; label: string }[] = [
-    ...lockedAvatars.map((a) => ({ id: a.id, kind: "avatar" as const, label: a.name })),
-    ...lockedThemes.map((t) => ({ id: t.cosmeticId, kind: "theme" as const, label: t.name })),
-  ]
-  if (pool.length === 0) return null
-  const pick = pool[Math.floor(Math.random() * pool.length)]
-  await prisma.user.update({ where: { id: userId }, data: { ownedCosmetics: { push: pick.id } } })
-  const { createNotification } = await import("@/lib/notifications")
-  await createNotification({
-    userId,
-    type: notifType,
-    title: "🎁 rare drop from the haunt wheel!",
-    body: `you unlocked the ${pick.label} ${pick.kind}. find it in owned.`,
-    href: "/lair",
-  }).catch(() => {})
-  return { id: pick.id, kind: pick.kind }
 }

@@ -2,12 +2,50 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getAllPacks, getPackById } from "@/lib/credits"
+import { packChargePesewas, CREDIT_CONFIG } from "@/lib/credit-config"
 import { initializePaystack } from "@/lib/paystack"
 import { reportServerError } from "@/lib/errorAlerts"
 
-export async function GET() {
-  const packs = getAllPacks()
-  return NextResponse.json({ packs })
+// First-buy promo: 20% off the first-ever credit pack. The SAME helper
+// (packChargePesewas) drives GET display, POST charge, and the stored
+// transaction amount, so display === charge by construction.
+async function isFirstCreditPackPurchase(userId: string): Promise<boolean> {
+  try {
+    const prior = await prisma.transaction.findFirst({
+      where: { userId, kind: "credits", status: "success" },
+      select: { id: true },
+    })
+    return !prior
+  } catch {
+    // Fail closed (no discount) — never charge less than displayed.
+    return false
+  }
+}
+
+function pricedPacks(firstBuy: boolean) {
+  return getAllPacks().map((pack) => {
+    const chargePesewas = packChargePesewas(pack, firstBuy)
+    return {
+      ...pack,
+      listPesewas: pack.ghs * 100,
+      chargePesewas,
+      effectiveGhs: chargePesewas / 100,
+    }
+  })
+}
+
+// Per-user pricing so the storefront renders the exact amount Paystack will
+// charge. Unauthenticated callers get 401 — the shop fetches this per user.
+export async function GET(req: NextRequest) {
+  const user = await getCurrentUser(req)
+  if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
+
+  const firstBuy = await isFirstCreditPackPurchase(user.id)
+  return NextResponse.json({
+    firstBuy,
+    discountPct: CREDIT_CONFIG.FIRST_BUY_DISCOUNT_PCT,
+    packs: pricedPacks(firstBuy),
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -26,23 +64,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid pack" }, { status: 400 })
   }
 
-  // First-buy discount: 20% off the first-ever credit pack. Credits granted
-  // stay the same — only the Paystack charge drops. Stored amount is the
-  // discounted one so webhook validation matches exactly.
-  let firstBuy = false
   try {
-    const prior = await prisma.transaction.findFirst({
-      where: { userId: user.id, kind: "credits", status: "success" },
-      select: { id: true },
-    })
-    firstBuy = !prior
-  } catch {
-    firstBuy = false
-  }
-
-try {
+    const firstBuy = await isFirstCreditPackPurchase(user.id)
     const listPrice = pack.ghs * 100
-    const amountInPesewas = firstBuy ? Math.round(listPrice * 0.8) : listPrice
+    const amountInPesewas = packChargePesewas(pack, firstBuy)
     const reference = `credits_${user.id}_${packId}_${Date.now()}`
 
     await prisma.transaction.create({

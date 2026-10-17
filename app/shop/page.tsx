@@ -20,6 +20,8 @@ const CATEGORIES = [
   { key: "themes", label: "themes" },
 ]
 
+type PricedPack = CreditPack & { chargePesewas: number; effectiveGhs: number }
+
 function ThemesPicker({
   tier,
   ownedCosmetics,
@@ -90,14 +92,16 @@ function ThemesPicker({
   )
 }
 
+type WheelStatus = { freeAvailable: boolean; spinCost: number; bundleCost: number }
+
 function LuckSection({ onBought }: { onBought: () => void }) {
-  const [status, setStatus] = useState<{ freeAvailable: boolean } | null>(null)
+  const [status, setStatus] = useState<WheelStatus | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
 
   useEffect(() => {
-    apiGet<{ freeAvailable: boolean }>("/api/wheel")
-      .then((d) => setStatus({ freeAvailable: d.freeAvailable }))
+    apiGet<WheelStatus>("/api/wheel")
+      .then((d) => setStatus({ freeAvailable: d.freeAvailable, spinCost: d.spinCost, bundleCost: d.bundleCost }))
       .catch(() => {})
   }, [])
 
@@ -105,14 +109,16 @@ function LuckSection({ onBought }: { onBought: () => void }) {
     setBusy(kind)
     setResult(null)
     try {
-      const d = await apiPost<{ spins: { reward: number; rareDrop?: string }[]; total: number }>(
+      const d = await apiPost<{ spins: { reward: number; bonusCredits?: number }[]; total: number }>(
         "/api/wheel",
         { kind }
       )
-      const drops = d.spins.filter((s) => s.rareDrop).map((s) => ` + 🎁 ${s.rareDrop}`)
-      setResult(`+${d.total}cr${drops.join("")}`)
+      const bonus = d.spins.reduce((sum, s) => sum + (s.bonusCredits ?? 0), 0)
+      setResult(`+${d.total}cr${bonus > 0 ? ` (incl. 🎁 +${bonus}cr bonus)` : ""}`)
       onBought()
-      setStatus(await apiGet<{ freeAvailable: boolean }>("/api/wheel").then((s) => ({ freeAvailable: s.freeAvailable })).catch(() => status))
+      apiGet<WheelStatus>("/api/wheel")
+        .then((s) => setStatus({ freeAvailable: s.freeAvailable, spinCost: s.spinCost, bundleCost: s.bundleCost }))
+        .catch(() => {})
     } catch (err: unknown) {
       // Needs-credits already redirected to /shop by the api client.
       if (err instanceof Error && !err.message.startsWith("NEEDS_CREDITS:")) {
@@ -127,8 +133,9 @@ function LuckSection({ onBought }: { onBought: () => void }) {
     setBusy("box")
     setResult(null)
     try {
-      const d = await apiPost<{ reward: number; rareDrop?: string | null }>("/api/mystery-box", {})
-      setResult(`+${d.reward}cr${d.rareDrop ? ` + 🎁 ${d.rareDrop}` : ""}`)
+      const d = await apiPost<{ reward: number; bonusCredits?: number; total?: number }>("/api/mystery-box", {})
+      const total = typeof d.total === "number" ? d.total : d.reward + (d.bonusCredits ?? 0)
+      setResult(`+${total}cr${d.bonusCredits ? ` (incl. 🎁 +${d.bonusCredits}cr bonus)` : ""}`)
       onBought()
     } catch (err: unknown) {
       if (err instanceof Error && !err.message.startsWith("NEEDS_CREDITS:")) {
@@ -144,23 +151,23 @@ function LuckSection({ onBought }: { onBought: () => void }) {
       <div className="card p-5 text-center">
         <p className="text-3xl mb-1">🎡</p>
         <p className="font-bold">haunt wheel</p>
-        <p className="text-white/40 text-xs mb-3">free spin daily (5–50cr) · paid 100cr (50–500cr + rare drops)</p>
+        <p className="text-white/40 text-xs mb-3">free spin daily (5–50cr) · paid {status?.spinCost ?? 100}cr (20–1000cr + rare bonus credits)</p>
         <div className="grid grid-cols-3 gap-2">
           <button className="btn-primary text-sm disabled:opacity-50" disabled={busy !== null || !status?.freeAvailable} onClick={() => spin("free")}>
             {busy === "free" ? "…" : status?.freeAvailable === false ? "used ✓" : "free spin"}
           </button>
           <button className="btn-ghost text-sm disabled:opacity-50" disabled={busy !== null} onClick={() => spin("paid")}>
-            {busy === "paid" ? "…" : "100cr"}
+            {busy === "paid" ? "…" : `${status?.spinCost ?? 100}cr`}
           </button>
           <button className="btn-ghost text-sm disabled:opacity-50" disabled={busy !== null} onClick={() => spin("bundle10")}>
-            {busy === "bundle10" ? "…" : "10x · 800cr"}
+            {busy === "bundle10" ? "…" : `10x · ${status?.bundleCost ?? 950}cr`}
           </button>
         </div>
       </div>
       <div className="card p-5 text-center">
         <p className="text-3xl mb-1">📦</p>
         <p className="font-bold">mystery box</p>
-        <p className="text-white/40 text-xs mb-3">100cr · random 10–500cr + rare avatar drops</p>
+        <p className="text-white/40 text-xs mb-3">100cr · random 10–410cr + rare bonus credits (50–150cr)</p>
         <button className="btn-primary w-full text-sm disabled:opacity-50" disabled={busy !== null} onClick={openBox}>
           {busy === "box" ? "opening…" : "open — 100cr"}
         </button>
@@ -179,6 +186,7 @@ export default function ShopPage() {
   const [category, setCategory] = useState("credits")
   const [needBanner, setNeedBanner] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
+  const [packPricing, setPackPricing] = useState<{ firstBuy: boolean; packs: PricedPack[] } | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
   const [levelInfo, setLevelInfo] = useState<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] } | null>(null)
   useEffect(() => {
@@ -196,6 +204,9 @@ export default function ShopPage() {
     }).catch(() => {})
     apiGet<{ balance: number }>("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
     apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
+    apiGet<{ firstBuy: boolean; packs: PricedPack[] }>("/api/credits/purchase")
+      .then((d) => setPackPricing({ firstBuy: d.firstBuy, packs: d.packs }))
+      .catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
@@ -220,9 +231,25 @@ export default function ShopPage() {
   async function buyCredits(packId: string) {
     setLoading(packId)
     try {
-      const data = await apiPost<{ authorization_url?: string; message?: string }>("/api/credits/purchase", { packId })
+      const data = await apiPost<{
+        authorization_url?: string
+        message?: string
+        amountCharged?: number
+        firstBuy?: boolean
+        pack?: { credits?: number; ghs?: number }
+      }>("/api/credits/purchase", { packId })
       const url = data.authorization_url as string | undefined
       if (url) {
+        // Server-authoritative amount: confirm the EXACT Paystack charge
+        // (same pesewas value sent to Paystack) before opening checkout.
+        const pesewas = typeof data.amountCharged === "number" ? data.amountCharged : (data.pack?.ghs ?? 0) * 100
+        const ghs = pesewas / 100
+        const ghsLabel = `GHS ${ghs % 1 === 0 ? ghs : ghs.toFixed(2)}`
+        const creditsLabel = data.pack?.credits ? `${data.pack.credits.toLocaleString()} credits` : "your pack"
+        const ok = window.confirm(
+          `charge ${ghsLabel} for ${creditsLabel}${data.firstBuy ? " (first-pack 20% off applied)" : ""}? paystack will open with this exact amount.`
+        )
+        if (!ok) return
         await openPaystackCheckout(url)
       } else {
         alert(data.message || "purchased!")
@@ -306,28 +333,43 @@ export default function ShopPage() {
             <span className="text-sm">🎁 tip someone with credits</span>
             <span className="text-white/40 text-sm">→</span>
           </button>
-          <p className="text-white/40 text-xs text-center">first pack ever = 20% off, auto-applied at checkout 🎉</p>
+          {packPricing?.firstBuy && (
+            <p className="text-white/40 text-xs text-center">first pack ever = 20% off — prices below already show it 🎉</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            {getAllPacks().map((pack: CreditPack) => (
-              <div key={pack.id} className="card p-4 text-center relative">
-                {pack.bonusPct > 0 && (
-                  <span className="absolute top-1 right-1 text-xs bg-primary text-black px-2 py-0.5 rounded">
-                    +{pack.bonusPct}%
-                  </span>
-                )}
-                <p className="text-3xl font-bold text-primary mb-1">{pack.credits.toLocaleString()}</p>
-                <p className="text-xs text-white/40 mb-2">credits</p>
-                <p className="text-sm font-semibold mb-1">{pack.name}</p>
-                <p className="text-xs text-white/50 mb-3">{pack.description}</p>
-                <button
-                  className="btn-primary w-full text-sm disabled:opacity-50"
-                  disabled={loading === pack.id}
-                  onClick={() => buyCredits(pack.id)}
-                >
-                  {loading === pack.id ? "..." : `buy — ghs ${pack.ghs}`}
-                </button>
-              </div>
-            ))}
+            {getAllPacks().map((pack: CreditPack) => {
+              const priced = packPricing?.packs.find((p) => p.id === pack.id)
+              const chargeGhs = priced ? priced.effectiveGhs : pack.ghs
+              const discounted = chargeGhs < pack.ghs
+              return (
+                <div key={pack.id} className="card p-4 text-center relative">
+                  {pack.bonusPct > 0 && (
+                    <span className="absolute top-1 right-1 text-xs bg-primary text-black px-2 py-0.5 rounded">
+                      +{pack.bonusPct}%
+                    </span>
+                  )}
+                  <p className="text-3xl font-bold text-primary mb-1">{pack.credits.toLocaleString()}</p>
+                  <p className="text-xs text-white/40 mb-2">credits</p>
+                  <p className="text-sm font-semibold mb-1">{pack.name}</p>
+                  <p className="text-xs text-white/50 mb-3">{pack.description}</p>
+                  <button
+                    className="btn-primary w-full text-sm disabled:opacity-50"
+                    disabled={loading === pack.id}
+                    onClick={() => buyCredits(pack.id)}
+                  >
+                    {loading === pack.id ? (
+                      "..."
+                    ) : discounted ? (
+                      <>
+                        buy — <span className="line-through opacity-50">ghs {pack.ghs}</span> ghs {chargeGhs}
+                      </>
+                    ) : (
+                      `buy — ghs ${pack.ghs}`
+                    )}
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

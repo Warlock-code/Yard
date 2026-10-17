@@ -103,8 +103,8 @@ export function getNudgeCopy(
       }
     case "nudge_first_buy":
       return {
-        title: "first buy discount 🎁",
-        body: "you've never bought anything — first purchase is 20% off tonight only. Boost, avatar, freeze.",
+        title: "first pack discount 🎁",
+        body: "you've never bought credits — your first credit pack is 20% off. top up and spend anywhere in the yard.",
         href: "/shop?nudge=firstbuy",
         icon: "🎁",
       }
@@ -361,13 +361,14 @@ export async function evalUserNudges(userId: string) {
       // ignore
     }
 
-    // 5. First buy: account 2+ days old, never paid successfully
+    // 5. First buy: account 2+ days old, never bought a credit pack
+    // (must match the promo: the 20% discount is credit-pack only).
     const ageDays = (now - new Date(user.createdAt).getTime()) / 86_400_000
     if (ageDays >= 2 && created.length < 2) {
-      const paid = await prisma.transaction.count({
-        where: { userId: user.id, status: "success" },
+      const packsBought = await prisma.transaction.count({
+        where: { userId: user.id, kind: "credits", status: "success" },
       })
-      if (paid === 0) await trySend("nudge_first_buy")
+      if (packsBought === 0) await trySend("nudge_first_buy")
     }
 
     // 6. Custom name: random ghost_xxxx name + has followers
