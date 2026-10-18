@@ -64,6 +64,8 @@ type Post = {
   heating?: boolean
   freshLove?: boolean
   cotd?: boolean
+  isAd?: boolean
+  adLink?: string | null
   isFollowing: boolean
   seen?: boolean
   createdAt: string
@@ -648,6 +650,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     }
   }
 
+  // Ads are fully clickable: a tap anywhere on the sponsored card opens the
+  // target link in a new tab. 💬 still stops propagation and opens comments,
+  // so ads stay commentable like any other post.
+  function handleCardClick(post: Post) {
+    if (post.isAd && post.adLink) {
+      window.open(post.adLink, "_blank", "noopener,noreferrer")
+      return
+    }
+    toggleExpand(post.id)
+  }
+
   async function handleInlineSubmit(postId: string) {
     const text = inlineDraft[postId]?.trim().toLowerCase()
     if (!text) return
@@ -1007,14 +1020,14 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
               <motion.article
                 key={post.id}
                 layout
-                onClick={() => toggleExpand(post.id)}
+                onClick={() => handleCardClick(post)}
                 role="button"
                 tabIndex={0}
                 aria-expanded={expanded}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault()
-                    toggleExpand(post.id)
+                    handleCardClick(post)
                   }
                 }}
                 data-post-id={post.id}
@@ -1039,6 +1052,7 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                       >
                         {post.user.ghostId}
                       </Link>
+                      {post.isAd && <span className="badge badge-promoted" title="promoted post">Promoted</span>}
                       {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
                       {post.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
                       <ChampionTrophies trophies={post.user.championTrophies} />
@@ -1075,7 +1089,11 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                         {images.map((img, idx) => (
                           <div
                             key={idx}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Sponsored images are part of the ad card — tap opens the link.
+                              if (post.isAd && post.adLink) window.open(post.adLink, "_blank", "noopener,noreferrer")
+                            }}
                             className="relative aspect-video rounded-xl overflow-hidden bg-white/5 border border-white/10"
                             style={{
                               gridColumn: images.length === 3 && idx === 0 ? 'span 2' : images.length === 4 && idx < 2 ? undefined : undefined,
@@ -1096,7 +1114,9 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
                     )}
 
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70 pt-2 [&_button]:inline-flex [&_button]:items-center [&_button]:shrink-0 [&_button]:focus-visible:outline-[#baff39]">
-                      {isOwn ? (
+                      {/* Ads hide the vote button (no wasted credits) — the
+                          count still shows, like on your own posts. */}
+                      {isOwn || post.isAd ? (
                         <span onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
                       ) : (
                         <button

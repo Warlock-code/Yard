@@ -283,6 +283,11 @@ h1, h2, h3 {
   color: var(--accent);
 }
 
+.badge-promoted {
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+}
+
 .badge-heating {
   background: rgba(251, 146, 60, 0.14);
   color: #fdba74;

@@ -26,7 +26,7 @@ type Report = {
 type AdminUser = { id: string; ghostId: string; email: string; campus: string; tier: string }
 type AdminPost = { id: string; text: string | null; user: { ghostId: string } }
 
-type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Battles" | "Announce" | "Drafts" | "Credits" | "Contest"
+type SectionKey = "Overview" | "Insights" | "Users" | "Posts" | "Reports" | "Battles" | "Announce" | "Ads" | "Drafts" | "Credits" | "Contest"
 
 type Announcement = { id: string; text: string | null; campus: string; createdAt: string; user: { ghostId: string } }
 
@@ -40,6 +40,7 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
   { key: "Reports", label: "reports", icon: "⚑", desc: "flagged posts", group: "moderation" },
   { key: "Battles", label: "battles", icon: "⚔", desc: "create prompts", group: "moderation" },
   { key: "Announce", label: "announce", icon: "📢", desc: "pin posts & notify all", group: "moderation" },
+  { key: "Ads", label: "ads", icon: "📣", desc: "manual sponsored posts", group: "moderation" },
   { key: "Drafts", label: "drafts", icon: "✎", desc: "review ai posts", group: "moderation" },
   { key: "Credits", label: "credits", icon: "🔥", desc: "treasury & balances", group: "finance" },
   { key: "Contest", label: "contest", icon: "🏆", desc: "referral contest", group: "moderation" },
@@ -215,6 +216,11 @@ export default function AdminPage() {
   const [annText, setAnnText] = useState("")
   const [annCampus, setAnnCampus] = useState("ALL")
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  // Manual native ads (phase 1): form fields + last success message.
+  const [adText, setAdText] = useState("")
+  const [adImageUrl, setAdImageUrl] = useState("")
+  const [adLink, setAdLink] = useState("")
+  const [adStatus, setAdStatus] = useState("")
   // Referral contest console: leaderboard window + blast copy.
   const [contestDays, setContestDays] = useState(7)
   const [contestLeaders, setContestLeaders] = useState<ContestLeader[]>([])
@@ -546,6 +552,23 @@ export default function AdminPage() {
       await adminFetch(`/api/admin/announcements/${id}`, { method: "DELETE" })
       setAnnouncements((prev) => prev.filter((a) => a.id !== id))
     } catch (e: unknown) { alert(errMsg(e, "failed to remove announcement.")) }
+    finally { setBusyId(null) }
+  }
+
+  async function handleCreateAd() {
+    if (!adText.trim() && !adImageUrl.trim()) { alert("ad needs text or an image"); return }
+    if (adLink.trim() && !/^https?:\/\//i.test(adLink.trim())) { alert("target link must start with http:// or https://"); return }
+    if (busyId) return
+    setBusyId("ad")
+    setAdStatus("")
+    try {
+      await adminFetch("/api/admin/ads", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: adText, imageUrl: adImageUrl, adLink }),
+      })
+      setAdText(""); setAdImageUrl(""); setAdLink("")
+      setAdStatus("ad is live — it shows in the feed after every 5 posts.")
+    } catch (e: unknown) { alert(errMsg(e, "failed to publish ad.")) }
     finally { setBusyId(null) }
   }
 
@@ -1594,6 +1617,31 @@ export default function AdminPage() {
                       <input value={bcHref} onChange={(e) => setBcHref(e.target.value)} placeholder="link — /download" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <button disabled={bcSending} onClick={handleBroadcast} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{bcSending ? "sending…" : "notify all users"}</button>
                       {bcStatus && <p className="text-xs text-white/50">{bcStatus}</p>}
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* ============ ADS ============ */}
+              {section === "Ads" && (
+                <div className="grid lg:grid-cols-5 gap-4">
+                  <Card className="lg:col-span-3">
+                    <CardHeader title="create sponsored post" sub="ghost author: Yard Sponsor · injected into the feed after every 5 posts" />
+                    <div className="p-5 space-y-3">
+                      <textarea value={adText} onChange={(e) => setAdText(e.target.value)} placeholder="ad text — e.g. 20% off jollof at mama's kitchen this week only" rows={3} maxLength={2000} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={adImageUrl} onChange={(e) => setAdImageUrl(e.target.value)} placeholder="image url — https://… (optional)" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <input value={adLink} onChange={(e) => setAdLink(e.target.value)} placeholder="target link — https://… (card opens this in a new tab)" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <button disabled={busyId === "ad"} onClick={handleCreateAd} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "ad" ? "publishing…" : "publish ad"}</button>
+                      {adStatus && <p className="text-xs text-[#baff39]">✓ {adStatus}</p>}
+                    </div>
+                  </Card>
+                  <Card className="lg:col-span-2">
+                    <CardHeader title="how ads work" sub="phase 1 — manual placements only" />
+                    <div className="p-5 space-y-2 text-xs text-white/45 leading-relaxed">
+                      <p>· shows in every feed tab after every 5 normal posts, rotating evenly when you have several ads.</p>
+                      <p>· rendered like a real post — promoted badge, comments open, no tip/vote buttons.</p>
+                      <p>· tapping the card opens the target link in a new tab.</p>
+                      <p>· no self-serve portal yet — brands come through you.</p>
                     </div>
                   </Card>
                 </div>

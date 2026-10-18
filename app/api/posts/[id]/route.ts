@@ -29,6 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: true,
       boosted: true,
       boostedUntil: true,
+      isAd: true,
+      adLink: true,
       user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } },
     },
   })

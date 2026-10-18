@@ -34,6 +34,8 @@ type Post = {
   createdAt: string
   boosted?: boolean
   isOwn?: boolean
+  isAd?: boolean
+  adLink?: string | null
   user: { id?: string; ghostId: string; avatarEmoji: string; tier: string; championTrophies?: number }
 }
 
@@ -521,6 +523,7 @@ export default function PostDetailClient({ postId }: { postId: string }) {
               <Link href={`/u/${encodeURIComponent(post.user.ghostId)}`} aria-label={`view ${post.user.ghostId}'s profile`} className="font-semibold text-sm focus-visible:outline-[#baff39]">
                 {post.user.ghostId}
               </Link>
+              {post.isAd && <span className="badge badge-promoted" title="promoted post">Promoted</span>}
               {post.user.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
             {post.user.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
               <ChampionTrophies trophies={post.user.championTrophies} />
@@ -544,12 +547,23 @@ export default function PostDetailClient({ postId }: { postId: string }) {
         )}
 
         <div className="flex flex-wrap items-center gap-5 text-sm border-t border-white/10 mt-2 pt-3">
-          <button onClick={handleVote} aria-label={`add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
+          {/* Ads hide vote + tip (no credits wasted on sponsors); the heat
+              count still shows so the card looks like a real post. */}
+          {post.isAd ? (
+            <span aria-label={`${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200">🔥 {post.yeahs}</span>
+          ) : (
+            <button onClick={handleVote} aria-label={`add heat, ${post.yeahs} heat`} className="inline-flex items-center gap-1 text-orange-200 hover:text-orange-100 focus-visible:outline-[#baff39]">🔥 {post.yeahs}</button>
+          )}
           <span aria-label={`${post.commentsCount} comments`} className="inline-flex items-center gap-1 text-sky-200">💬 {post.commentsCount}</span>
           {post.isOwn && !post.boosted && (
             <button onClick={handleBoost} className="inline-flex items-center gap-1 text-[#baff39] hover:text-white focus-visible:outline-[#baff39]">🚀 boost</button>
           )}
-          {!post.isOwn && <TipButton postId={post.id} />}
+          {!post.isOwn && !post.isAd && <TipButton postId={post.id} />}
+          {post.isAd && post.adLink && (
+            <a href={post.adLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-[#facc15] hover:text-white focus-visible:outline-[#baff39]">
+              visit sponsor →
+            </a>
+          )}
           <ShareButton postId={post.id} postText={post.text || undefined} />
           <ReportButton postId={post.id} />
         </div>

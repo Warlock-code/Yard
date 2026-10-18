@@ -15,6 +15,8 @@ import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
 const FEED_PAGE_SIZE = 20
+// Manual native ads: one sponsored slot after every N normal posts.
+const AD_SLOT_EVERY = 5
 const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
 function weekStartUTC(now = new Date()) {
@@ -390,17 +392,20 @@ export async function GET(req: NextRequest) {
   // Admin announcements live outside the ranked feed: they are prepended
   // pinned to the top below, so keep them out of normal ranking/pagination.
   const notAnnouncement: Prisma.PostWhereInput = { type: { not: "announcement" } }
+  // Manual ads also live outside ranking: they are woven into the page below
+  // (one every AD_SLOT_EVERY normal posts), never ranked as candidates.
+  const notAd: Prisma.PostWhereInput = { isAd: false }
   let where: Prisma.PostWhereInput
   if (boostedScopeWhere) {
     const normalBranch: Prisma.PostWhereInput = {
-      AND: [readableWhere, scopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])],
+      AND: [readableWhere, scopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])],
     }
     const boostedBranch: Prisma.PostWhereInput = {
-      AND: [boostedScopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])],
+      AND: [boostedScopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])],
     }
     where = { OR: [normalBranch, boostedBranch] }
   } else {
-    where = { AND: [readableWhere, scopeWhere, notAnnouncement, ...(typeWhere ? [typeWhere] : [])] }
+    where = { AND: [readableWhere, scopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])] }
   }
 
   const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
@@ -519,6 +524,35 @@ export async function GET(req: NextRequest) {
     ? page[page.length - 1]?.id ?? null
     : null
 
+  // Manual native ads ("Yard Sponsor" placements): fetched separately and
+  // woven into the response page — 1 ad after every AD_SLOT_EVERY normal
+  // posts, rotating round-robin so multiple ads spread out evenly instead of
+  // clumping. Slot positions are global (startIndex-based) so every page
+  // continues the rotation and paging never repeats an ad back-to-back. The
+  // ads are added after pagination so cursors still point at normal posts.
+  // Best-effort: a pre-migration database simply yields no ads.
+  let pageWithAds: typeof page = page
+  try {
+    const ads = await prisma.post.findMany({
+      where: { isAd: true, archived: false },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 20,
+      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
+    })
+    if (ads.length > 0) {
+      const woven: typeof page = []
+      let slot = Math.floor(startIndex / AD_SLOT_EVERY)
+      page.forEach((post, i) => {
+        woven.push(post)
+        if ((i + 1) % AD_SLOT_EVERY === 0) {
+          woven.push(ads[slot % ads.length])
+          slot += 1
+        }
+      })
+      pageWithAds = woven
+    }
+  } catch {}
+
   // Pinned admin announcements: global ("ALL") or this campus, newest first.
   // Only on the first page, never in following mode (that feed is people only).
   // Guests only ever see global announcements — campus ones need a campus.
@@ -543,7 +577,7 @@ export async function GET(req: NextRequest) {
 
   const fullPage = [
     ...announcements.map((post) => ({ ...post, isFollowing: false, seen: false })),
-    ...page.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId), seen: viewedPostIds.has(post.id) })),
+    ...pageWithAds.map((post) => ({ ...post, isFollowing: followingIds.has(post.userId), seen: viewedPostIds.has(post.id) })),
   ]
 
   // Pinned campus spotlight: paid 1hr pins, newest pin first, max 3.

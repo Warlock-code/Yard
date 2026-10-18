@@ -157,6 +157,12 @@ model Post {
   cotdDate     DateTime?
   isPrime      Boolean   @default(false)
 
+  // Manual native ads (Phase 1): admin-authored sponsored posts injected
+  // into the feed. isAd marks them out of normal ranking; adLink is the
+  // target opened when the card is tapped.
+  isAd   Boolean @default(false)
+  adLink String?
+
   createdAt DateTime @default(now())
 
   comments Comment[]
