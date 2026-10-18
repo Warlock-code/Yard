@@ -20,8 +20,6 @@ const CATEGORIES = [
   { key: "themes", label: "themes" },
 ]
 
-type PricedPack = CreditPack & { chargePesewas: number; effectiveGhs: number }
-
 function ThemesPicker({
   tier,
   ownedCosmetics,
@@ -186,7 +184,6 @@ export default function ShopPage() {
   const [category, setCategory] = useState("credits")
   const [needBanner, setNeedBanner] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
-  const [packPricing, setPackPricing] = useState<{ firstBuy: boolean; packs: PricedPack[] } | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
   const [levelInfo, setLevelInfo] = useState<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] } | null>(null)
   useEffect(() => {
@@ -204,9 +201,6 @@ export default function ShopPage() {
     }).catch(() => {})
     apiGet<{ balance: number }>("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
     apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
-    apiGet<{ firstBuy: boolean; packs: PricedPack[] }>("/api/credits/purchase")
-      .then((d) => setPackPricing({ firstBuy: d.firstBuy, packs: d.packs }))
-      .catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
@@ -235,7 +229,6 @@ export default function ShopPage() {
         authorization_url?: string
         message?: string
         amountCharged?: number
-        firstBuy?: boolean
         pack?: { credits?: number; ghs?: number }
       }>("/api/credits/purchase", { packId })
       const url = data.authorization_url as string | undefined
@@ -247,7 +240,7 @@ export default function ShopPage() {
         const ghsLabel = `GHS ${ghs % 1 === 0 ? ghs : ghs.toFixed(2)}`
         const creditsLabel = data.pack?.credits ? `${data.pack.credits.toLocaleString()} credits` : "your pack"
         const ok = window.confirm(
-          `charge ${ghsLabel} for ${creditsLabel}${data.firstBuy ? " (first-pack 20% off applied)" : ""}? paystack will open with this exact amount.`
+          `charge ${ghsLabel} for ${creditsLabel}? paystack will open with this exact amount.`
         )
         if (!ok) return
         await openPaystackCheckout(url)
@@ -333,14 +326,8 @@ export default function ShopPage() {
             <span className="text-sm">🎁 tip someone with credits</span>
             <span className="text-white/40 text-sm">→</span>
           </button>
-          {packPricing?.firstBuy && (
-            <p className="text-white/40 text-xs text-center">first pack ever = 20% off — prices below already show it 🎉</p>
-          )}
           <div className="grid grid-cols-2 gap-3">
             {getAllPacks().map((pack: CreditPack) => {
-              const priced = packPricing?.packs.find((p) => p.id === pack.id)
-              const chargeGhs = priced ? priced.effectiveGhs : pack.ghs
-              const discounted = chargeGhs < pack.ghs
               return (
                 <div key={pack.id} className="card p-4 text-center relative">
                   {pack.bonusPct > 0 && (
@@ -357,15 +344,7 @@ export default function ShopPage() {
                     disabled={loading === pack.id}
                     onClick={() => buyCredits(pack.id)}
                   >
-                    {loading === pack.id ? (
-                      "..."
-                    ) : discounted ? (
-                      <>
-                        buy — <span className="line-through opacity-50">ghs {pack.ghs}</span> ghs {chargeGhs}
-                      </>
-                    ) : (
-                      `buy — ghs ${pack.ghs}`
-                    )}
+                    {loading === pack.id ? "..." : `buy — ghs ${pack.ghs}`}
                   </button>
                 </div>
               )

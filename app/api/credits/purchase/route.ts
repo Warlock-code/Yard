@@ -2,50 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getAllPacks, getPackById } from "@/lib/credits"
-import { packChargePesewas, CREDIT_CONFIG } from "@/lib/credit-config"
 import { initializePaystack } from "@/lib/paystack"
 import { reportServerError } from "@/lib/errorAlerts"
 
-// First-buy promo: 20% off the first-ever credit pack. The SAME helper
-// (packChargePesewas) drives GET display, POST charge, and the stored
-// transaction amount, so display === charge by construction.
-async function isFirstCreditPackPurchase(userId: string): Promise<boolean> {
-  try {
-    const prior = await prisma.transaction.findFirst({
-      where: { userId, kind: "credits", status: "success" },
-      select: { id: true },
-    })
-    return !prior
-  } catch {
-    // Fail closed (no discount) — never charge less than displayed.
-    return false
-  }
-}
-
-function pricedPacks(firstBuy: boolean) {
-  return getAllPacks().map((pack) => {
-    const chargePesewas = packChargePesewas(pack, firstBuy)
-    return {
-      ...pack,
-      listPesewas: pack.ghs * 100,
-      chargePesewas,
-      effectiveGhs: chargePesewas / 100,
-    }
-  })
-}
-
-// Per-user pricing so the storefront renders the exact amount Paystack will
-// charge. Unauthenticated callers get 401 — the shop fetches this per user.
+// Credit packs are charged at the exact list price: pack.ghs * 100 pesewas.
+// No promos, no discounts — display and charge can never diverge.
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  const firstBuy = await isFirstCreditPackPurchase(user.id)
-  return NextResponse.json({
-    firstBuy,
-    discountPct: CREDIT_CONFIG.FIRST_BUY_DISCOUNT_PCT,
-    packs: pricedPacks(firstBuy),
-  })
+  return NextResponse.json({ packs: getAllPacks() })
 }
 
 export async function POST(req: NextRequest) {
@@ -65,9 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const firstBuy = await isFirstCreditPackPurchase(user.id)
-    const listPrice = pack.ghs * 100
-    const amountInPesewas = packChargePesewas(pack, firstBuy)
+    const amountInPesewas = pack.ghs * 100
     const reference = `credits_${user.id}_${packId}_${Date.now()}`
 
     await prisma.transaction.create({
@@ -76,7 +40,7 @@ export async function POST(req: NextRequest) {
         kind: "credits",
         reference,
         amount: amountInPesewas,
-        metadata: { packId, credits: pack.credits, ghsAmount: pack.ghs, bonusPct: pack.bonusPct, firstBuy, listPrice },
+        metadata: { packId, credits: pack.credits, ghsAmount: pack.ghs, bonusPct: pack.bonusPct },
       },
     })
 
@@ -86,7 +50,6 @@ export async function POST(req: NextRequest) {
       authorization_url: payment.data.authorization_url,
       reference: payment.data.reference,
       pack,
-      firstBuy,
       amountCharged: amountInPesewas,
     })
   } catch (err) {

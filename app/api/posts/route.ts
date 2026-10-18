@@ -372,8 +372,20 @@ export async function GET(req: NextRequest) {
     // C: boosted bypasses visibility/programKey but stays same-campus for privacy
     boostedScopeWhere = { campus: viewerCampus, ...boostedActiveWhere }
   } else if (mode === "program") {
+    // Class feed: one class = same campus + same program + same admission
+    // year. programWhereBase already scopes programKey to the viewer's
+    // campus+program+cohort key (pre-cohort legacy keys included), but the
+    // admission year is enforced explicitly from the authenticated user as
+    // a second, independent gate so another cohort can never leak in — not
+    // even through a malformed or legacy programKey. Viewers who haven't
+    // picked a year yet keep the whole program family until they do.
+    const viewerCohort = user?.cohortYear ?? null
     scopeWhere = {
-      AND: [{ campus: viewerCampus, visibility: "program" }, programWhereBase],
+      AND: [
+        { campus: viewerCampus, visibility: "program" },
+        programWhereBase,
+        ...(viewerCohort !== null ? [{ cohortYear: viewerCohort }] : []),
+      ],
     }
     boostedScopeWhere = null // keep program niche
   } else if (mode === "following") {

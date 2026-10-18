@@ -13,10 +13,6 @@ export const CREDIT_CONFIG = {
     { id: "whale", name: "Whale", ghs: 100, credits: 14_000, bonusPct: 40, description: "Max power", isActive: true, sortOrder: 5 },
   ] as const,
 
-  // First-buy promo: 20% off the first-ever credit pack. Display and charge
-  // must be computed from packChargePesewas() so they can never diverge.
-  FIRST_BUY_DISCOUNT_PCT: 20,
-
   EARN: {
     POST_VOTE: 1,
     COMMENT_VOTE: 1,
@@ -106,14 +102,6 @@ export const CREDIT_CONFIG = {
     PRIME: { earn: 2.0, tipReceived: 2.0, battle: 2.0 },
   },
 } as const
-
-/** Actual Paystack charge (pesewas) for a pack. Single source of truth for
- *  the first-buy promo — the storefront displays effectiveGhs derived from
- *  this exact value and the checkout confirm shows the returned amount. */
-export function packChargePesewas(pack: { ghs: number }, firstBuy: boolean): number {
-  const listPrice = pack.ghs * 100
-  return firstBuy ? Math.round(listPrice * (1 - CREDIT_CONFIG.FIRST_BUY_DISCOUNT_PCT / 100)) : listPrice
-}
 
 // --- Limited-time drops ---
 // Weekly 48h FOMO drop: one avatar/theme at base price, 2x after expiry.

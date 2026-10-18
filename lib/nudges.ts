@@ -103,10 +103,10 @@ export function getNudgeCopy(
       }
     case "nudge_first_buy":
       return {
-        title: "first pack discount 🎁",
-        body: "you've never bought credits — your first credit pack is 20% off. top up and spend anywhere in the yard.",
+        title: "need credits? 💳",
+        body: "you've never bought credits — top up and spend anywhere in the yard: tips, boosts, battles.",
         href: "/shop?nudge=firstbuy",
-        icon: "🎁",
+        icon: "💳",
       }
     case "nudge_storage":
       return {
@@ -361,8 +361,7 @@ export async function evalUserNudges(userId: string) {
       // ignore
     }
 
-    // 5. First buy: account 2+ days old, never bought a credit pack
-    // (must match the promo: the 20% discount is credit-pack only).
+    // 5. First buy: account 2+ days old, never bought a credit pack.
     const ageDays = (now - new Date(user.createdAt).getTime()) / 86_400_000
     if (ageDays >= 2 && created.length < 2) {
       const packsBought = await prisma.transaction.count({
