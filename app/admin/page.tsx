@@ -155,6 +155,7 @@ export default function AdminPage() {
   retentionD7: {day:string;rate:number}[];
   funnel: {hits:number;checkoutStarted:number;paid:number};
   conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
+  arpuPesewas?:number;
   arppuPesewas:number;
   lifetimeArppuPesewas?:number;
   revenuePesewas:number;
@@ -369,6 +370,7 @@ export default function AdminPage() {
           retentionD7: {day:string;rate:number}[];
           funnel: {hits:number;checkoutStarted:number;paid:number};
           conversion: {userCount:number;plusCount:number;plusRate:number;paidRate:number};
+          arpuPesewas?:number;
           arppuPesewas:number;
           lifetimeArppuPesewas?:number;
           revenuePesewas:number;
@@ -1084,6 +1086,7 @@ export default function AdminPage() {
                             <StatCard label="paywall-hit %" value={`${paywallPct.toFixed(1)}%`} sub={`${hits.toLocaleString()} hits / dau`} icon="◊" accent="#38bdf8" />
                             <StatCard label="plus conv %" value={`${plusP.toFixed(1)}%`} sub={`${(metrics.conversion?.plusCount || 0).toLocaleString()} plus`} icon="★" accent="#38bdf8" />
                             <StatCard label="paying conv %" value={`${payP.toFixed(1)}%`} sub={`${(metrics.everPayersCount ?? 0).toLocaleString()} ever paid · trial excluded`} icon="💳" accent="#34d399" />
+                            <StatCard label="arpu" value={ghs(metrics.arpuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev / ${(metrics.conversion?.userCount ?? 0).toLocaleString()} users`} icon="👥" accent="#38bdf8" />
                             <StatCard label="arppu" value={ghs(metrics.arppuPesewas || 0)} sub={`${ghs(metrics.revenuePesewas || 0)} rev / ${(metrics.windowPayersCount ?? 0).toLocaleString()} payers`} icon="💰" accent="#baff39" />
                             <StatCard label="emit vs sink 7d" value={es.ratio === 0 ? "—" : `${es.ratio.toFixed(2)}×`} sub={`${es.emitted.toLocaleString()}cr in / ${es.spent.toLocaleString()}cr out`} icon="⚖️" accent={esAccent} />
                             <StatCard label="credit spend" value="see below" sub="in-app only · no cash value" icon="🔥" accent="#34d399" />

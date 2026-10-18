@@ -6,7 +6,7 @@ import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS, getAvatarPriceForTier, getRarityColor, isAvatarBuyable, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { THEMES, isThemeBuyable, isThemeUnlocked, type ThemeId } from "@/lib/themes"
-import { getAllPacks } from "@/lib/credits"
+import { getAllPacks } from "@/lib/credit-config"
 import type { CreditPack } from "@/lib/credit-config"
 
 const CATEGORIES = [

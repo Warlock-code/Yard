@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { CREDIT_CONFIG } from "@/lib/credit-config"
 import { Prisma } from "@prisma/client"
 
-export { CREDIT_CONFIG } from "@/lib/credit-config"
+export { CREDIT_CONFIG, getAllPacks } from "@/lib/credit-config"
 export type { CreditConfig } from "@/lib/credit-config"
 
 // Credits are a virtual in-app currency for entertainment only — no monetary
@@ -190,10 +190,6 @@ export async function getTreasuryStats() {
 
 export function getPackById(packId: string) {
   return CREDIT_CONFIG.PACKS.find((p) => p.id === packId)
-}
-
-export function getAllPacks() {
-  return CREDIT_CONFIG.PACKS.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 // Tier-aware earn helper — single choke point for turning ON credit earns.

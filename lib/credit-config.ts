@@ -161,3 +161,9 @@ export type CreditConfig = typeof CREDIT_CONFIG
 export type CreditPack = typeof CREDIT_CONFIG.PACKS[number]
 export type EarnType = keyof typeof CREDIT_CONFIG.EARN
 export type SpendType = keyof typeof CREDIT_CONFIG.SPEND
+
+// Pure helper — safe to import from client components (no server-only deps).
+// Server callsites may also re-export this via @/lib/credits.
+export function getAllPacks() {
+  return CREDIT_CONFIG.PACKS.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder)
+}

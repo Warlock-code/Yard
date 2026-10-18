@@ -210,6 +210,8 @@ export async function GET(req: NextRequest) {
   const revenuePesewas = revenueAgg._sum.amount ?? 0
   // payouts removed — credits are in-app only with no monetary value.
   const paidOutPesewas = 0
+  // ARPU = average revenue per user (window revenue / all users).
+  const arpuPesewas = userCount > 0 ? revenuePesewas / userCount : 0
   // ARPPU = average revenue per paying user (window revenue / window payers).
   const arppuPesewas = payers.length > 0 ? revenuePesewas / payers.length : 0
   const lifetimeArppuPesewas = everPayers.length > 0 ? everRevenuePesewas / everPayers.length : 0
@@ -352,6 +354,7 @@ export async function GET(req: NextRequest) {
     payConversionByDay,
     retentionD1: signupDays.map((day) => ({ day, rate: retentionD1.get(day) ?? 0 })),
     retentionD7: signupDays.map((day) => ({ day, rate: retentionD7.get(day) ?? 0 })),
+    arpuPesewas,
     arppuPesewas,
     lifetimeArppuPesewas,
     revenuePesewas,
