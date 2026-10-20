@@ -38,11 +38,9 @@ export async function subscribeForPush(opts?: { requestPermission?: boolean }): 
     if (isNativePlatform()) return false
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false
     if (!("Notification" in window)) return false
-    if (!VAPID_PUBLIC_KEY) {
-      console.log("[push] missing VAPID public key, skipping subscribe")
-      return false
-    }
 
+    // The settings button owns the gesture, so ask even if push config is
+    // missing — then fail gracefully below instead of leaving a dead button.
     if (opts?.requestPermission && Notification.permission === "default") {
       try {
         await Notification.requestPermission()
@@ -53,7 +51,15 @@ export async function subscribeForPush(opts?: { requestPermission?: boolean }): 
     }
 
     if (Notification.permission !== "granted") return false
+    if (!VAPID_PUBLIC_KEY) {
+      console.log("[push] missing VAPID public key, skipping subscribe")
+      return false
+    }
 
+    // Register explicitly before waiting for `ready`: on a first visit the
+    // deferred layout registration may not have run yet, and `ready` would
+    // otherwise hang forever. Registering twice is a no-op in browsers.
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" })
     const registration = await navigator.serviceWorker.ready
     const existing = await registration.pushManager.getSubscription()
     const subscription =

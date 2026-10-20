@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 300
 
 const TYPE = "admin_broadcast"
+const ALLOWED_TYPES = new Set(["admin_broadcast", "invite_contest"])
 const DEFAULT_LIMIT = 100
 const MAX_LIMIT = 200
 const PUSH_CONCURRENCY = 10
@@ -29,9 +30,10 @@ async function pool<T>(items: T[], size: number, fn: (item: T) => Promise<void>)
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
-  const { title: rawTitle, body: rawBody, href: rawHref, cursor, limit: rawLimit } = await req.json()
+  const { title: rawTitle, body: rawBody, href: rawHref, cursor, limit: rawLimit, type: rawType } = await req.json()
   const title = typeof rawTitle === "string" ? rawTitle.trim() : ""
   const body = typeof rawBody === "string" ? rawBody.trim() : ""
+  const type = typeof rawType === "string" && ALLOWED_TYPES.has(rawType) ? rawType : TYPE
   if (!title || title.length > 80) {
     return NextResponse.json({ error: "title is required (80 chars max)." }, { status: 400 })
   }
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
 
   const ids = users.map((u) => u.id)
   const already = await prisma.notification.findMany({
-    where: { userId: { in: ids }, type: TYPE, title },
+    where: { userId: { in: ids }, type, title },
     select: { userId: true },
   })
   const notified = new Set(already.map((n) => n.userId))
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
 
   if (pending.length > 0) {
     await prisma.notification.createMany({
-      data: pending.map((u) => ({ userId: u.id, type: TYPE, title, body, href })),
+      data: pending.map((u) => ({ userId: u.id, type, title, body, href })),
     })
   }
 

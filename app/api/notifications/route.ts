@@ -24,6 +24,7 @@ const iconByType: Record<string, string> = {
   nudge_first_buy: "\u{1F381}",
   nudge_storage: "\u{1F4BE}",
   nudge_comeback: "\u{1F47B}",
+  invite_contest: "\u{1F3C6}",
 }
 
 const defaultIcon = "\u{1F514}"

@@ -15,8 +15,13 @@ import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
 const POST_COOLDOWN_SECONDS = 30
 const MAX_POSTS_PER_HOUR = 10
 const FEED_PAGE_SIZE = 20
-// Manual native ads: one sponsored slot after every N normal posts.
-const AD_SLOT_EVERY = 5
+// Manual native ads: one sponsored slot after every N normal posts, based on
+// the viewer's effective tier. Lower tiers see sponsor placements sooner.
+const AD_INTERVAL_BY_TIER: Record<"FREE" | "PLUS" | "PRIME", number> = {
+  FREE: 3,
+  PLUS: 8,
+  PRIME: 50,
+}
 const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
 function weekStartUTC(now = new Date()) {
@@ -327,6 +332,7 @@ export async function GET(req: NextRequest) {
   const guest = !user
   const viewerCampus = user?.campus ?? ""
   const viewerProgramKey = user?.programKey ?? null
+  const effectiveTier = user ? getEffectiveTier(user) : "FREE"
 
   const { searchParams } = new URL(req.url)
   const requestedMode = searchParams.get("mode") || "campus"
@@ -337,12 +343,13 @@ export async function GET(req: NextRequest) {
   // (keeps cursor pagination consistent); new seed = ties rotate.
   const tieSeed = searchParams.get("seed") || undefined
 
-  const [follows, readableWhere, programWhereBase, viewedPosts] = !user
+  const [follows, readableWhere, programWhereBase, viewedPosts, reportedPosts] = !user
     ? [
         [] as { followingId: string }[],
         { archived: false, visibility: "school" } as Prisma.PostWhereInput,
         { id: { in: [] } } as Prisma.PostWhereInput,
         [] as { postId: string }[],
+        [] as { postId: string | null }[],
       ]
     : await Promise.all([
     prisma.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } }),
@@ -354,8 +361,22 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 1000,
     }),
+    // Anything this viewer reported stays hidden even if a moderator later
+    // dismisses the report and restores the post. Applies to ads too.
+    prisma.report.findMany({
+      where: { reporterId: user.id, postId: { not: null } },
+      select: { postId: true },
+    }),
   ])
   const followingIds = new Set(follows.map((follow) => follow.followingId))
+  const reportedPostIds = new Set(
+    reportedPosts
+      .map((report) => report.postId)
+      .filter((postId): postId is string => typeof postId === "string")
+  )
+  const notReported: Prisma.PostWhereInput = reportedPostIds.size > 0
+    ? { id: { notIn: [...reportedPostIds] } }
+    : {}
   const now = new Date()
   const boostedActiveWhere: Prisma.PostWhereInput = { boostedUntil: { gt: now }, archived: false }
   let scopeWhere: Prisma.PostWhereInput
@@ -405,19 +426,19 @@ export async function GET(req: NextRequest) {
   // pinned to the top below, so keep them out of normal ranking/pagination.
   const notAnnouncement: Prisma.PostWhereInput = { type: { not: "announcement" } }
   // Manual ads also live outside ranking: they are woven into the page below
-  // (one every AD_SLOT_EVERY normal posts), never ranked as candidates.
+  // (tier-based interval), never ranked as candidates.
   const notAd: Prisma.PostWhereInput = { isAd: false }
   let where: Prisma.PostWhereInput
   if (boostedScopeWhere) {
     const normalBranch: Prisma.PostWhereInput = {
-      AND: [readableWhere, scopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])],
+      AND: [readableWhere, scopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])],
     }
     const boostedBranch: Prisma.PostWhereInput = {
-      AND: [boostedScopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])],
+      AND: [boostedScopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])],
     }
     where = { OR: [normalBranch, boostedBranch] }
   } else {
-    where = { AND: [readableWhere, scopeWhere, notAnnouncement, notAd, ...(typeWhere ? [typeWhere] : [])] }
+    where = { AND: [readableWhere, scopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])] }
   }
 
   const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
@@ -537,33 +558,41 @@ export async function GET(req: NextRequest) {
     : null
 
   // Manual native ads ("Yard Sponsor" placements): fetched separately and
-  // woven into the response page — 1 ad after every AD_SLOT_EVERY normal
-  // posts, rotating round-robin so multiple ads spread out evenly instead of
-  // clumping. Slot positions are global (startIndex-based) so every page
-  // continues the rotation and paging never repeats an ad back-to-back. The
-  // ads are added after pagination so cursors still point at normal posts.
-  // Best-effort: a pre-migration database simply yields no ads.
+  // woven into the FIRST page only — 1 ad after every N normal posts, where N
+  // depends on the viewer's effective tier. Cursor pages never inject ads, so
+  // scrolling can't duplicate the same sponsors over and over. Ads are added
+  // after pagination so cursors still point at normal posts. Expired ads are
+  // excluded, as are ads this viewer reported. Best-effort: a pre-migration
+  // database simply yields no ads.
   let pageWithAds: typeof page = page
-  try {
-    const ads = await prisma.post.findMany({
-      where: { isAd: true, archived: false },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 20,
-      include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
-    })
-    if (ads.length > 0) {
-      const woven: typeof page = []
-      let slot = Math.floor(startIndex / AD_SLOT_EVERY)
-      page.forEach((post, i) => {
-        woven.push(post)
-        if ((i + 1) % AD_SLOT_EVERY === 0) {
-          woven.push(ads[slot % ads.length])
-          slot += 1
-        }
+  if (!cursor) {
+    try {
+      const adInterval = AD_INTERVAL_BY_TIER[effectiveTier]
+      const ads = await prisma.post.findMany({
+        where: {
+          isAd: true,
+          archived: false,
+          ...notReported,
+          OR: [{ adExpiresAt: null }, { adExpiresAt: { gt: now } }],
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 20,
+        include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
       })
-      pageWithAds = woven
-    }
-  } catch {}
+      if (ads.length > 0) {
+        const woven: typeof page = []
+        let slot = 0
+        page.forEach((post, i) => {
+          woven.push(post)
+          if ((i + 1) % adInterval === 0) {
+            woven.push(ads[slot % ads.length])
+            slot += 1
+          }
+        })
+        pageWithAds = woven
+      }
+    } catch {}
+  }
 
   // Pinned admin announcements: global ("ALL") or this campus, newest first.
   // Only on the first page, never in following mode (that feed is people only).
@@ -574,6 +603,7 @@ export async function GET(req: NextRequest) {
       where: {
         type: "announcement",
         archived: false,
+        ...notReported,
         OR: guest ? [{ campus: "ALL" }] : [{ campus: "ALL" }, { campus: viewerCampus }],
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -598,7 +628,7 @@ export async function GET(req: NextRequest) {
   try {
     if (!cursor && !guest) {
       const pinnedRows = await prisma.post.findMany({
-        where: { campus: viewerCampus, archived: false, pinnedUntil: { gt: now } },
+        where: { campus: viewerCampus, archived: false, pinnedUntil: { gt: now }, ...notReported },
         orderBy: [{ pinnedUntil: "desc" }],
         take: 3,
         include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },
@@ -624,7 +654,7 @@ export async function GET(req: NextRequest) {
     if (!cursor) {
       const cotdCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
       const cotdRows = await prisma.post.findMany({
-        where: { isCOTD: true, cotdDate: { gt: cotdCutoff }, archived: false },
+        where: { isCOTD: true, cotdDate: { gt: cotdCutoff }, archived: false, ...notReported },
         orderBy: [{ cotdDate: "desc" }],
         take: 1,
         include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },

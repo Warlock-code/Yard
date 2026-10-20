@@ -50,9 +50,13 @@ export async function createNotification(input: NotificationInput) {
     ].filter((token): token is string => Boolean(token))
   )
 
-  for (const token of tokens) {
-    await sendPush(token, input.title, input.body, input.href)
-  }
+  // Fan out to every registered transport for this user. Web Push
+  // subscriptions are routed through webpush.sendNotification inside
+  // sendPush; native FCM tokens go through FCM. A failed device never blocks
+  // the rest of the fan-out or the in-app notification.
+  await Promise.allSettled(
+    [...tokens].map((token) => sendPush(token, input.title, input.body, input.href))
+  )
 
  emitNotification(input.userId, {
   id: notification.id,

@@ -221,6 +221,7 @@ export default function AdminPage() {
   const [adText, setAdText] = useState("")
   const [adImageUrl, setAdImageUrl] = useState("")
   const [adLink, setAdLink] = useState("")
+  const [adDurationHours, setAdDurationHours] = useState(24)
   const [adStatus, setAdStatus] = useState("")
   // Referral contest console: leaderboard window + blast copy.
   const [contestDays, setContestDays] = useState(7)
@@ -566,10 +567,10 @@ export default function AdminPage() {
     try {
       await adminFetch("/api/admin/ads", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: adText, imageUrl: adImageUrl, adLink }),
+        body: JSON.stringify({ text: adText, imageUrl: adImageUrl, adLink, expirationHours: adDurationHours }),
       })
-      setAdText(""); setAdImageUrl(""); setAdLink("")
-      setAdStatus("ad is live — it shows in the feed after every 5 posts.")
+      setAdText(""); setAdImageUrl(""); setAdLink(""); setAdDurationHours(24)
+      setAdStatus(`ad is live for ${adDurationHours}h — insertion follows each viewer's tier.`)
     } catch (e: unknown) { alert(errMsg(e, "failed to publish ad.")) }
     finally { setBusyId(null) }
   }
@@ -716,7 +717,7 @@ export default function AdminPage() {
       for (;;) {
         const d = await adminFetch("/api/admin/broadcast", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: ctTitle, body: ctBody, href: "/lair", cursor }),
+          body: JSON.stringify({ title: ctTitle, body: ctBody, href: "/lair", cursor, type: "invite_contest" }),
         }) as unknown as { sent?: number; pushed?: number; done?: boolean; nextCursor?: string | null }
         totalSent += d.sent || 0
         totalPushed += d.pushed || 0
@@ -1629,11 +1630,19 @@ export default function AdminPage() {
               {section === "Ads" && (
                 <div className="grid lg:grid-cols-5 gap-4">
                   <Card className="lg:col-span-3">
-                    <CardHeader title="create sponsored post" sub="ghost author: Yard Sponsor · injected into the feed after every 5 posts" />
+                    <CardHeader title="create sponsored post" sub="ghost author: Yard Sponsor · insertion follows the viewer's tier" />
                     <div className="p-5 space-y-3">
                       <textarea value={adText} onChange={(e) => setAdText(e.target.value)} placeholder="ad text — e.g. 20% off jollof at mama's kitchen this week only" rows={3} maxLength={2000} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <input value={adImageUrl} onChange={(e) => setAdImageUrl(e.target.value)} placeholder="image url — https://… (optional)" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <input value={adLink} onChange={(e) => setAdLink(e.target.value)} placeholder="target link — https://… (card opens this in a new tab)" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
+                      <label className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-3">
+                        <span className="text-sm text-white/60">campaign window</span>
+                        <select value={adDurationHours} onChange={(e) => setAdDurationHours(Number(e.target.value))} className="bg-transparent text-sm font-bold text-white focus:outline-none">
+                          <option value={24}>24 hours</option>
+                          <option value={48}>48 hours</option>
+                          <option value={72}>72 hours</option>
+                        </select>
+                      </label>
                       <button disabled={busyId === "ad"} onClick={handleCreateAd} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "ad" ? "publishing…" : "publish ad"}</button>
                       {adStatus && <p className="text-xs text-[#baff39]">✓ {adStatus}</p>}
                     </div>
@@ -1641,7 +1650,8 @@ export default function AdminPage() {
                   <Card className="lg:col-span-2">
                     <CardHeader title="how ads work" sub="phase 1 — manual placements only" />
                     <div className="p-5 space-y-2 text-xs text-white/45 leading-relaxed">
-                      <p>· shows in every feed tab after every 5 normal posts, rotating evenly when you have several ads.</p>
+                      <p>· first feed page only — FREE sees 1 ad every 3 posts, PLUS every 8, PRIME every 50.</p>
+                      <p>· ads stop automatically when the campaign window expires.</p>
                       <p>· rendered like a real post — promoted badge, comments open, no tip/vote buttons.</p>
                       <p>· tapping the card opens the target link in a new tab.</p>
                       <p>· no self-serve portal yet — brands come through you.</p>

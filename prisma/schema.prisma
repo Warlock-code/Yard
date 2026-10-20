@@ -159,9 +159,10 @@ model Post {
 
   // Manual native ads (Phase 1): admin-authored sponsored posts injected
   // into the feed. isAd marks them out of normal ranking; adLink is the
-  // target opened when the card is tapped.
-  isAd   Boolean @default(false)
-  adLink String?
+  // target opened when the card is tapped; adExpiresAt hides expired ads.
+  isAd        Boolean   @default(false)
+  adLink      String?
+  adExpiresAt DateTime?
 
   createdAt DateTime @default(now())
 

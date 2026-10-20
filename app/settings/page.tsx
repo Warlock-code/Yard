@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [pushPermission, setPushPermission] = useState("default")
   const [pushSubscribed, setPushSubscribed] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
+  const [pushMessage, setPushMessage] = useState("")
 
   const admissionYears = useMemo(() => {
     const current = new Date().getFullYear() + 1
@@ -69,12 +70,21 @@ export default function SettingsPage() {
   async function handleEnablePush() {
     if (pushBusy) return
     setPushBusy(true)
+    setPushMessage("")
     try {
       const ok = await subscribeForPush({ requestPermission: true })
-      if (typeof window !== "undefined" && "Notification" in window) {
-        setPushPermission(Notification.permission)
-      }
+      const permission = typeof window !== "undefined" && "Notification" in window
+        ? Notification.permission
+        : "default"
+      setPushPermission(permission)
       setPushSubscribed(ok)
+      if (!ok) {
+        setPushMessage(
+          permission === "denied"
+            ? "notifications are blocked — allow them in your browser site settings and try again."
+            : "couldn't enable push on this device. check your connection and try again."
+        )
+      }
     } finally {
       setPushBusy(false)
     }
@@ -202,6 +212,11 @@ export default function SettingsPage() {
             <button className="btn-primary w-full text-sm" onClick={handleEnablePush} disabled={pushBusy}>
               {pushBusy ? "enabling..." : "enable push notifications"}
             </button>
+            {pushMessage && (
+              <p className="text-xs text-red-300/80 mt-2" role="status">
+                {pushMessage}
+              </p>
+            )}
           </>
         )}
       </div>

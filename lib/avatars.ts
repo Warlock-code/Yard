@@ -13,6 +13,13 @@ export type AvatarItem = {
   limitedUntil?: number
 }
 
+// Catalog limits are enforced by the data itself: exactly 10 legendary and
+// 15 epic avatars. Legendary base prices are +20%, epic base prices +30%.
+export const AVATAR_RARITY_LIMITS: Record<"epic" | "legendary", number> = {
+  legendary: 10,
+  epic: 15,
+}
+
 export const AVATARS: AvatarItem[] = [
   { id: "avatar_snake", name: "Snake", emoji: "🐍", pricePesewas: 20000, rarity: "common" },
   { id: "avatar_alien", name: "Alien", emoji: "👽", pricePesewas: 20000, rarity: "common" },
@@ -20,20 +27,33 @@ export const AVATARS: AvatarItem[] = [
   { id: "avatar_bat", name: "Bat", emoji: "🦇", pricePesewas: 30000, rarity: "rare" },
   { id: "avatar_spider", name: "Spider", emoji: "🕷️", pricePesewas: 30000, rarity: "rare" },
   { id: "avatar_laughing", name: "Laughing", emoji: "😂", pricePesewas: 35000, rarity: "rare" },
-  { id: "avatar_unicorn", name: "Unicorn", emoji: "🦄", pricePesewas: 120000, rarity: "legendary" },
-  { id: "avatar_crown", name: "Crown", emoji: "👑", pricePesewas: 100000, rarity: "legendary" },
-  { id: "avatar_genie", name: "Genie", emoji: "🧞", pricePesewas: 110000, rarity: "legendary" },
-  { id: "avatar_ufo", name: "UFO", emoji: "🛸", pricePesewas: 130000, rarity: "legendary" },
-  { id: "avatar_robot", name: "Robot", emoji: "🤖", pricePesewas: 90000, rarity: "epic" },
-  { id: "avatar_evil_eye", name: "Evil Eye", emoji: "🧿", pricePesewas: 70000, rarity: "epic" },
-  { id: "avatar_skeleton", name: "Skeleton", emoji: "💀", pricePesewas: 80000, rarity: "epic" },
-  { id: "avatar_ninja", name: "Ninja", emoji: "🥷", pricePesewas: 90000, rarity: "epic" },
-  { id: "avatar_vampire", name: "Vampire", emoji: "🧛", pricePesewas: 75000, rarity: "epic" },
-  { id: "avatar_mermaid", name: "Mermaid", emoji: "🧜", pricePesewas: 80000, rarity: "epic" },
-  { id: "avatar_fairy", name: "Fairy", emoji: "🧚", pricePesewas: 85000, rarity: "epic" },
-  { id: "avatar_zombie", name: "Zombie", emoji: "🧟", pricePesewas: 60000, rarity: "epic" },
-  { id: "avatar_dragon", name: "Dragon", emoji: "🐲", pricePesewas: 85000, rarity: "epic" },
-  { id: "avatar_fireworks", name: "Fireworks", emoji: "🎆", pricePesewas: 65000, rarity: "epic" },
+  // Legendary — exactly 10.
+  { id: "avatar_unicorn", name: "Unicorn", emoji: "🦄", pricePesewas: 144000, rarity: "legendary" },
+  { id: "avatar_crown", name: "Crown", emoji: "👑", pricePesewas: 120000, rarity: "legendary" },
+  { id: "avatar_genie", name: "Genie", emoji: "🧞", pricePesewas: 132000, rarity: "legendary" },
+  { id: "avatar_ufo", name: "UFO", emoji: "🛸", pricePesewas: 156000, rarity: "legendary" },
+  { id: "avatar_phoenix", name: "Phoenix", emoji: "🐦‍🔥", pricePesewas: 168000, rarity: "legendary" },
+  { id: "avatar_lightning", name: "Lightning", emoji: "⚡", pricePesewas: 144000, rarity: "legendary" },
+  { id: "avatar_volcano", name: "Volcano", emoji: "🌋", pricePesewas: 138000, rarity: "legendary" },
+  { id: "avatar_meteor", name: "Meteor", emoji: "☄️", pricePesewas: 150000, rarity: "legendary" },
+  { id: "avatar_angel", name: "Angel", emoji: "😇", pricePesewas: 162000, rarity: "legendary" },
+  { id: "avatar_devil", name: "Devil", emoji: "😈", pricePesewas: 132000, rarity: "legendary" },
+  // Epic — exactly 15.
+  { id: "avatar_robot", name: "Robot", emoji: "🤖", pricePesewas: 117000, rarity: "epic" },
+  { id: "avatar_evil_eye", name: "Evil Eye", emoji: "🧿", pricePesewas: 91000, rarity: "epic" },
+  { id: "avatar_skeleton", name: "Skeleton", emoji: "💀", pricePesewas: 104000, rarity: "epic" },
+  { id: "avatar_ninja", name: "Ninja", emoji: "🥷", pricePesewas: 117000, rarity: "epic" },
+  { id: "avatar_vampire", name: "Vampire", emoji: "🧛", pricePesewas: 97500, rarity: "epic" },
+  { id: "avatar_mermaid", name: "Mermaid", emoji: "🧜", pricePesewas: 104000, rarity: "epic" },
+  { id: "avatar_fairy", name: "Fairy", emoji: "🧚", pricePesewas: 110500, rarity: "epic" },
+  { id: "avatar_zombie", name: "Zombie", emoji: "🧟", pricePesewas: 78000, rarity: "epic" },
+  { id: "avatar_dragon", name: "Dragon", emoji: "🐲", pricePesewas: 110500, rarity: "epic" },
+  { id: "avatar_fireworks", name: "Fireworks", emoji: "🎆", pricePesewas: 84500, rarity: "epic" },
+  { id: "avatar_wolf", name: "Wolf", emoji: "🐺", pricePesewas: 91000, rarity: "epic" },
+  { id: "avatar_lion", name: "Lion", emoji: "🦁", pricePesewas: 104000, rarity: "epic" },
+  { id: "avatar_shark", name: "Shark", emoji: "🦈", pricePesewas: 110500, rarity: "epic" },
+  { id: "avatar_dinosaur", name: "Dinosaur", emoji: "🦖", pricePesewas: 117000, rarity: "epic" },
+  { id: "avatar_potion", name: "Potion", emoji: "🧪", pricePesewas: 97500, rarity: "epic" },
   { id: "avatar_cat", name: "Cat", emoji: "🐱", pricePesewas: 25000, rarity: "common" },
   { id: "avatar_dog", name: "Dog", emoji: "🐶", pricePesewas: 25000, rarity: "common" },
   { id: "avatar_panda", name: "Panda", emoji: "🐼", pricePesewas: 30000, rarity: "common" },

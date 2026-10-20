@@ -6,8 +6,16 @@ export const dynamic = "force-dynamic"
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
+  const now = new Date()
   const prompt = await prisma.battlePrompt.findFirst({
-    where: { active: true },
+    where: {
+      active: true,
+      status: { in: ["ACTIVE", "VOTING"] },
+      startsAt: { lte: now },
+      endsAt: { gt: now },
+      // Ghost duels are user-created 1v1s, not the official campus battle.
+      NOT: { text: { startsWith: "⚔ duel:" } },
+    },
     orderBy: { startsAt: "desc" },
     select: { id: true, text: true, endsAt: true },
   })

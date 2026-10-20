@@ -19,6 +19,7 @@ type Entry = {
 type Prompt = {
   id: string
   text: string
+  startsAt?: string
   endsAt: string
 }
 
@@ -27,6 +28,7 @@ import React from "react"
 export default function BattlesClient() {
   const [prompt, setPrompt] = useState<Prompt | null>(null)
   const [entries, setEntries] = useState<Entry[]>([])
+  const [upcoming, setUpcoming] = useState(false)
   const [loading, setLoading] = useState(true)
   const [entryText, setEntryText] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -36,10 +38,11 @@ export default function BattlesClient() {
   const { connected, on, joinBattle, leaveBattle } = useSocket()
 
   const load = useCallback((isCurrent: () => boolean = () => true) => {
-    return apiGet<{ prompt: Prompt | null; entries: Entry[] }>("/api/battles")
+    return apiGet<{ prompt: Prompt | null; entries: Entry[]; upcoming?: boolean }>("/api/battles")
       .then((data) => {
         if (!isCurrent()) return
         setPrompt(data.prompt)
+        setUpcoming(Boolean(data.upcoming))
         setEntries(data.entries)
       })
       .catch(console.error)
@@ -62,10 +65,10 @@ export default function BattlesClient() {
   }, [prompt])
 
   useEffect(() => {
-    if (!prompt?.id) return
+    if (!prompt?.id || upcoming) return
     joinBattle(prompt.id)
     return () => leaveBattle(prompt.id)
-  }, [prompt?.id, joinBattle, leaveBattle])
+  }, [prompt?.id, upcoming, joinBattle, leaveBattle])
 
   useEffect(() => {
     if (!connected || !prompt?.id) return
@@ -86,7 +89,7 @@ export default function BattlesClient() {
   }, [connected, on, prompt?.id])
 
   async function handleEnter() {
-    if (!entryText.trim() || !prompt) return
+    if (!entryText.trim() || !prompt || upcoming) return
     setSubmitting(true)
     try {
       await apiPost("/api/battles/enter", { promptId: prompt.id, text: entryText.toLowerCase() })
@@ -135,33 +138,47 @@ export default function BattlesClient() {
         <React.Fragment>
           <div className="card p-4 mt-3 flex items-center justify-between">
             <div>
-              <p className="text-xs text-white/40 mb-1">today&apos;s prompt</p>
+              <p className="text-xs text-white/40 mb-1">{upcoming ? "next battle" : "today's prompt"}</p>
               <p className="post-mono font-semibold">{prompt.text}</p>
-              <BattleCountdown endsAt={prompt.endsAt} now={now} />
-              <p className="text-xs font-bold text-[#baff39] mt-1">
-                🔥 {potCredits.toLocaleString()}cr pot — {entries.length} {entries.length === 1 ? "entry" : "entries"} · winner takes 75%
-              </p>
+              <BattleCountdown
+                endsAt={prompt.endsAt}
+                startsAt={prompt.startsAt}
+                upcoming={upcoming}
+                now={now}
+              />
+              {upcoming ? (
+                <p className="text-xs font-bold text-white/40 mt-1">
+                  entries open when the battle starts
+                </p>
+              ) : (
+                <p className="text-xs font-bold text-[#baff39] mt-1">
+                  🔥 {potCredits.toLocaleString()}cr pot — {entries.length} {entries.length === 1 ? "entry" : "entries"} · winner takes 75%
+                </p>
+              )}
             </div>
             <BattleShareButton onClick={() => setShowShareMenu(true)} />
           </div>
 
-          <div className="card p-4 mt-3">
-            <textarea
-              className="input resize-none"
-              rows={2}
-              placeholder="enter your take..."
-              value={entryText}
-              onChange={(e) => setEntryText(e.target.value.toLowerCase())}
-            />
-            <button
-              className="btn-primary w-full mt-2"
-              onClick={handleEnter}
-              disabled={submitting || !entryText.trim()}
-            >
-              {submitting ? "entering..." : `enter battle · ${CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM}cr (prime: 1 free/day)`}
-            </button>
-          </div>
+          {!upcoming && (
+            <div className="card p-4 mt-3">
+              <textarea
+                className="input resize-none"
+                rows={2}
+                placeholder="enter your take..."
+                value={entryText}
+                onChange={(e) => setEntryText(e.target.value.toLowerCase())}
+              />
+              <button
+                className="btn-primary w-full mt-2"
+                onClick={handleEnter}
+                disabled={submitting || !entryText.trim()}
+              >
+                {submitting ? "entering..." : `enter battle · ${CREDIT_CONFIG.SPEND.BATTLE_ENTRY_PREMIUM}cr (prime: 1 free/day)`}
+              </button>
+            </div>
+          )}
 
+          {!upcoming && (
           <div className="mt-4 space-y-3">
             {entries.length === 0 ? (
               <p className="text-white/30 text-sm text-center mt-6">no entries yet — be the first.</p>
@@ -191,6 +208,7 @@ export default function BattlesClient() {
               ))
             )}
           </div>
+          )}
 
           {showShareMenu && <BattleShareMenu promptId={prompt.id} promptText={prompt.text} onClose={() => setShowShareMenu(false)} />}
         </React.Fragment>
@@ -201,14 +219,36 @@ export default function BattlesClient() {
   )
 }
 
-function BattleCountdown({ endsAt, now }: { endsAt: string; now: number }) {
-  const diff = new Date(endsAt).getTime() - now
-  if (!Number.isFinite(diff) || diff <= 0) {
-    return <p className="text-xs font-bold text-red-400 mt-1">ends now — last votes!</p>
+function BattleCountdown({
+  endsAt,
+  startsAt,
+  upcoming = false,
+  now,
+}: {
+  endsAt: string
+  startsAt?: string
+  upcoming?: boolean
+  now: number
+}) {
+  const target = upcoming ? startsAt : endsAt
+  if (!target) {
+    return <p className="text-xs font-bold text-white/40 mt-1">⏳ starting soon</p>
   }
-  const mins = Math.floor(diff / 60_000)
-  const label = mins < 60 ? `ends in ${mins}m` : mins < 1440 ? `ends in ${Math.floor(mins / 60)}h ${mins % 60}m` : `ends in ${Math.floor(mins / 1440)}d`
-  const urgent = diff < 6 * 60 * 60 * 1000
+  const diff = new Date(target).getTime() - now
+  if (!Number.isFinite(diff)) {
+    return <p className="text-xs font-bold text-white/40 mt-1">⏳ starting soon</p>
+  }
+  if (diff <= 0) {
+    return (
+      <p className="text-xs font-bold text-red-400 mt-1">
+        {upcoming ? "starting now — refresh" : "ends now — last votes!"}
+      </p>
+    )
+  }
+  const mins = Math.max(1, Math.floor(diff / 60_000))
+  const duration = mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${Math.floor(mins / 1440)}d`
+  const label = `${upcoming ? "starts in" : "ends in"} ${duration}`
+  const urgent = !upcoming && diff < 6 * 60 * 60 * 1000
   return (
     <p className={`text-xs mt-1 font-semibold ${urgent ? "text-amber-300 animate-pulse" : "text-white/40"}`}>
       {urgent ? `🔥 ${label} — vote now` : `⏳ ${label}`}
