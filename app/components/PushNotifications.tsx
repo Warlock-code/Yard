@@ -15,10 +15,18 @@ export type PushSubscriptionStatus = {
   error?: string
 }
 
-function isNativePlatform(): boolean {
+type NativePushPlugin = typeof import("@capacitor/push-notifications")["PushNotifications"]
+
+export function isNativePushPlatform(): boolean {
   try {
-    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-    return cap?.isNativePlatform?.() === true
+    const cap = (
+      window as unknown as {
+        Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string }
+      }
+    ).Capacitor
+    if (typeof cap?.isNativePlatform === "function") return cap.isNativePlatform() === true
+    const platform = cap?.getPlatform?.()
+    return platform === "android" || platform === "ios"
   } catch {
     return false
   }
@@ -112,15 +120,147 @@ function sameApplicationServerKey(subscription: PushSubscription, expected: Uint
   return true
 }
 
+let nativeRegistrationInFlight: Promise<PushSubscribeResult> | null = null
+
+async function waitForFcmToken(PushNotifications: NativePushPlugin): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let handles: Array<{ remove: () => Promise<void> }> = []
+
+    const finish = (error: unknown, token?: string) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      void Promise.allSettled(handles.map((handle) => handle.remove()))
+      if (error) reject(error instanceof Error ? error : new Error(formatPushError(error)))
+      else resolve(token || "")
+    }
+
+    timer = setTimeout(() => {
+      finish(new Error("timed out waiting for FCM registration token (20s)."))
+    }, 20000)
+
+    const attach = async () => {
+      try {
+        const newHandles = await Promise.all([
+          PushNotifications.addListener("registration", (token) => finish(null, token.value)),
+          PushNotifications.addListener("registrationError", (error) =>
+            finish(new Error(`registrationError: ${error.error || JSON.stringify(error)}`))
+          ),
+        ])
+        // The 20s timeout may have fired before the native listeners attached.
+        // Clean them up instead of leaking a listener that resolves nothing.
+        if (settled) {
+          await Promise.allSettled(newHandles.map((handle) => handle.remove()))
+          return
+        }
+        handles = newHandles
+        await PushNotifications.register()
+      } catch (error) {
+        finish(error)
+      }
+    }
+
+    void attach()
+  })
+}
+
 /**
- * Used by settings on load: a stored subscription is only shown as "enabled"
- * when it was created with the key the server currently signs with. Otherwise
- * the stale subscription is reported and the user can refresh it.
+ * Native Capacitor (Android APK / iOS shell) path. FCM issues the token;
+ * the `registration` event hands it to us and we persist it as platform
+ * "android" (or "ios") through the same register endpoint as web push.
+ */
+async function subscribeNativePush(opts?: {
+  requestPermission?: boolean
+}): Promise<PushSubscribeResult> {
+  if (nativeRegistrationInFlight) return nativeRegistrationInFlight
+
+  nativeRegistrationInFlight = (async () => {
+    try {
+      const { Capacitor } = await import("@capacitor/core")
+      if (!Capacitor.isNativePlatform()) {
+        return { ok: false, error: "not running inside the native app." }
+      }
+
+      const { PushNotifications } = await import("@capacitor/push-notifications")
+      let permission = await PushNotifications.checkPermissions()
+      if (permission.receive !== "granted") {
+        if (!opts?.requestPermission) {
+          return { ok: false, error: `notification permission ${permission.receive}.` }
+        }
+        permission = await PushNotifications.requestPermissions()
+      }
+      if (permission.receive !== "granted") {
+        return { ok: false, error: `notification permission ${permission.receive}.` }
+      }
+
+      const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android"
+      if (platform === "android") {
+        try {
+          await PushNotifications.createChannel({
+            id: "yard-v2",
+            name: "Yard notifications",
+            description: "Yard activity and announcements",
+            importance: 5,
+            visibility: 1,
+            vibration: true,
+          })
+        } catch (error) {
+          // Channel creation is best-effort; registration can still succeed.
+          console.warn("[push] could not create Android notification channel:", formatPushError(error))
+        }
+      }
+
+      const token = await waitForFcmToken(PushNotifications)
+      if (!token) {
+        return { ok: false, error: "FCM registration returned an empty token." }
+      }
+
+      const res = await fetch("/api/notifications/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token, platform }),
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        const message = `register failed (${res.status}): ${text.slice(0, 300)}`
+        console.error("[push]", message)
+        return { ok: false, error: message }
+      }
+
+      console.log(`[push] native ${platform} FCM token registered`)
+      return { ok: true }
+    } catch (error) {
+      const message = formatPushError(error)
+      console.error("[push] native subscribe failed:", message)
+      return { ok: false, error: message }
+    }
+  })().finally(() => {
+    nativeRegistrationInFlight = null
+  })
+
+  return nativeRegistrationInFlight
+}
+
+/**
+ * Used by settings on load. Web: a stored subscription is only shown as
+ * "enabled" when it was created with the key the server currently signs with.
+ * Native: check/register the FCM token when permission is already granted.
  */
 export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatus> {
   try {
     if (typeof window === "undefined") return { subscribed: false, current: false }
-    if (isNativePlatform()) return { subscribed: false, current: false }
+    if (isNativePushPlatform()) {
+      const { PushNotifications } = await import("@capacitor/push-notifications")
+      const permission = await PushNotifications.checkPermissions()
+      if (permission.receive !== "granted") {
+        return { subscribed: false, current: false }
+      }
+      const result = await subscribeNativePush()
+      return { subscribed: result.ok, current: result.ok, error: result.error }
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       return { subscribed: false, current: false }
     }
@@ -137,15 +277,19 @@ export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatu
 }
 
 /**
- * Shared web-push subscribe logic (used by settings + notifications page).
- * - Native Capacitor shells are always skipped.
+ * Shared subscribe logic for both transports (used by settings + notifications
+ * page).
+ * - Native Capacitor shells go through FCM (`@capacitor/push-notifications`)
+ *   and register the token with platform "android"/"ios".
+ * - Web browsers go through VAPID web push.
  * - `requestPermission: true` may only be passed from a user gesture
  *   (settings "enable" button). Background callers must leave it false so
- *   the browser never auto-prompts.
- * - A manual enable always discards the old subscription first: a stale
- *   subscription created with a previous VAPID key makes subscribe() throw
- *   InvalidStateError and can never receive pushes signed by this server.
- *   Background callers only discard it when the stored key no longer matches.
+ *   the browser/native shell never auto-prompts.
+ * - On web, a manual enable always discards the old subscription first: a
+ *   stale subscription created with a previous VAPID key makes subscribe()
+ *   throw InvalidStateError and can never receive pushes signed by this
+ *   server. Background callers only discard it when the stored key no longer
+ *   matches.
  */
 export async function subscribeForPush(opts?: {
   requestPermission?: boolean
@@ -155,8 +299,8 @@ export async function subscribeForPush(opts?: {
     if (typeof window === "undefined") {
       return { ok: false, error: "window is not available." }
     }
-    if (isNativePlatform()) {
-      return { ok: false, error: "web push is not used inside the native app." }
+    if (isNativePushPlatform()) {
+      return await subscribeNativePush(opts)
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       return { ok: false, error: "this browser does not support service worker push." }
@@ -263,12 +407,14 @@ export default function PushNotificationsSetup() {
 
     const run = async () => {
       try {
-        // Skip native shells entirely — push there goes through FCM/Capacitor.
-        if (isNativePlatform()) return
-        if (!("Notification" in window)) return
-        // Silent background path: never prompt. The settings page button
-        // owns the user-action permission request.
-        if (Notification.permission !== "granted") return
+        // Silent background path: never prompt. The settings page button owns
+        // the user-action permission request. Native checks FCM permission
+        // inside subscribeForPush; web checks the browser Notification API.
+        const native = isNativePushPlatform()
+        if (!native) {
+          if (!("Notification" in window)) return
+          if (Notification.permission !== "granted") return
+        }
 
         // Authenticated-only: anonymous visitors must not create subscriptions.
         try {

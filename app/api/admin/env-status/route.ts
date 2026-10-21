@@ -24,6 +24,12 @@ export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
   const vapidConfig = getVapidConfig()
+  const firebaseSplitConfigured = Boolean(
+    process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_CLIENT_EMAIL &&
+      process.env.FIREBASE_PRIVATE_KEY
+  )
+  const firebaseJsonConfigured = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT)
 
   return NextResponse.json({
     // Source of truth is the server .env (loaded into process.env).
@@ -44,7 +50,20 @@ export async function GET(req: NextRequest) {
       resend: flag(process.env.RESEND_API_KEY),
       uploadthing: flag(process.env.UPLOADTHING_TOKEN),
       openrouter: flag(process.env.OPENROUTER_API_KEY),
-      firebase: flag(process.env.FIREBASE_SERVICE_ACCOUNT),
+      firebase: {
+        set: firebaseSplitConfigured || firebaseJsonConfigured,
+        chars: process.env.FIREBASE_SERVICE_ACCOUNT?.length || 0,
+        configured: firebaseSplitConfigured || firebaseJsonConfigured,
+        source: firebaseSplitConfigured
+          ? "split-env"
+          : firebaseJsonConfigured
+            ? "service-account-json"
+            : "missing",
+        projectId: flag(process.env.FIREBASE_PROJECT_ID),
+        clientEmail: flag(process.env.FIREBASE_CLIENT_EMAIL),
+        privateKey: flag(process.env.FIREBASE_PRIVATE_KEY),
+        serviceAccount: flag(process.env.FIREBASE_SERVICE_ACCOUNT),
+      },
       vapid: {
         privateKey: flag(process.env.VAPID_PRIVATE_KEY),
         publicKey: flag(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),

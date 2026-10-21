@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPatch } from "@/lib/useApi"
 import Avatar from "@/app/components/Avatar"
-import { getPushSubscriptionStatus, subscribeForPush } from "@/app/components/PushNotifications"
+import {
+  getPushSubscriptionStatus,
+  isNativePushPlatform,
+  subscribeForPush,
+} from "@/app/components/PushNotifications"
 
 type Me = {
   ghostId: string
@@ -53,16 +57,32 @@ export default function SettingsPage() {
   }, [load])
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return
-    setPushPermission(Notification.permission)
-    if (Notification.permission !== "granted") return
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
-    try {
-      const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-      if (cap?.isNativePlatform?.()) return
-    } catch {}
+    if (typeof window === "undefined") return
+    let cancelled = false
+
+    const native = isNativePushPlatform()
+    if (native) {
+      // Native permission lives in Android/iOS, not the WebView Notification
+      // API. Keep the card actionable and let getPushSubscriptionStatus do the
+      // Capacitor permission check.
+      void Promise.resolve().then(() => {
+        if (!cancelled) setPushPermission("granted")
+      })
+    } else {
+      if (!("Notification" in window)) return
+      const permission = Notification.permission
+      void Promise.resolve().then(() => {
+        if (!cancelled) setPushPermission(permission)
+      })
+      if (permission !== "granted") return
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
+    }
+
     getPushSubscriptionStatus()
       .then((status) => {
+        if (cancelled) return
+        if (native) setPushPermission("granted")
+        else if ("Notification" in window) setPushPermission(Notification.permission)
         setPushSubscribed(status.subscribed && status.current)
         if (status.subscribed && !status.current) {
           setPushMessage("your saved push subscription uses an old key — tap enable to refresh it.")
@@ -71,9 +91,14 @@ export default function SettingsPage() {
         }
       })
       .catch((err: unknown) => {
+        if (cancelled) return
         setPushSubscribed(false)
         setPushMessage(err instanceof Error ? `${err.name}: ${err.message}` : String(err))
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleEnablePush() {
@@ -81,15 +106,18 @@ export default function SettingsPage() {
     setPushBusy(true)
     setPushMessage("")
     try {
+      const native = isNativePushPlatform()
       const result = await subscribeForPush({ requestPermission: true, resetExisting: true })
-      const permission = typeof window !== "undefined" && "Notification" in window
-        ? Notification.permission
-        : "default"
+      const permission = native
+        ? "granted"
+        : typeof window !== "undefined" && "Notification" in window
+          ? Notification.permission
+          : "default"
       setPushPermission(permission)
       setPushSubscribed(result.ok)
       if (!result.ok) {
-        // Surface the exact browser/registration error instead of hiding it
-        // behind a generic connectivity message.
+        // Surface the exact browser/FCM/registration error instead of hiding
+        // it behind a generic connectivity message.
         setPushMessage(result.error || "push failed — unknown error.")
       }
     } finally {

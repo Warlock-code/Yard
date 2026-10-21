@@ -1685,7 +1685,7 @@ export default function AdminPage() {
                       <div>
                         <p className="text-sm font-bold text-white/90">Test Push Notification</p>
                         <p className="text-xs text-white/40 mt-1">
-                          sends to the most recent DeviceToken in the DB and shows the exact statusCode/body returned by the push service.
+                          sends to the most recent DeviceToken in the DB (Web Push via VAPID or Android/iOS via FCM) and shows the exact statusCode/body/error returned by the push service.
                         </p>
                       </div>
                       <button

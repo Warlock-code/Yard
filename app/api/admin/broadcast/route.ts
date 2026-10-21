@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     select: {
       id: true,
       pushToken: true,
-      deviceTokens: { select: { token: true } },
+      deviceTokens: { select: { token: true, platform: true } },
     },
   })
   const done = chunk.length <= limit
@@ -76,16 +76,16 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const pushes: { token: string }[] = []
+  const pushes: { token: string; platform: string | null }[] = []
   for (const u of pending) {
-    const tokens = new Set(
-      [...u.deviceTokens.map((d) => d.token), u.pushToken].filter((t): t is string => Boolean(t))
-    )
-    for (const token of tokens) pushes.push({ token })
+    const devices = new Map<string, string | null>()
+    for (const device of u.deviceTokens) devices.set(device.token, device.platform)
+    if (u.pushToken && !devices.has(u.pushToken)) devices.set(u.pushToken, null)
+    for (const [token, platform] of devices) pushes.push({ token, platform })
   }
   let pushed = 0
-  await pool(pushes, PUSH_CONCURRENCY, async ({ token }) => {
-    await sendPush(token, title, body, href)
+  await pool(pushes, PUSH_CONCURRENCY, async ({ token, platform }) => {
+    await sendPush(token, title, body, href, platform)
     pushed += 1
   })
 

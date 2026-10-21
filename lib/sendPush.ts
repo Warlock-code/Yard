@@ -1,4 +1,5 @@
-import { google } from "googleapis"
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app"
+import { getMessaging, type Message } from "firebase-admin/messaging"
 import webpush from "web-push"
 import { prisma } from "@/lib/prisma"
 import { getVapidConfig } from "@/lib/vapid"
@@ -19,34 +20,122 @@ export type PushSendResult = {
   removed?: boolean
 }
 
-function getServiceAccount(): FirebaseServiceAccount | null {
+let firebaseApp: App | null | undefined
+let firebaseInitError: string | null = null
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`
+  return String(error)
+}
+
+function envValue(name: string): string {
+  return (process.env[name] || "").trim().replace(/^["']|["']$/g, "")
+}
+
+function normalizePrivateKey(value: string): string {
+  return value.replace(/\\n/g, "\n")
+}
+
+function getServiceAccountFromJson(): FirebaseServiceAccount | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim()
-  if (!raw) {
-    console.error("[PUSH CONFIG] FCM is not configured: FIREBASE_SERVICE_ACCOUNT is missing")
-    return null
-  }
+  if (!raw) return null
 
   try {
     const unwrapped = raw.replace(/^'([\s\S]*)'$/, "$1").replace(/^\"([\s\S]*)\"$/, "$1")
     const key = JSON.parse(unwrapped) as FirebaseServiceAccount
-    if (!key.project_id || !key.client_email || !key.private_key) throw new Error("Incomplete Firebase service account")
-    return { ...key, private_key: key.private_key.replace(/\\n/g, "\n") }
+    if (!key.project_id || !key.client_email || !key.private_key) {
+      throw new Error("Incomplete Firebase service account")
+    }
+    return {
+      project_id: key.project_id,
+      client_email: key.client_email,
+      private_key: normalizePrivateKey(key.private_key),
+    }
   } catch (error) {
+    firebaseInitError = `invalid FIREBASE_SERVICE_ACCOUNT: ${errorText(error)}`
     console.error("[PUSH CONFIG] FCM is not configured: invalid FIREBASE_SERVICE_ACCOUNT", error)
     return null
   }
 }
 
-async function getAccessToken() {
-  const key = getServiceAccount()
-  if (!key) return null
-  const jwtClient = new google.auth.JWT({
-    email: key.client_email,
-    key: key.private_key,
-    scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
-  })
-  const tokens = await jwtClient.authorize()
-  return tokens.access_token
+/**
+ * Firebase Admin is initialized lazily so importing this module never crashes a
+ * route that only uses web push. Supports both the requested split env vars and
+ * the legacy single-JSON FIREBASE_SERVICE_ACCOUNT value.
+ */
+function getFirebaseApp(): App | null {
+  if (firebaseApp !== undefined) return firebaseApp
+
+  const existing = getApps()
+  if (existing.length > 0) {
+    firebaseApp = existing[0]
+    firebaseInitError = null
+    return firebaseApp
+  }
+
+  const projectId = envValue("FIREBASE_PROJECT_ID")
+  const clientEmail = envValue("FIREBASE_CLIENT_EMAIL")
+  const privateKey = normalizePrivateKey(envValue("FIREBASE_PRIVATE_KEY"))
+
+  if (projectId && clientEmail && privateKey) {
+    try {
+      firebaseApp = initializeApp({
+        credential: cert({ projectId, clientEmail, privateKey }),
+        projectId,
+      })
+      firebaseInitError = null
+      console.info("[PUSH CONFIG] Firebase Admin initialized from split env vars", { projectId })
+      return firebaseApp
+    } catch (error) {
+      firebaseInitError = `failed to initialize Firebase Admin from split env vars: ${errorText(error)}`
+      console.error(
+        "[PUSH CONFIG] failed to initialize Firebase Admin from split env vars; trying FIREBASE_SERVICE_ACCOUNT",
+        error
+      )
+    }
+  }
+
+  const serviceAccount = getServiceAccountFromJson()
+  if (serviceAccount) {
+    try {
+      firebaseApp = initializeApp({
+        credential: cert({
+          projectId: serviceAccount.project_id,
+          clientEmail: serviceAccount.client_email,
+          privateKey: serviceAccount.private_key,
+        }),
+        projectId: serviceAccount.project_id,
+      })
+      firebaseInitError = null
+      console.info("[PUSH CONFIG] Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT", {
+        projectId: serviceAccount.project_id,
+      })
+      return firebaseApp
+    } catch (error) {
+      firebaseInitError = `failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT: ${errorText(error)}`
+      console.error("[PUSH CONFIG] failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT", error)
+      firebaseApp = null
+      return null
+    }
+  }
+
+  const missing = [
+    !projectId ? "FIREBASE_PROJECT_ID" : null,
+    !clientEmail ? "FIREBASE_CLIENT_EMAIL" : null,
+    !privateKey ? "FIREBASE_PRIVATE_KEY" : null,
+  ].filter(Boolean)
+  if (!firebaseInitError) {
+    firebaseInitError = `FCM is not configured. Set FIREBASE_SERVICE_ACCOUNT or all of: ${
+      missing.join(", ") || "FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY"
+    }`
+  }
+  console.error(
+    "[PUSH CONFIG] FCM is not configured. Set FIREBASE_SERVICE_ACCOUNT or all of:",
+    missing.join(", ") || "FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY",
+    firebaseInitError
+  )
+  firebaseApp = null
+  return null
 }
 
 // Web Push subscriptions are stored as JSON strings like
@@ -168,102 +257,122 @@ async function sendWebPush(
   }
 }
 
-async function sendFcm(
+function isDeadFcmToken(code: string, message: string): boolean {
+  return (
+    code === "messaging/registration-token-not-registered" ||
+    code === "messaging/invalid-registration-token" ||
+    message.includes("Requested entity was not found") ||
+    message.includes("UNREGISTERED")
+  )
+}
+
+export async function sendFcm(
   pushToken: string,
   title: string,
   body: string,
-  href?: string
+  href?: string,
+  platform?: string | null
 ): Promise<PushSendResult> {
-  try {
-    const key = getServiceAccount()
-    if (!key) return { ok: false, transport: "fcm", error: "FCM is not configured." }
-    const accessToken = await getAccessToken()
-    if (!accessToken) return { ok: false, transport: "fcm", error: "Could not obtain an FCM access token." }
-
-    const response = await fetch(`https://fcm.googleapis.com/v1/projects/${key.project_id}/messages:send`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: {
-          token: pushToken,
-          notification: { title, body },
-          android: {
-            priority: "HIGH",
-            notification: {
-              channel_id: "yard-v2",
-              sound: "default",
-              default_sound: true,
-              default_vibrate_timings: true,
-            },
-          },
-          data: href ? { href } : undefined,
-        },
-      }),
-    })
-
-    const responseBody = await response.text()
-    if (!response.ok) {
-      console.error("[PUSH ERROR]", response.status, responseBody)
-      // Unregistered/invalid device: drop the stale token.
-      if (
-        response.status === 404 &&
-        (responseBody.includes("UNREGISTERED") || responseBody.includes("NOT_FOUND"))
-      ) {
-        await deleteDeadToken(pushToken, `fcm ${response.status} UNREGISTERED`)
-        return {
-          ok: false,
-          transport: "fcm",
-          statusCode: response.status,
-          body: responseBody,
-          error: "FCM token is unregistered.",
-          removed: true,
-        }
-      }
-      return {
-        ok: false,
-        transport: "fcm",
-        statusCode: response.status,
-        body: responseBody,
-        error: `FCM request failed (${response.status}).`,
-      }
-    }
-
-    return {
-      ok: true,
-      transport: "fcm",
-      statusCode: response.status,
-      body: responseBody,
-    }
-  } catch (error) {
-    console.error("[PUSH ERROR]", error)
+  const app = getFirebaseApp()
+  if (!app) {
     return {
       ok: false,
       transport: "fcm",
-      error: error instanceof Error ? error.message : String(error),
+      error:
+        firebaseInitError ||
+        "FCM is not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY (or FIREBASE_SERVICE_ACCOUNT).",
+    }
+  }
+
+  const isIos = platform === "ios"
+  const message: Message = {
+    token: pushToken,
+    notification: { title, body },
+    ...(href ? { data: { href } } : {}),
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "yard-v2",
+        sound: "default",
+        defaultSound: true,
+        defaultVibrateTimings: true,
+      },
+    },
+    ...(isIos
+      ? {
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+                badge: 1,
+              },
+            },
+          },
+        }
+      : {}),
+  }
+
+  try {
+    const messageId = await getMessaging(app).send(message)
+    return {
+      ok: true,
+      transport: "fcm",
+      statusCode: 200,
+      body: messageId,
+    }
+  } catch (error: unknown) {
+    const err = error as {
+      code?: string
+      message?: string
+      errorInfo?: { code?: string; message?: string }
+    }
+    const code = err.code || err.errorInfo?.code || "messaging/unknown"
+    const messageText = err.message || err.errorInfo?.message || String(error)
+    console.error("[PUSH ERROR]", code, messageText)
+
+    if (isDeadFcmToken(code, messageText)) {
+      await deleteDeadToken(pushToken, `fcm ${code}`)
+      return {
+        ok: false,
+        transport: "fcm",
+        statusCode: 404,
+        body: messageText,
+        error: `${code}: ${messageText}`,
+        removed: true,
+      }
+    }
+
+    return {
+      ok: false,
+      transport: "fcm",
+      statusCode: 500,
+      body: messageText,
+      error: `${code}: ${messageText}`,
     }
   }
 }
 
-// Route a stored token to the right transport. Never throws: push must not
-// break the notification/comment/vote flow that triggered it.
+// Route a stored token to the right transport. `platform` comes from the
+// DeviceToken row; the JSON shape remains a fallback for legacy rows. Never
+// throws: push must not break the notification/comment/vote flow.
 export async function sendPush(
   pushToken: string,
   title: string,
   body: string,
-  href?: string
+  href?: string,
+  platform?: string | null
 ): Promise<PushSendResult> {
   if (!pushToken) {
     console.error("[PUSH ERROR] recipient has no registered device token")
     return { ok: false, transport: "none", error: "missing push token" }
   }
   try {
-    if (isWebPushSubscription(pushToken)) {
+    const normalizedPlatform = platform?.trim() || null
+    const useWebPush = normalizedPlatform === "web-push" || isWebPushSubscription(pushToken)
+    if (useWebPush) {
       return await sendWebPush(pushToken, title, body, href)
     }
-    return await sendFcm(pushToken, title, body, href)
+    return await sendFcm(pushToken, title, body, href, normalizedPlatform)
   } catch (error) {
     console.error("[PUSH ERROR]", error)
     return {
@@ -273,6 +382,3 @@ export async function sendPush(
     }
   }
 }
-
-// Backwards-compatible alias for callers importing { sendFcm }.
-export { sendFcm }

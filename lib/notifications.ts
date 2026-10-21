@@ -38,24 +38,31 @@ export async function createNotification(input: NotificationInput) {
     where: { id: input.userId },
     select: {
       pushToken: true,
-      deviceTokens: { select: { token: true } },
+      deviceTokens: { select: { token: true, platform: true } },
     },
   })
 
-  const tokens = new Set(
-    [
-      ...(recipient?.deviceTokens.map((device) => device.token) || []),
-      recipient?.pushToken,
-      input.pushToken,
-    ].filter((token): token is string => Boolean(token))
-  )
+  // Keep the DeviceToken platform attached to each token so sendPush uses the
+  // correct transport (web-push vs Android/iOS FCM) instead of guessing.
+  const devices = new Map<string, string | null>()
+  for (const device of recipient?.deviceTokens || []) {
+    devices.set(device.token, device.platform)
+  }
+  if (recipient?.pushToken && !devices.has(recipient.pushToken)) {
+    devices.set(recipient.pushToken, null)
+  }
+  if (input.pushToken && !devices.has(input.pushToken)) {
+    devices.set(input.pushToken, null)
+  }
 
   // Fan out to every registered transport for this user. Web Push
   // subscriptions are routed through webpush.sendNotification inside
   // sendPush; native FCM tokens go through FCM. A failed device never blocks
   // the rest of the fan-out or the in-app notification.
   const pushResults = await Promise.allSettled(
-    [...tokens].map((token) => sendPush(token, input.title, input.body, input.href))
+    [...devices].map(([token, platform]) =>
+      sendPush(token, input.title, input.body, input.href, platform)
+    )
   )
 
   // Never silently swallow a failed fan-out: the transport logs the exact
