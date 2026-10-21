@@ -56,13 +56,51 @@ export async function POST(req: NextRequest) {
         ? "web-push"
         : "android"
 
-  await prisma.deviceToken.upsert({
-    where: { token },
-    update: { userId: user.id, platform: resolvedPlatform },
-    create: { userId: user.id, token, platform: resolvedPlatform },
+  if (resolvedPlatform === "web-push") {
+    try {
+      const parsed = JSON.parse(token) as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }
+      if (
+        typeof parsed.endpoint !== "string" ||
+        !parsed.endpoint.startsWith("https://") ||
+        typeof parsed.keys?.p256dh !== "string" ||
+        typeof parsed.keys?.auth !== "string"
+      ) {
+        console.error("[PUSH REGISTER] rejected malformed web-push subscription", {
+          userId: user.id,
+          tokenChars: token.length,
+        })
+        return NextResponse.json({ error: "invalid web push subscription." }, { status: 400 })
+      }
+    } catch {
+      console.error("[PUSH REGISTER] rejected unparseable web-push subscription", {
+        userId: user.id,
+        tokenChars: token.length,
+      })
+      return NextResponse.json({ error: "invalid web push subscription." }, { status: 400 })
+    }
+  }
+
+  try {
+    await prisma.deviceToken.upsert({
+      where: { token },
+      update: { userId: user.id, platform: resolvedPlatform },
+      create: { userId: user.id, token, platform: resolvedPlatform },
+    })
+    await prisma.user.update({ where: { id: user.id }, data: { pushToken: token } })
+  } catch (error) {
+    console.error("[PUSH REGISTER] failed to save DeviceToken", {
+      userId: user.id,
+      platform: resolvedPlatform,
+      tokenChars: token.length,
+    }, error)
+    return NextResponse.json({ error: "could not save push subscription." }, { status: 500 })
+  }
+
+  console.info("[PUSH REGISTER] saved", {
+    userId: user.id,
+    platform: resolvedPlatform,
+    tokenChars: token.length,
   })
-  await prisma.user.update({ where: { id: user.id }, data: { pushToken: token } })
-  console.info("Push token registered", { userId: user.id, platform: resolvedPlatform })
 
   return NextResponse.json({ success: true })
 }

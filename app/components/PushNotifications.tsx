@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
+const BUILD_VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
 
 function isNativePlatform(): boolean {
   try {
@@ -25,6 +25,46 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 /**
+ * NEXT_PUBLIC_* values are inlined by `next build`. If the key was missing
+ * from the Vercel build environment the bundle contains an empty string and
+ * subscribe() can never work. Fall back to the runtime endpoint so the key
+ * always matches the private key the server signs with.
+ */
+async function resolveVapidPublicKey(): Promise<string> {
+  if (BUILD_VAPID_PUBLIC_KEY) return BUILD_VAPID_PUBLIC_KEY
+
+  const res = await fetch("/api/notifications/vapid-public-key", {
+    cache: "no-store",
+    credentials: "include",
+  })
+  const text = await res.text()
+  let data: { publicKey?: unknown; error?: unknown } = {}
+  try {
+    data = text ? (JSON.parse(text) as { publicKey?: unknown; error?: unknown }) : {}
+  } catch {
+    throw new Error(`could not read VAPID key response (${res.status}): ${text.slice(0, 200)}`)
+  }
+  if (!res.ok || typeof data.publicKey !== "string" || !data.publicKey) {
+    throw new Error(
+      typeof data.error === "string" ? data.error : `VAPID public key is not configured (${res.status})`
+    )
+  }
+  console.info("[push] using runtime VAPID public key")
+  return data.publicKey
+}
+
+function sameApplicationServerKey(subscription: PushSubscription, expected: Uint8Array): boolean {
+  const current = subscription.options.applicationServerKey
+  if (!current) return false
+  const bytes = new Uint8Array(current)
+  if (bytes.length !== expected.length) return false
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] !== expected[i]) return false
+  }
+  return true
+}
+
+/**
  * Shared web-push subscribe logic (used by settings + notifications page).
  * - Native Capacitor shells are always skipped.
  * - `requestPermission: true` may only be passed from a user gesture
@@ -43,7 +83,11 @@ export async function subscribeForPush(opts?: { requestPermission?: boolean }): 
     // missing — then fail gracefully below instead of leaving a dead button.
     if (opts?.requestPermission && Notification.permission === "default") {
       try {
-        await Notification.requestPermission()
+        const permission = await Notification.requestPermission()
+        if (permission !== "granted") {
+          console.info("[push] permission not granted:", permission)
+          return false
+        }
       } catch (err) {
         console.log("[push] permission request failed (fail-open):", err)
         return false
@@ -51,32 +95,42 @@ export async function subscribeForPush(opts?: { requestPermission?: boolean }): 
     }
 
     if (Notification.permission !== "granted") return false
-    if (!VAPID_PUBLIC_KEY) {
-      console.log("[push] missing VAPID public key, skipping subscribe")
-      return false
-    }
+
+    const vapidPublicKey = await resolveVapidPublicKey()
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
 
     // Register explicitly before waiting for `ready`: on a first visit the
     // deferred layout registration may not have run yet, and `ready` would
     // otherwise hang forever. Registering twice is a no-op in browsers.
     await navigator.serviceWorker.register("/sw.js", { scope: "/" })
     const registration = await navigator.serviceWorker.ready
-    const existing = await registration.pushManager.getSubscription()
+    let existing = await registration.pushManager.getSubscription()
+
+    // A subscription created with a stale/different key can never receive
+    // notifications signed by this server. Replace it.
+    if (existing && !sameApplicationServerKey(existing, applicationServerKey)) {
+      console.info("[push] replacing subscription created with a different VAPID key")
+      await existing.unsubscribe().catch(() => {})
+      existing = null
+    }
+
     const subscription =
       existing ??
       (await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey,
       }))
 
-    await fetch("/api/notifications/register", {
+    const res = await fetch("/api/notifications/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ token: JSON.stringify(subscription), platform: "web-push" }),
-    }).then((res) => {
-      if (!res.ok) throw new Error(`register failed (${res.status})`)
     })
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      throw new Error(`register failed (${res.status}): ${text.slice(0, 300)}`)
+    }
 
     console.log("[push] subscription registered")
     return true

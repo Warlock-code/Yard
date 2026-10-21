@@ -1,6 +1,7 @@
 import { google } from "googleapis"
 import webpush from "web-push"
 import { prisma } from "@/lib/prisma"
+import { getVapidConfig } from "@/lib/vapid"
 
 type FirebaseServiceAccount = {
   project_id: string
@@ -8,10 +9,20 @@ type FirebaseServiceAccount = {
   private_key: string
 }
 
+export type PushSendResult = {
+  ok: boolean
+  transport: "web-push" | "fcm" | "none"
+  statusCode?: number
+  body?: string
+  error?: string
+  endpointHost?: string
+  removed?: boolean
+}
+
 function getServiceAccount(): FirebaseServiceAccount | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim()
   if (!raw) {
-    console.error("FCM is not configured: FIREBASE_SERVICE_ACCOUNT is missing")
+    console.error("[PUSH CONFIG] FCM is not configured: FIREBASE_SERVICE_ACCOUNT is missing")
     return null
   }
 
@@ -21,7 +32,7 @@ function getServiceAccount(): FirebaseServiceAccount | null {
     if (!key.project_id || !key.client_email || !key.private_key) throw new Error("Incomplete Firebase service account")
     return { ...key, private_key: key.private_key.replace(/\\n/g, "\n") }
   } catch (error) {
-    console.error("FCM is not configured: invalid FIREBASE_SERVICE_ACCOUNT", error)
+    console.error("[PUSH CONFIG] FCM is not configured: invalid FIREBASE_SERVICE_ACCOUNT", error)
     return null
   }
 }
@@ -52,27 +63,52 @@ export function isWebPushSubscription(token: string): boolean {
   }
 }
 
-let vapidConfigured = false
-function ensureVapid(): boolean {
-  if (vapidConfigured) return true
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()
-  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim()
-  if (!publicKey || !privateKey) {
-    console.error("Web Push is not configured: VAPID keys are missing")
-    return false
+function ensureVapid(): { ok: true } | { ok: false; error: string } {
+  const config = getVapidConfig()
+  if (!config.configured) {
+    const message = config.warning || "VAPID keys are missing."
+    console.error("[PUSH CONFIG]", message)
+    return { ok: false, error: message }
   }
   try {
-    webpush.setVapidDetails("mailto:hello@yardapp.me", publicKey, privateKey)
-    vapidConfigured = true
-    return true
+    webpush.setVapidDetails("mailto:hello@yardapp.me", config.publicKey, config.privateKey)
+    return { ok: true }
   } catch (error) {
-    console.error("Web Push VAPID setup failed", error)
-    return false
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("[PUSH CONFIG] VAPID setup failed", error)
+    return { ok: false, error: message }
   }
 }
 
-async function sendWebPush(subscriptionJson: string, title: string, body: string, href?: string) {
-  if (!ensureVapid()) return
+function endpointHost(subscriptionJson: string): string | undefined {
+  try {
+    return new URL((JSON.parse(subscriptionJson) as { endpoint?: string }).endpoint || "").host
+  } catch {
+    return undefined
+  }
+}
+
+async function deleteDeadToken(token: string, reason: string) {
+  try {
+    await prisma.deviceToken.deleteMany({ where: { token } })
+    await prisma.user.updateMany({ where: { pushToken: token }, data: { pushToken: null } })
+    console.error("[PUSH ERROR] removed dead token", reason)
+  } catch (error) {
+    console.error("[PUSH ERROR] could not remove dead token", error)
+  }
+}
+
+async function sendWebPush(
+  subscriptionJson: string,
+  title: string,
+  body: string,
+  href?: string
+): Promise<PushSendResult> {
+  const vapid = ensureVapid()
+  if (!vapid.ok) {
+    return { ok: false, transport: "web-push", error: vapid.error }
+  }
+
   let subscription: { endpoint: string; keys?: { p256dh?: string; auth?: string } }
   try {
     subscription = JSON.parse(subscriptionJson) as {
@@ -80,35 +116,69 @@ async function sendWebPush(subscriptionJson: string, title: string, body: string
       keys?: { p256dh?: string; auth?: string }
     }
   } catch (error) {
-    console.error("Web Push notification skipped: invalid subscription JSON", error instanceof Error ? error.message : error)
-    return
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("[PUSH ERROR] invalid subscription JSON", message)
+    return { ok: false, transport: "web-push", error: `invalid subscription JSON: ${message}` }
   }
+
+  const host = endpointHost(subscriptionJson)
   try {
-    await webpush.sendNotification(
+    const result = await webpush.sendNotification(
       subscription,
       JSON.stringify({ title, body, href: href ?? "/notifications", icon: "/icon-192.png" }),
       { TTL: 24 * 60 * 60 }
     )
+    return {
+      ok: true,
+      transport: "web-push",
+      statusCode: result.statusCode,
+      body: result.body,
+      endpointHost: host,
+    }
   } catch (error: unknown) {
+    // Do not swallow this: Vercel logs must show the push service's exact
+    // rejection reason (401 key mismatch, 403 VAPID mismatch, 404/410 dead
+    // subscription, 413 payload too large, etc.).
+    const err = error as { statusCode?: number; body?: string; message?: string }
+    console.error("[PUSH ERROR]", err.statusCode, err.body ?? err.message)
+
     // 404/410 = subscription expired or revoked: drop the stale token so
     // future sends don't keep failing.
-    const statusCode = (error as { statusCode?: number })?.statusCode
-    if (statusCode === 404 || statusCode === 410) {
-      await prisma.deviceToken.deleteMany({ where: { token: subscriptionJson } }).catch(() => {})
-      await prisma.user.updateMany({ where: { pushToken: subscriptionJson }, data: { pushToken: null } }).catch(() => {})
-      console.info("Web Push subscription expired, token removed")
-      return
+    if (err.statusCode === 404 || err.statusCode === 410) {
+      await deleteDeadToken(subscriptionJson, `web push ${err.statusCode} (${host || "unknown host"})`)
+      return {
+        ok: false,
+        transport: "web-push",
+        statusCode: err.statusCode,
+        body: err.body,
+        error: err.message,
+        endpointHost: host,
+        removed: true,
+      }
     }
-    console.error("Web Push notification failed", error instanceof Error ? error.message : error)
+
+    return {
+      ok: false,
+      transport: "web-push",
+      statusCode: err.statusCode,
+      body: err.body,
+      error: err.message,
+      endpointHost: host,
+    }
   }
 }
 
-async function sendFcm(pushToken: string, title: string, body: string, href?: string) {
+async function sendFcm(
+  pushToken: string,
+  title: string,
+  body: string,
+  href?: string
+): Promise<PushSendResult> {
   try {
     const key = getServiceAccount()
-    if (!key) return
+    if (!key) return { ok: false, transport: "fcm", error: "FCM is not configured." }
     const accessToken = await getAccessToken()
-    if (!accessToken) return
+    if (!accessToken) return { ok: false, transport: "fcm", error: "Could not obtain an FCM access token." }
 
     const response = await fetch(`https://fcm.googleapis.com/v1/projects/${key.project_id}/messages:send`, {
       method: "POST",
@@ -134,37 +204,73 @@ async function sendFcm(pushToken: string, title: string, body: string, href?: st
       }),
     })
 
+    const responseBody = await response.text()
     if (!response.ok) {
-      const errorBody = await response.text()
-      // Unregistered device: drop the stale token.
-      if (response.status === 404 && errorBody.includes("UNREGISTERED")) {
-        await prisma.deviceToken.deleteMany({ where: { token: pushToken } }).catch(() => {})
-        await prisma.user.updateMany({ where: { pushToken }, data: { pushToken: null } }).catch(() => {})
-        console.info("FCM token unregistered, token removed")
-        return
+      console.error("[PUSH ERROR]", response.status, responseBody)
+      // Unregistered/invalid device: drop the stale token.
+      if (
+        response.status === 404 &&
+        (responseBody.includes("UNREGISTERED") || responseBody.includes("NOT_FOUND"))
+      ) {
+        await deleteDeadToken(pushToken, `fcm ${response.status} UNREGISTERED`)
+        return {
+          ok: false,
+          transport: "fcm",
+          statusCode: response.status,
+          body: responseBody,
+          error: "FCM token is unregistered.",
+          removed: true,
+        }
       }
-      console.error("FCM notification failed", response.status, errorBody)
+      return {
+        ok: false,
+        transport: "fcm",
+        statusCode: response.status,
+        body: responseBody,
+        error: `FCM request failed (${response.status}).`,
+      }
+    }
+
+    return {
+      ok: true,
+      transport: "fcm",
+      statusCode: response.status,
+      body: responseBody,
     }
   } catch (error) {
-    console.error("FCM notification could not be sent", error)
+    console.error("[PUSH ERROR]", error)
+    return {
+      ok: false,
+      transport: "fcm",
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 }
 
 // Route a stored token to the right transport. Never throws: push must not
 // break the notification/comment/vote flow that triggered it.
-export async function sendPush(pushToken: string, title: string, body: string, href?: string) {
+export async function sendPush(
+  pushToken: string,
+  title: string,
+  body: string,
+  href?: string
+): Promise<PushSendResult> {
   if (!pushToken) {
-    console.error("Push skipped: recipient has no registered device token")
-    return
+    console.error("[PUSH ERROR] recipient has no registered device token")
+    return { ok: false, transport: "none", error: "missing push token" }
   }
   try {
     if (isWebPushSubscription(pushToken)) {
-      await sendWebPush(pushToken, title, body, href)
-    } else {
-      await sendFcm(pushToken, title, body, href)
+      return await sendWebPush(pushToken, title, body, href)
     }
+    return await sendFcm(pushToken, title, body, href)
   } catch (error) {
-    console.error("Push could not be sent", error)
+    console.error("[PUSH ERROR]", error)
+    return {
+      ok: false,
+      transport: "none",
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 }
 

@@ -223,6 +223,7 @@ export default function AdminPage() {
   const [adLink, setAdLink] = useState("")
   const [adDurationHours, setAdDurationHours] = useState(24)
   const [adStatus, setAdStatus] = useState("")
+  const [testPushSending, setTestPushSending] = useState(false)
   // Referral contest console: leaderboard window + blast copy.
   const [contestDays, setContestDays] = useState(7)
   const [contestLeaders, setContestLeaders] = useState<ContestLeader[]>([])
@@ -573,6 +574,27 @@ export default function AdminPage() {
       setAdStatus(`ad is live for ${adDurationHours}h — insertion follows each viewer's tier.`)
     } catch (e: unknown) { alert(errMsg(e, "failed to publish ad.")) }
     finally { setBusyId(null) }
+  }
+
+  async function handleTestPush() {
+    if (testPushSending) return
+    setTestPushSending(true)
+    try {
+      const res = await fetch("/api/admin/test-push", {
+        method: "POST",
+        credentials: "include",
+      })
+      const text = await res.text()
+      let data: unknown = text
+      try { data = text ? JSON.parse(text) : {} } catch { data = { raw: text } }
+      // alert() the full response so the exact VAPID/FCM push-service error is
+      // visible without opening the Vercel log viewer.
+      alert(`HTTP ${res.status}\n${JSON.stringify(data, null, 2)}`)
+    } catch (e: unknown) {
+      alert(`test push request failed: ${errMsg(e, "network error")}`)
+    } finally {
+      setTestPushSending(false)
+    }
   }
 
   async function handleBroadcast() {
@@ -1655,6 +1677,24 @@ export default function AdminPage() {
                       <p>· rendered like a real post — promoted badge, comments open, no tip/vote buttons.</p>
                       <p>· tapping the card opens the target link in a new tab.</p>
                       <p>· no self-serve portal yet — brands come through you.</p>
+                    </div>
+                  </Card>
+                  <Card className="lg:col-span-5">
+                    <CardHeader title="system" sub="push pipeline diagnostics" />
+                    <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-white/90">Test Push Notification</p>
+                        <p className="text-xs text-white/40 mt-1">
+                          sends to the most recent DeviceToken in the DB and shows the exact statusCode/body returned by the push service.
+                        </p>
+                      </div>
+                      <button
+                        disabled={testPushSending}
+                        onClick={handleTestPush}
+                        className="shrink-0 rounded-xl border border-[#baff39]/40 text-[#baff39] font-bold px-4 py-2.5 text-sm hover:bg-[#baff39]/10 disabled:opacity-50 transition-colors"
+                      >
+                        {testPushSending ? "sending…" : "Test Push Notification"}
+                      </button>
                     </div>
                   </Card>
                 </div>

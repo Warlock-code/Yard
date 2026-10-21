@@ -54,9 +54,25 @@ export async function createNotification(input: NotificationInput) {
   // subscriptions are routed through webpush.sendNotification inside
   // sendPush; native FCM tokens go through FCM. A failed device never blocks
   // the rest of the fan-out or the in-app notification.
-  await Promise.allSettled(
+  const pushResults = await Promise.allSettled(
     [...tokens].map((token) => sendPush(token, input.title, input.body, input.href))
   )
+
+  // Never silently swallow a failed fan-out: the transport logs the exact
+  // status/body, and this catches anything that escaped it.
+  for (const result of pushResults) {
+    if (result.status === "rejected") {
+      console.error("[PUSH ERROR] notification fan-out rejected", result.reason)
+    } else if (!result.value.ok) {
+      console.error("[PUSH ERROR] notification fan-out failed", {
+        type: input.type,
+        transport: result.value.transport,
+        statusCode: result.value.statusCode,
+        body: result.value.body,
+        error: result.value.error,
+      })
+    }
+  }
 
  emitNotification(input.userId, {
   id: notification.id,

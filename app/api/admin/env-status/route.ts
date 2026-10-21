@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { isAdmin } from "@/lib/getAdmin"
+import { getVapidConfig } from "@/lib/vapid"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +23,8 @@ function flag(v: string | undefined) {
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: "not authorized." }, { status: 403 })
 
+  const vapidConfig = getVapidConfig()
+
   return NextResponse.json({
     // Source of truth is the server .env (loaded into process.env).
     source: "server .env",
@@ -42,7 +45,17 @@ export async function GET(req: NextRequest) {
       uploadthing: flag(process.env.UPLOADTHING_TOKEN),
       openrouter: flag(process.env.OPENROUTER_API_KEY),
       firebase: flag(process.env.FIREBASE_SERVICE_ACCOUNT),
-      vapid: flag(process.env.VAPID_PRIVATE_KEY),
+      vapid: {
+        privateKey: flag(process.env.VAPID_PRIVATE_KEY),
+        publicKey: flag(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
+        configured: vapidConfig.configured,
+        source: vapidConfig.source,
+        // false means the env public key is missing or does not match the
+        // private key — browsers would subscribe with a key the server cannot
+        // sign for, and every push would fail 401/403.
+        keyPairValid: vapidConfig.configured && vapidConfig.warning === null,
+        warning: vapidConfig.warning,
+      },
       database: flag(process.env.DATABASE_URL),
     },
     env: {

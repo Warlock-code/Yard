@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
-import { apiGet, apiPatch, apiPost } from "@/lib/useApi"
+import { apiGet, apiPatch } from "@/lib/useApi"
 import { timeAgo } from "@/lib/timeAgo"
 import { notificationIcon } from "@/lib/notifIcons"
 import { useSocket } from "@/lib/socket"
+import { subscribeForPush } from "@/app/components/PushNotifications"
 
 type Notification = {
   id: string
@@ -18,64 +19,16 @@ type Notification = {
   type?: string
 }
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
-  const rawData = window.atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
-  }
-  return outputArray
-}
-
-let pushRegisterInFlight: Promise<void> | null = null
+let pushRegisterInFlight: Promise<boolean> | null = null
 
 async function registerPushToken() {
-  if (typeof window === "undefined") return
-  try {
-    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-    if (cap?.isNativePlatform?.()) return
-  } catch {}
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window) || !VAPID_PUBLIC_KEY) return
-
-  if (Notification.permission === "denied") {
-    console.info("[push] permission denied, skipping subscribe")
-    return
-  }
-  // "default" means the user has not opted in yet — stay silent until the
-  // settings page "enable push notifications" button requests permission.
-  if (Notification.permission !== "granted") return
-
-  // Avoid double-subscribe loops (StrictMode remounts, repeat visits).
-  if (pushRegisterInFlight) {
-    await pushRegisterInFlight
-    return
-  }
-
-  pushRegisterInFlight = (async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready
-      const existing = await registration.pushManager.getSubscription()
-      const subscription =
-        existing ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        }))
-
-      const token = JSON.stringify(subscription)
-      await apiPost("/api/notifications/register", { token, platform: "web-push" })
-      console.log("Push token registered")
-    } catch (error) {
-      console.error("Push registration failed:", error)
-    } finally {
+  // Reuse the single shared implementation so this page cannot drift from
+  // the settings button or depend on a build-time VAPID key.
+  if (!pushRegisterInFlight) {
+    pushRegisterInFlight = subscribeForPush().finally(() => {
       pushRegisterInFlight = null
-    }
-  })()
-
+    })
+  }
   await pushRegisterInFlight
 }
 

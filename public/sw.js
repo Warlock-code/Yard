@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'yard-static-v3'
-const DYNAMIC_CACHE = 'yard-dynamic-v3'
+const STATIC_CACHE = 'yard-static-v4'
+const DYNAMIC_CACHE = 'yard-dynamic-v4'
 
 const STATIC_ASSETS = [
   '/',
@@ -162,6 +162,7 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : '' }
   }
+  console.info('[sw] push received', data.href || data.title || '')
   const title = data.title || 'yard'
   const options = {
     body: data.body || 'you have a new notification.',
@@ -169,7 +170,11 @@ self.addEventListener('push', (event) => {
     badge: '/icon-96.png',
     data: { href: data.href || '/notifications' },
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch((error) => {
+      console.error('[sw] showNotification failed', error)
+    })
+  )
 })
 
 self.addEventListener('notificationclick', (event) => {
