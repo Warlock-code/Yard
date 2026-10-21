@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiGet, apiPatch } from "@/lib/useApi"
 import Avatar from "@/app/components/Avatar"
-import { subscribeForPush } from "@/app/components/PushNotifications"
+import { getPushSubscriptionStatus, subscribeForPush } from "@/app/components/PushNotifications"
 
 type Me = {
   ghostId: string
@@ -61,10 +61,19 @@ export default function SettingsPage() {
       const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
       if (cap?.isNativePlatform?.()) return
     } catch {}
-    navigator.serviceWorker.ready
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setPushSubscribed(!!sub))
-      .catch(() => {})
+    getPushSubscriptionStatus()
+      .then((status) => {
+        setPushSubscribed(status.subscribed && status.current)
+        if (status.subscribed && !status.current) {
+          setPushMessage("your saved push subscription uses an old key — tap enable to refresh it.")
+        } else if (status.error) {
+          setPushMessage(status.error)
+        }
+      })
+      .catch((err: unknown) => {
+        setPushSubscribed(false)
+        setPushMessage(err instanceof Error ? `${err.name}: ${err.message}` : String(err))
+      })
   }, [])
 
   async function handleEnablePush() {
@@ -72,18 +81,16 @@ export default function SettingsPage() {
     setPushBusy(true)
     setPushMessage("")
     try {
-      const ok = await subscribeForPush({ requestPermission: true })
+      const result = await subscribeForPush({ requestPermission: true, resetExisting: true })
       const permission = typeof window !== "undefined" && "Notification" in window
         ? Notification.permission
         : "default"
       setPushPermission(permission)
-      setPushSubscribed(ok)
-      if (!ok) {
-        setPushMessage(
-          permission === "denied"
-            ? "notifications are blocked — allow them in your browser site settings and try again."
-            : "couldn't enable push on this device. check your connection and try again."
-        )
+      setPushSubscribed(result.ok)
+      if (!result.ok) {
+        // Surface the exact browser/registration error instead of hiding it
+        // behind a generic connectivity message.
+        setPushMessage(result.error || "push failed — unknown error.")
       }
     } finally {
       setPushBusy(false)

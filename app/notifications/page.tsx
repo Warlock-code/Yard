@@ -19,7 +19,7 @@ type Notification = {
   type?: string
 }
 
-let pushRegisterInFlight: Promise<boolean> | null = null
+let pushRegisterInFlight: ReturnType<typeof subscribeForPush> | null = null
 
 async function registerPushToken() {
   // Reuse the single shared implementation so this page cannot drift from
