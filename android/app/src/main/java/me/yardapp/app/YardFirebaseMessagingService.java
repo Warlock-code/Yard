@@ -8,10 +8,20 @@ import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 
+import com.capacitorjs.plugins.pushnotifications.PushNotificationsPlugin;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
 public class YardFirebaseMessagingService extends FirebaseMessagingService {
+    @Override
+    public void onNewToken(@NonNull String token) {
+        super.onNewToken(token);
+        // The plugin's own MessagingService is removed from the manifest so
+        // only this app service displays pushes. Forward token refreshes so
+        // the JS registration listener still receives them when available.
+        PushNotificationsPlugin.onNewToken(token);
+    }
+
     @Override
     public void onMessageReceived(@NonNull RemoteMessage message) {
         RemoteMessage.Notification notification = message.getNotification();

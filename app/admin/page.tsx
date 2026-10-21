@@ -576,13 +576,15 @@ export default function AdminPage() {
     finally { setBusyId(null) }
   }
 
-  async function handleTestPush() {
+  async function handleTestPush(platform?: "android" | "web-push") {
     if (testPushSending) return
     setTestPushSending(true)
     try {
       const res = await fetch("/api/admin/test-push", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(platform ? { platform } : {}),
       })
       const text = await res.text()
       let data: unknown = text
@@ -1685,16 +1687,32 @@ export default function AdminPage() {
                       <div>
                         <p className="text-sm font-bold text-white/90">Test Push Notification</p>
                         <p className="text-xs text-white/40 mt-1">
-                          sends to the most recent DeviceToken in the DB (Web Push via VAPID or Android/iOS via FCM) and shows the exact statusCode/body/error returned by the push service.
+                          sends to a DeviceToken in the DB and shows the exact statusCode/body/error returned by the push service. use the Android button to test the phone even when a newer Web Push token exists.
                         </p>
                       </div>
-                      <button
-                        disabled={testPushSending}
-                        onClick={handleTestPush}
-                        className="shrink-0 rounded-xl border border-[#baff39]/40 text-[#baff39] font-bold px-4 py-2.5 text-sm hover:bg-[#baff39]/10 disabled:opacity-50 transition-colors"
-                      >
-                        {testPushSending ? "sending…" : "Test Push Notification"}
-                      </button>
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        <button
+                          disabled={testPushSending}
+                          onClick={() => handleTestPush("android")}
+                          className="rounded-xl border border-[#baff39]/40 text-[#baff39] font-bold px-4 py-2.5 text-sm hover:bg-[#baff39]/10 disabled:opacity-50 transition-colors"
+                        >
+                          {testPushSending ? "sending…" : "Test Android FCM"}
+                        </button>
+                        <button
+                          disabled={testPushSending}
+                          onClick={() => handleTestPush("web-push")}
+                          className="rounded-xl border border-white/15 text-white/70 font-bold px-4 py-2.5 text-sm hover:bg-white/5 disabled:opacity-50 transition-colors"
+                        >
+                          {testPushSending ? "sending…" : "Test Web Push"}
+                        </button>
+                        <button
+                          disabled={testPushSending}
+                          onClick={() => handleTestPush()}
+                          className="rounded-xl border border-white/15 text-white/50 font-bold px-4 py-2.5 text-sm hover:bg-white/5 disabled:opacity-50 transition-colors"
+                        >
+                          {testPushSending ? "sending…" : "Latest"}
+                        </button>
+                      </div>
                     </div>
                   </Card>
                 </div>

@@ -4,15 +4,19 @@ import { useEffect } from "react"
 
 const BUILD_VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
 
+export type NativePushPermission = "granted" | "denied" | "prompt" | "unknown"
+
 export type PushSubscribeResult = {
   ok: boolean
   error?: string
+  permission?: NativePushPermission
 }
 
 export type PushSubscriptionStatus = {
   subscribed: boolean
   current: boolean
   error?: string
+  permission?: NativePushPermission
 }
 
 type NativePushPlugin = typeof import("@capacitor/push-notifications")["PushNotifications"]
@@ -41,6 +45,77 @@ function formatPushError(error: unknown): string {
     }
   }
   return String(error)
+}
+
+function normalizeNativePermission(value: unknown): NativePushPermission {
+  if (value === "granted" || value === "denied") return value
+  // Capacitor local-notifications uses "prompt-with-rationale" on Android.
+  if (value === "prompt" || value === "prompt-with-rationale") return "prompt"
+  return "unknown"
+}
+
+/**
+ * Read/request the OS notification permission. The Capacitor push plugin is
+ * preferred, but this APK may contain an older bridge that only has the custom
+ * YardPush plugin. @capacitor/local-notifications uses the exact same Android
+ * POST_NOTIFICATIONS permission, so it is a reliable fallback for the UI.
+ */
+async function resolveNativePermission(
+  request: boolean
+): Promise<{ permission: NativePushPermission; pushPluginUsable: boolean }> {
+  const { Capacitor } = await import("@capacitor/core")
+
+  if (Capacitor.isPluginAvailable("PushNotifications")) {
+    try {
+      const { PushNotifications } = await import("@capacitor/push-notifications")
+      let permission = normalizeNativePermission((await PushNotifications.checkPermissions()).receive)
+      if (permission === "prompt" && request) {
+        permission = normalizeNativePermission((await PushNotifications.requestPermissions()).receive)
+      }
+      // "unknown" means the native bridge is present but its permission
+      // response was not usable; let the local-notifications check decide.
+      if (permission !== "unknown") return { permission, pushPluginUsable: true }
+    } catch (error) {
+      console.warn("[push] PushNotifications permission check failed:", formatPushError(error))
+    }
+  }
+
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications")
+    let permission = normalizeNativePermission((await LocalNotifications.checkPermissions()).display)
+    if (permission === "prompt" && request) {
+      permission = normalizeNativePermission((await LocalNotifications.requestPermissions()).display)
+    }
+    return { permission, pushPluginUsable: false }
+  } catch (error) {
+    console.warn("[push] native notification permission check unavailable:", formatPushError(error))
+    return { permission: "unknown", pushPluginUsable: false }
+  }
+}
+
+async function getLegacyNativeToken(): Promise<string> {
+  const { registerPlugin } = await import("@capacitor/core")
+  const YardPush = registerPlugin<{ getToken: () => Promise<{ token?: string }> }>("YardPush")
+  const result = await YardPush.getToken()
+  const token = typeof result?.token === "string" ? result.token.trim() : ""
+  if (!token) throw new Error("YardPush.getToken returned an empty token.")
+  return token
+}
+
+async function registerNativeToken(token: string, platform: "android" | "ios"): Promise<PushSubscribeResult> {
+  const res = await fetch("/api/notifications/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token, platform }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    const message = `register failed (${res.status}): ${text.slice(0, 300)}`
+    console.error("[push]", message)
+    return { ok: false, error: message }
+  }
+  return { ok: true }
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
@@ -183,55 +258,67 @@ async function subscribeNativePush(opts?: {
         return { ok: false, error: "not running inside the native app." }
       }
 
-      const { PushNotifications } = await import("@capacitor/push-notifications")
-      let permission = await PushNotifications.checkPermissions()
-      if (permission.receive !== "granted") {
-        if (!opts?.requestPermission) {
-          return { ok: false, error: `notification permission ${permission.receive}.` }
-        }
-        permission = await PushNotifications.requestPermissions()
-      }
-      if (permission.receive !== "granted") {
-        return { ok: false, error: `notification permission ${permission.receive}.` }
-      }
-
       const platform = Capacitor.getPlatform() === "ios" ? "ios" : "android"
-      if (platform === "android") {
+      const { permission, pushPluginUsable } = await resolveNativePermission(!!opts?.requestPermission)
+      let token = ""
+      let pluginFailure = ""
+
+      if (pushPluginUsable) {
         try {
-          await PushNotifications.createChannel({
-            id: "yard-v2",
-            name: "Yard notifications",
-            description: "Yard activity and announcements",
-            importance: 5,
-            visibility: 1,
-            vibration: true,
-          })
+          const { PushNotifications } = await import("@capacitor/push-notifications")
+          if (platform === "android") {
+            try {
+              await PushNotifications.createChannel({
+                id: "yard-v2",
+                name: "Yard notifications",
+                description: "Yard activity and announcements",
+                importance: 5,
+                visibility: 1,
+                vibration: true,
+              })
+            } catch (error) {
+              // Channel creation is best-effort; registration can still succeed.
+              console.warn("[push] could not create Android notification channel:", formatPushError(error))
+            }
+          }
+
+          token = await waitForFcmToken(PushNotifications)
+          if (!token) throw new Error("FCM registration returned an empty token.")
         } catch (error) {
-          // Channel creation is best-effort; registration can still succeed.
-          console.warn("[push] could not create Android notification channel:", formatPushError(error))
+          pluginFailure = formatPushError(error)
+          console.warn(
+            "[push] PushNotifications registration failed; trying the YardPush native bridge:",
+            pluginFailure
+          )
+        }
+      } else {
+        pluginFailure = "PushNotifications native plugin is unavailable in this APK."
+        console.warn("[push]", pluginFailure, "— using the YardPush native bridge.")
+      }
+
+      // Older/rebuilt APKs can contain the YardPush bridge without the
+      // Capacitor push plugin (the "plugin not implemented" case). The bridge
+      // uses the same FirebaseMessaging token, so registration still works
+      // without reinstalling the app.
+      if (!token) {
+        try {
+          token = await getLegacyNativeToken()
+          console.info("[push] native FCM token obtained from the YardPush bridge")
+        } catch (fallbackError) {
+          const fallback = formatPushError(fallbackError)
+          const message = pluginFailure
+            ? `${pluginFailure} YardPush fallback failed: ${fallback}`
+            : `YardPush fallback failed: ${fallback}`
+          console.error("[push] native subscribe failed:", message)
+          return { ok: false, error: message, permission }
         }
       }
 
-      const token = await waitForFcmToken(PushNotifications)
-      if (!token) {
-        return { ok: false, error: "FCM registration returned an empty token." }
-      }
+      const registered = await registerNativeToken(token, platform)
+      if (!registered.ok) return { ...registered, permission }
 
-      const res = await fetch("/api/notifications/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ token, platform }),
-      })
-      if (!res.ok) {
-        const text = await res.text().catch(() => "")
-        const message = `register failed (${res.status}): ${text.slice(0, 300)}`
-        console.error("[push]", message)
-        return { ok: false, error: message }
-      }
-
-      console.log(`[push] native ${platform} FCM token registered`)
-      return { ok: true }
+      console.log(`[push] native ${platform} FCM token registered (permission: ${permission})`)
+      return { ok: true, permission }
     } catch (error) {
       const message = formatPushError(error)
       console.error("[push] native subscribe failed:", message)
@@ -247,19 +334,20 @@ async function subscribeNativePush(opts?: {
 /**
  * Used by settings on load. Web: a stored subscription is only shown as
  * "enabled" when it was created with the key the server currently signs with.
- * Native: check/register the FCM token when permission is already granted.
+ * Native: read the OS permission and (re)register the FCM token. This never
+ * prompts; the settings button owns that user gesture.
  */
 export async function getPushSubscriptionStatus(): Promise<PushSubscriptionStatus> {
   try {
     if (typeof window === "undefined") return { subscribed: false, current: false }
     if (isNativePushPlatform()) {
-      const { PushNotifications } = await import("@capacitor/push-notifications")
-      const permission = await PushNotifications.checkPermissions()
-      if (permission.receive !== "granted") {
-        return { subscribed: false, current: false }
-      }
       const result = await subscribeNativePush()
-      return { subscribed: result.ok, current: result.ok, error: result.error }
+      return {
+        subscribed: result.ok,
+        current: result.ok,
+        error: result.error,
+        permission: result.permission,
+      }
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       return { subscribed: false, current: false }

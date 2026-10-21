@@ -73,28 +73,11 @@ function getFirebaseApp(): App | null {
     return firebaseApp
   }
 
-  const projectId = envValue("FIREBASE_PROJECT_ID")
-  const clientEmail = envValue("FIREBASE_CLIENT_EMAIL")
-  const privateKey = normalizePrivateKey(envValue("FIREBASE_PRIVATE_KEY"))
+  firebaseInitError = null
 
-  if (projectId && clientEmail && privateKey) {
-    try {
-      firebaseApp = initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-        projectId,
-      })
-      firebaseInitError = null
-      console.info("[PUSH CONFIG] Firebase Admin initialized from split env vars", { projectId })
-      return firebaseApp
-    } catch (error) {
-      firebaseInitError = `failed to initialize Firebase Admin from split env vars: ${errorText(error)}`
-      console.error(
-        "[PUSH CONFIG] failed to initialize Firebase Admin from split env vars; trying FIREBASE_SERVICE_ACCOUNT",
-        error
-      )
-    }
-  }
-
+  // Prefer the single JSON service account: it is the credential that was
+  // already working in production before the split-env support was added.
+  // If it is missing or invalid, fall through to the split env vars.
   const serviceAccount = getServiceAccountFromJson()
   if (serviceAccount) {
     try {
@@ -112,10 +95,32 @@ function getFirebaseApp(): App | null {
       })
       return firebaseApp
     } catch (error) {
-      firebaseInitError = `failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT: ${errorText(error)}`
-      console.error("[PUSH CONFIG] failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT", error)
-      firebaseApp = null
-      return null
+      const message = `failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT: ${errorText(error)}`
+      firebaseInitError = firebaseInitError ? `${firebaseInitError}; ${message}` : message
+      console.error(
+        "[PUSH CONFIG] failed to initialize Firebase Admin from FIREBASE_SERVICE_ACCOUNT; trying split env vars",
+        error
+      )
+    }
+  }
+
+  const projectId = envValue("FIREBASE_PROJECT_ID")
+  const clientEmail = envValue("FIREBASE_CLIENT_EMAIL")
+  const privateKey = normalizePrivateKey(envValue("FIREBASE_PRIVATE_KEY"))
+
+  if (projectId && clientEmail && privateKey) {
+    try {
+      firebaseApp = initializeApp({
+        credential: cert({ projectId, clientEmail, privateKey }),
+        projectId,
+      })
+      firebaseInitError = null
+      console.info("[PUSH CONFIG] Firebase Admin initialized from split env vars", { projectId })
+      return firebaseApp
+    } catch (error) {
+      const message = `failed to initialize Firebase Admin from split env vars: ${errorText(error)}`
+      firebaseInitError = firebaseInitError ? `${firebaseInitError}; ${message}` : message
+      console.error("[PUSH CONFIG] failed to initialize Firebase Admin from split env vars", error)
     }
   }
 
@@ -266,6 +271,25 @@ function isDeadFcmToken(code: string, message: string): boolean {
   )
 }
 
+function fcmStatusCode(code: string): number {
+  switch (code) {
+    case "messaging/registration-token-not-registered":
+    case "messaging/invalid-registration-token":
+      return 404
+    case "messaging/mismatched-credential":
+    case "messaging/authentication-error":
+      return 401
+    case "messaging/invalid-argument":
+      return 400
+    case "messaging/quota-exceeded":
+      return 429
+    case "messaging/server-unavailable":
+      return 503
+    default:
+      return 500
+  }
+}
+
 export async function sendFcm(
   pushToken: string,
   title: string,
@@ -288,14 +312,14 @@ export async function sendFcm(
   const message: Message = {
     token: pushToken,
     notification: { title, body },
-    ...(href ? { data: { href } } : {}),
+    // Always include a click target. A bare notification payload is enough
+    // for the banner, but the app needs this to open the relevant screen.
+    data: { href: href || "/" },
     android: {
       priority: "high",
       notification: {
         channelId: "yard-v2",
         sound: "default",
-        defaultSound: true,
-        defaultVibrateTimings: true,
       },
     },
     ...(isIos
@@ -345,7 +369,7 @@ export async function sendFcm(
     return {
       ok: false,
       transport: "fcm",
-      statusCode: 500,
+      statusCode: fcmStatusCode(code),
       body: messageText,
       error: `${code}: ${messageText}`,
     }

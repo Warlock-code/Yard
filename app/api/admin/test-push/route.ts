@@ -19,12 +19,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "not authorized." }, { status: 403 })
   }
 
+  const requestBody = (await req.json().catch(() => ({}))) as { platform?: unknown }
+  const requestedPlatform =
+    requestBody.platform === "android" ||
+    requestBody.platform === "ios" ||
+    requestBody.platform === "web-push"
+      ? requestBody.platform
+      : null
+
   const latest = await prisma.deviceToken.findFirst({
+    where: requestedPlatform ? { platform: requestedPlatform } : undefined,
     orderBy: { createdAt: "desc" },
   })
 
   if (!latest) {
-    return NextResponse.json({ error: "No DeviceTokens found in DB" }, { status: 404 })
+    return NextResponse.json(
+      {
+        error: requestedPlatform
+          ? `No DeviceTokens found for platform "${requestedPlatform}" in DB`
+          : "No DeviceTokens found in DB",
+        requestedPlatform,
+      },
+      { status: 404 }
+    )
   }
 
   console.info("[TEST PUSH] most recent DeviceToken", {
@@ -36,13 +53,14 @@ export async function POST(req: NextRequest) {
   })
 
   const title = "yard test push"
-  const body = `push pipeline test — ${new Date().toISOString()}`
+  const pushBody = `push pipeline test — ${new Date().toISOString()}`
   const href = "/notifications"
 
-  const result = await sendPush(latest.token, title, body, href, latest.platform)
+  const result = await sendPush(latest.token, title, pushBody, href, latest.platform)
 
   return NextResponse.json(
     {
+      requestedPlatform,
       deviceTokenId: latest.id,
       userId: latest.userId,
       platform: latest.platform,

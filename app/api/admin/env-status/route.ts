@@ -54,10 +54,12 @@ export async function GET(req: NextRequest) {
         set: firebaseSplitConfigured || firebaseJsonConfigured,
         chars: process.env.FIREBASE_SERVICE_ACCOUNT?.length || 0,
         configured: firebaseSplitConfigured || firebaseJsonConfigured,
-        source: firebaseSplitConfigured
-          ? "split-env"
-          : firebaseJsonConfigured
-            ? "service-account-json"
+        // sendPush prefers FIREBASE_SERVICE_ACCOUNT when both are present
+        // because that was the known-working production credential.
+        source: firebaseJsonConfigured
+          ? "service-account-json"
+          : firebaseSplitConfigured
+            ? "split-env"
             : "missing",
         projectId: flag(process.env.FIREBASE_PROJECT_ID),
         clientEmail: flag(process.env.FIREBASE_CLIENT_EMAIL),

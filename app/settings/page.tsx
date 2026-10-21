@@ -61,14 +61,7 @@ export default function SettingsPage() {
     let cancelled = false
 
     const native = isNativePushPlatform()
-    if (native) {
-      // Native permission lives in Android/iOS, not the WebView Notification
-      // API. Keep the card actionable and let getPushSubscriptionStatus do the
-      // Capacitor permission check.
-      void Promise.resolve().then(() => {
-        if (!cancelled) setPushPermission("granted")
-      })
-    } else {
+    if (!native) {
       if (!("Notification" in window)) return
       const permission = Notification.permission
       void Promise.resolve().then(() => {
@@ -81,7 +74,7 @@ export default function SettingsPage() {
     getPushSubscriptionStatus()
       .then((status) => {
         if (cancelled) return
-        if (native) setPushPermission("granted")
+        if (native) setPushPermission(status.permission || "unknown")
         else if ("Notification" in window) setPushPermission(Notification.permission)
         setPushSubscribed(status.subscribed && status.current)
         if (status.subscribed && !status.current) {
@@ -109,7 +102,7 @@ export default function SettingsPage() {
       const native = isNativePushPlatform()
       const result = await subscribeForPush({ requestPermission: true, resetExisting: true })
       const permission = native
-        ? "granted"
+        ? result.permission || "unknown"
         : typeof window !== "undefined" && "Notification" in window
           ? Notification.permission
           : "default"
@@ -119,6 +112,10 @@ export default function SettingsPage() {
         // Surface the exact browser/FCM/registration error instead of hiding
         // it behind a generic connectivity message.
         setPushMessage(result.error || "push failed — unknown error.")
+      } else if (permission === "prompt") {
+        setPushMessage("token saved, but Android still has not granted notification permission — tap enable again.")
+      } else if (permission === "denied") {
+        setPushMessage("token saved, but notifications are blocked in Android settings.")
       }
     } finally {
       setPushBusy(false)
@@ -233,9 +230,9 @@ export default function SettingsPage() {
         <p className="font-semibold mb-1">🔔 notifications</p>
         {pushPermission === "denied" ? (
           <>
-            <p className="text-sm text-white/60">blocked — enable in browser settings</p>
+            <p className="text-sm text-white/60">blocked — enable notifications in your device or browser settings</p>
             <p className="text-xs text-white/40 mt-1">
-              push is blocked for this site. open your browser&apos;s site settings for this app and allow
+              push is blocked for Yard. open your device/browser notification settings for this app, allow
               notifications, then come back here.
             </p>
           </>

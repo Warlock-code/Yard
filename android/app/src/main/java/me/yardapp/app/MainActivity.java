@@ -102,7 +102,7 @@ public class MainActivity extends BridgeActivity {
 
 	private boolean registerToken(String token, String cookie) throws Exception {
 		HttpURLConnection connection = (HttpURLConnection) new URL(
-			"https://www.yardapp.me/api/notifications/register"
+			"https://yardapp.me/api/notifications/register"
 		).openConnection();
 		connection.setRequestMethod("POST");
 		connection.setConnectTimeout(10000);
@@ -110,7 +110,7 @@ public class MainActivity extends BridgeActivity {
 		connection.setDoOutput(true);
 		connection.setRequestProperty("Cookie", cookie);
 		connection.setRequestProperty("Content-Type", "application/json");
-		byte[] body = ("{\"token\":\"" + token + "\"}").getBytes(StandardCharsets.UTF_8);
+		byte[] body = ("{\"token\":\"" + token + "\",\"platform\":\"android\"}").getBytes(StandardCharsets.UTF_8);
 		try (OutputStream output = connection.getOutputStream()) {
 			output.write(body);
 		}
