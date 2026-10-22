@@ -767,11 +767,17 @@ const viewedPostsRef = useRef<Set<string>>(new Set())
     const reason = prompt("why are you reporting this post?")
     if (!reason?.trim()) return
     try {
-      await apiPost("/api/reports", { postId, reason })
-      // Server archives the post immediately pending admin review —
-      // drop it locally so it vanishes instantly, then refresh.
+      const result = await apiPost<{ hidden: boolean; reportsNeeded: number }>("/api/reports", { postId, reason })
+      // A report always hides the post from this reporter's feed. It is only
+      // hidden for everyone after the community threshold or an urgent AI
+      // violation. Drop it locally either way, then refresh.
       setPosts((prev) => prev.filter((p) => p.id !== postId))
-      alert("reported — this post is now hidden pending review.")
+      if (result.hidden) {
+        alert("reported — this post is now hidden pending review.")
+      } else {
+        const remaining = result.reportsNeeded ?? 1
+        alert(`reported — hidden from your feed. ${remaining} more report${remaining === 1 ? "" : "s"} will hide it for everyone pending review.`)
+      }
       loadFeed()
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "something went wrong.")

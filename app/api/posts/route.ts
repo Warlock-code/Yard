@@ -378,9 +378,7 @@ export async function GET(req: NextRequest) {
     ? { id: { notIn: [...reportedPostIds] } }
     : {}
   const now = new Date()
-  const boostedActiveWhere: Prisma.PostWhereInput = { boostedUntil: { gt: now }, archived: false }
   let scopeWhere: Prisma.PostWhereInput
-  let boostedScopeWhere: Prisma.PostWhereInput | null = null
 
   if (mode === "campus") {
     const programWhere = programWhereBase
@@ -390,8 +388,6 @@ export async function GET(req: NextRequest) {
         programWhere,
       ],
     }
-    // C: boosted bypasses visibility/programKey but stays same-campus for privacy
-    boostedScopeWhere = { campus: viewerCampus, ...boostedActiveWhere }
   } else if (mode === "program") {
     // Class feed: one class = same campus + same program + same admission
     // year. programWhereBase already scopes programKey to the viewer's
@@ -408,17 +404,12 @@ export async function GET(req: NextRequest) {
         ...(viewerCohort !== null ? [{ cohortYear: viewerCohort }] : []),
       ],
     }
-    boostedScopeWhere = null // keep program niche
   } else if (mode === "following") {
     scopeWhere = { userId: { in: [...followingIds] } }
-    boostedScopeWhere = null // never inject strangers into following feed
   } else if (mode === "all") {
     scopeWhere = { visibility: "school" }
-    // C: boosted in all reaches global (any campus) for max reach
-    boostedScopeWhere = { ...boostedActiveWhere }
   } else {
     scopeWhere = { visibility: "school" }
-    boostedScopeWhere = { ...boostedActiveWhere }
   }
 
   const typeWhere = type !== "all" ? { type } : null
@@ -428,17 +419,12 @@ export async function GET(req: NextRequest) {
   // Manual ads also live outside ranking: they are woven into the page below
   // (tier-based interval), never ranked as candidates.
   const notAd: Prisma.PostWhereInput = { isAd: false }
-  let where: Prisma.PostWhereInput
-  if (boostedScopeWhere) {
-    const normalBranch: Prisma.PostWhereInput = {
-      AND: [readableWhere, scopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])],
-    }
-    const boostedBranch: Prisma.PostWhereInput = {
-      AND: [boostedScopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])],
-    }
-    where = { OR: [normalBranch, boostedBranch] }
-  } else {
-    where = { AND: [readableWhere, scopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])] }
+  // Boosts and pins only change ranking/placement. They must never widen a
+  // post's original audience: readableWhere enforces school/class visibility
+  // and scopeWhere enforces the current feed's campus/program/cohort/follow
+  // boundary. There is deliberately no visibility-bypassing boosted branch.
+  const where: Prisma.PostWhereInput = {
+    AND: [readableWhere, scopeWhere, notAnnouncement, notAd, notReported, ...(typeWhere ? [typeWhere] : [])],
   }
 
   const viewedPostIds = new Set(viewedPosts.map((v) => v.postId))
@@ -581,12 +567,15 @@ export async function GET(req: NextRequest) {
       })
       if (ads.length > 0) {
         const woven: typeof page = []
-        let slot = 0
+        let adIndex = 0
         page.forEach((post, i) => {
           woven.push(post)
-          if ((i + 1) % adInterval === 0) {
-            woven.push(ads[slot % ads.length])
-            slot += 1
+          // Each sponsor is shown at most once per page. If there are fewer
+          // active ads than slots, leave the remaining slots as normal posts
+          // instead of wrapping around and repeating the same ad.
+          if ((i + 1) % adInterval === 0 && adIndex < ads.length) {
+            woven.push(ads[adIndex])
+            adIndex += 1
           }
         })
         pageWithAds = woven
@@ -628,7 +617,19 @@ export async function GET(req: NextRequest) {
   try {
     if (!cursor && !guest) {
       const pinnedRows = await prisma.post.findMany({
-        where: { campus: viewerCampus, archived: false, pinnedUntil: { gt: now }, ...notReported },
+        where: {
+          AND: [
+            readableWhere,
+            scopeWhere,
+            {
+              campus: viewerCampus,
+              archived: false,
+              isAd: false,
+              pinnedUntil: { gt: now },
+              ...notReported,
+            },
+          ],
+        },
         orderBy: [{ pinnedUntil: "desc" }],
         take: 3,
         include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },

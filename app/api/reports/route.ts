@@ -5,6 +5,11 @@ import { moderateWithAI } from "@/lib/moderateWithAI"
 import { rateLimit } from "@/lib/rateLimit"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
 
+// A single report must not be able to hide a post for the whole campus.
+// Three different reporters auto-hide pending review; an urgent AI violation
+// still hides immediately.
+const AUTO_HIDE_REPORT_THRESHOLD = 3
+
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
@@ -56,13 +61,37 @@ export async function POST(req: NextRequest) {
     throw error
   }
 
-  // Hide immediately pending admin review. Admin "dismissed" restores
-  // (archived -> false) and "actioned" deletes the post.
-  await prisma.post.updateMany({ where: { id: postId, archived: false }, data: { archived: true } })
+  const reportCount = await prisma.report.count({
+    where: { postId, status: { not: "dismissed" } },
+  })
+  const thresholdReached = reportCount >= AUTO_HIDE_REPORT_THRESHOLD
 
-  const verdict = await moderateWithAI(post?.text || "", reason)
+  // Admin "dismissed" restores (archived -> false) and "actioned" deletes the
+  // post. Only hide for everyone once the threshold is reached; every report
+  // already hides the post from that reporter's own feed via notReported.
+  if (thresholdReached) {
+    await prisma.post.updateMany({ where: { id: postId, archived: false }, data: { archived: true } })
+  }
+
+  let verdict = "REVIEW"
+  try {
+    verdict = await moderateWithAI(post?.text || "", reason)
+  } catch {
+    verdict = "REVIEW"
+  }
+
+  // Urgent violations hide immediately even before the community threshold.
+  if (verdict === "VIOLATION") {
+    await prisma.post.updateMany({ where: { id: postId, archived: false }, data: { archived: true } })
+  }
 
   await prisma.report.update({ where: { id: report.id }, data: { aiVerdict: verdict } })
 
-  return NextResponse.json({ report, hidden: true }, { status: 201 })
+  const hidden = thresholdReached || verdict === "VIOLATION" || Boolean(post?.archived)
+  return NextResponse.json({
+    report,
+    hidden,
+    reportCount,
+    reportsNeeded: hidden ? 0 : Math.max(0, AUTO_HIDE_REPORT_THRESHOLD - reportCount),
+  }, { status: 201 })
 }
