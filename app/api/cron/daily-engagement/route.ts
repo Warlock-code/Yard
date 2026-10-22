@@ -195,23 +195,32 @@ export async function GET(req: NextRequest) {
           ? CREDIT_CONFIG.TIER_MULTIPLIER[getEffectiveTier(author) as keyof typeof CREDIT_CONFIG.TIER_MULTIPLIER]?.earn ?? 0
           : 0
         const reward = Math.round(CREDIT_CONFIG.EARN.COTD_WIN * mult)
+        const alreadyCredited = reward > 0 && Boolean(await prisma.creditTransaction.findFirst({
+          where: { userId: top.userId, type: "COTD_WIN", reference: `cotd_${top.id}` },
+          select: { id: true },
+        }))
+        // Pin first. If this fails, no credit/marker is written, so the next
+        // run retries the whole feature instead of losing the reward.
+        await prisma.post.update({
+          where: { id: top.id },
+          data: { pinnedUntil: new Date(now + 24 * 60 * 60 * 1000), isCOTD: true, cotdDate: new Date(now) },
+        })
         if (reward > 0) {
-          await creditUser(top.userId, "COTD_WIN", reward, `cotd_${top.id}`, {}).catch(() => {})
+          // Let credit failures bubble to the outer catch: the notification
+          // marker is only created after a successful payout, so a later run
+          // can retry without double-paying.
+          if (!alreadyCredited) await creditUser(top.userId, "COTD_WIN", reward, `cotd_${top.id}`, {})
         } else {
           const { logMissedEarnings } = await import("@/lib/missedEarnings")
           await logMissedEarnings(top.userId, CREDIT_CONFIG.EARN.COTD_WIN, { source: "cotd", postId: top.id }).catch(() => {})
         }
-        await prisma.post.update({
-          where: { id: top.id },
-          data: { pinnedUntil: new Date(now + 24 * 60 * 60 * 1000), isCOTD: true, cotdDate: new Date(now) },
-        }).catch(() => {})
         await createNotification({
           userId: top.userId,
           type: `cotd:${top.id}`,
           title: "🏆 confession of the day!",
           body: `your post is featured for 24h${reward > 0 ? ` +${reward}cr` : ""}.`,
           href: `/post/${top.id}`,
-        }).catch(() => {})
+        })
         results.cotd = { postId: top.id, reward }
       } else {
         results.cotd = { skipped: "already crowned" }
@@ -251,7 +260,13 @@ export async function GET(req: NextRequest) {
         if (t.credits > 0) {
           const wbSeen = await prisma.creditTransaction.findFirst({ where: { userId: u.id, type: "WINBACK", reference: `${t.type}_${u.id}` }, select: { id: true } })
           if (!wbSeen) {
-            await creditUser(u.id, "WINBACK", t.credits, `${t.type}_${u.id}`, {}).catch(() => {})
+            try {
+              await creditUser(u.id, "WINBACK", t.credits, `${t.type}_${u.id}`, {})
+            } catch {
+              // Do not write the 30-day notification marker if the credit
+              // payout failed; the next run must be able to retry it.
+              continue
+            }
           }
         } else {
           // 50% off PLUS promo (single-use, checked in /api/subscribe).
@@ -303,9 +318,15 @@ export async function GET(req: NextRequest) {
         select: { id: true },
       })
       if (!seen) {
-        await creditUser(topId, "TIP_CROWN", CREDIT_CONFIG.EARN.TIP_LEADER_WEEKLY, `tipcrown_${weekKey}`, {}).catch(() => {})
+        const tipAlreadyPaid = await prisma.creditTransaction.findFirst({
+          where: { userId: topId, type: "TIP_CROWN", reference: `tipcrown_${weekKey}` },
+          select: { id: true },
+        })
         // Badge: crown the profile too (weeklyChampion flag, shown as 👑).
-        await prisma.user.update({ where: { id: topId }, data: { weeklyChampion: true } }).catch(() => {})
+        await prisma.user.update({ where: { id: topId }, data: { weeklyChampion: true } })
+        if (!tipAlreadyPaid) {
+          await creditUser(topId, "TIP_CROWN", CREDIT_CONFIG.EARN.TIP_LEADER_WEEKLY, `tipcrown_${weekKey}`, {})
+        }
         await createNotification({
           userId: topId,
           type: `tip_crown:${weekKey}`,
