@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
 import { createNotification } from "@/lib/notifications"
-import { newBattleText } from "@/lib/battle-countdown"
+import { BATTLE_DURATION_MS, newBattleText } from "@/lib/battle-countdown"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 export const fetchCache = "force-no-store"
 
 // Launch a dormant draft NOW: startsAt = now, ACTIVE, campus notified.
-// Keeps the draft's original duration (endsAt shifts with startsAt).
+// Every launched battle runs for exactly 72 hours (3 days).
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "not authorized." }, { status: 403 })
@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date()
-  const durationMs = Math.max(
-    60 * 60 * 1000,
-    new Date(draft.endsAt).getTime() - new Date(draft.startsAt).getTime()
-  )
   const prompt = await prisma.battlePrompt.update({
     where: { id },
-    data: { status: "ACTIVE", startsAt: now, endsAt: new Date(now.getTime() + durationMs) },
+    data: {
+      status: "ACTIVE",
+      startsAt: now,
+      endsAt: new Date(now.getTime() + BATTLE_DURATION_MS),
+    },
   })
 
   // Same instant alert as battle creation. Capped + chunked, failures never

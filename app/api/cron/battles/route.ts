@@ -5,6 +5,7 @@ import { creditUser, activeStreakMult, trackFeatureEvent, CREDIT_CONFIG } from "
 import { getEffectiveTier } from "@/lib/tier"
 import { sendPush } from "@/lib/sendPush"
 import { createNotification } from "@/lib/notifications"
+import { BATTLE_DURATION_HOURS, BATTLE_DURATION_MS } from "@/lib/battle-countdown"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   for (const draft of scheduledDrafts) {
     try {
       const scheduleData = JSON.parse(draft.text)
-      const { campus, text, type, totalRounds, entryType, durationHours, schedule, scheduleTime, scheduleDays, seasonId } = scheduleData
+      const { campus, text, type, totalRounds, entryType, schedule, scheduleTime, scheduleDays, seasonId } = scheduleData
 
       let nextStart: Date
       const scheduleTimeDate = new Date(scheduleTime)
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
         continue
       }
 
-      const nextEnd = new Date(nextStart.getTime() + durationHours * 60 * 60 * 1000)
+      const nextEnd = new Date(nextStart.getTime() + BATTLE_DURATION_MS)
 
       await prisma.battlePrompt.create({
         data: {
@@ -68,7 +69,13 @@ export async function GET(req: NextRequest) {
 
       await prisma.aiDraft.update({
         where: { id: draft.id },
-        data: { text: JSON.stringify({ ...scheduleData, scheduleTime: nextStart.toISOString() }) },
+        data: {
+          text: JSON.stringify({
+            ...scheduleData,
+            durationHours: BATTLE_DURATION_HOURS,
+            scheduleTime: nextStart.toISOString(),
+          }),
+        },
       })
 
       created.push(`${campus} - ${text.slice(0, 30)}... at ${nextStart.toISOString()}`)
@@ -84,15 +91,37 @@ export async function GET(req: NextRequest) {
   for (const prompt of upcomingPrompts) {
     await prisma.battlePrompt.update({
       where: { id: prompt.id },
-      data: { status: "ACTIVE" },
+      data: {
+        status: "ACTIVE",
+        // Normalize older drafts (24h/48h/7d) to the 3-day battle window.
+        endsAt: new Date(prompt.startsAt.getTime() + BATTLE_DURATION_MS),
+      },
     })
   }
 
   const activePrompts = await prisma.battlePrompt.findMany({
-    where: { status: "ACTIVE", endsAt: { lte: now } },
+    where: { status: "ACTIVE" },
   })
 
   for (const prompt of activePrompts) {
+    // Extend any official battle created under the old 24h/48h rules to the
+    // full 3-day window. max(endsAt, createdAt + 72h, startsAt + 72h) keeps
+    // future-scheduled battles correct while giving every battle a full 72h
+    // from its start. Ghost duels keep their own 24-hour lifetime.
+    const isDuel = prompt.text.startsWith("⚔ duel:")
+    if (!isDuel) {
+      const windowEnd = battleWindowEnd(prompt)
+      if (prompt.endsAt.getTime() < windowEnd) {
+        prompt.endsAt = new Date(windowEnd)
+        await prisma.battlePrompt.update({
+          where: { id: prompt.id },
+          data: { endsAt: prompt.endsAt },
+        })
+      }
+    }
+
+    if (prompt.endsAt > now) continue
+
     if (prompt.type === "BRACKET" && prompt.roundNumber < prompt.totalRounds) {
       const entries = await prisma.battleEntry.findMany({
         where: { promptId: prompt.id },
@@ -168,7 +197,8 @@ export async function GET(req: NextRequest) {
             type: "BRACKET",
             status: "ACTIVE",
             startsAt: now,
-            endsAt: new Date(now.getTime() + (prompt.endsAt.getTime() - prompt.startsAt.getTime())),
+            // Every bracket round gets its own full 3-day window.
+            endsAt: new Date(now.getTime() + BATTLE_DURATION_MS),
             totalRounds: prompt.totalRounds,
             roundNumber: prompt.roundNumber + 1,
             parentPromptId: prompt.id,
@@ -508,6 +538,15 @@ async function createStartingSoonNotifications(prompt: { id: string; text: strin
       })
     } catch {}
   }
+}
+
+/** A battle cannot finalize before its full 72-hour window. */
+function battleWindowEnd(prompt: { createdAt: Date; startsAt: Date; endsAt: Date }): number {
+  return Math.max(
+    prompt.endsAt.getTime(),
+    prompt.createdAt.getTime() + BATTLE_DURATION_MS,
+    prompt.startsAt.getTime() + BATTLE_DURATION_MS
+  )
 }
 
 /** Battle pot stats: total entry fees paid into this prompt (pot), the 25%

@@ -2,6 +2,9 @@ import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
 
+// Official battles run for exactly 3 days (72 hours) from their start.
+const BATTLE_DURATION_MS = 72 * 60 * 60 * 1000
+
 // Campus launch packs: hall rivalries + exam-season + food/gist staples.
 // Created as DORMANT drafts (startsAt 2030, UPCOMING) — the battles cron only
 // auto-activates prompts whose startsAt has passed, so these never go live
@@ -73,7 +76,7 @@ async function main() {
           type: "SINGLE",
           status: "UPCOMING",
           startsAt,
-          endsAt: new Date(startsAt.getTime() + 48 * 60 * 60 * 1000),
+          endsAt: new Date(startsAt.getTime() + BATTLE_DURATION_MS),
           totalRounds: 1,
           roundNumber: 1,
           entryType: "TEXT",

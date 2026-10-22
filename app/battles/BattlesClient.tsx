@@ -138,7 +138,7 @@ export default function BattlesClient() {
         <React.Fragment>
           <div className="card p-4 mt-3 flex items-center justify-between">
             <div>
-              <p className="text-xs text-white/40 mb-1">{upcoming ? "next battle" : "today's prompt"}</p>
+              <p className="text-xs text-white/40 mb-1">{upcoming ? "next battle" : "3-day battle"}</p>
               <p className="post-mono font-semibold">{prompt.text}</p>
               <BattleCountdown
                 endsAt={prompt.endsAt}
@@ -246,7 +246,15 @@ function BattleCountdown({
     )
   }
   const mins = Math.max(1, Math.floor(diff / 60_000))
-  const duration = mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${Math.floor(mins / 1440)}d`
+  const days = Math.floor(mins / 1440)
+  const hours = Math.floor((mins % 1440) / 60)
+  const minutes = mins % 60
+  const duration =
+    days > 0
+      ? `${days}d ${hours}h ${minutes}m`
+      : hours > 0
+        ? `${hours}h ${minutes}m`
+        : `${minutes}m`
   const label = `${upcoming ? "starts in" : "ends in"} ${duration}`
   const urgent = !upcoming && diff < 6 * 60 * 60 * 1000
   return (

@@ -31,12 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const truncatedText = prompt.text.length > 100 ? prompt.text.slice(0, 100) + "..." : prompt.text
 
   return {
-    title: "today's battle | yard",
+    title: "3-day battle | yard",
     description: `battle: ${truncatedText}`,
     openGraph: {
       type: "article",
       url: battleUrl,
-      title: "today's battle | yard",
+      title: "3-day battle | yard",
       description: `battle: ${truncatedText}`,
       images: [
         {
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "today's battle | yard",
+      title: "3-day battle | yard",
       description: `battle: ${truncatedText}`,
       images: ["/og-image.svg"],
     },

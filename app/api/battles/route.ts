@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       startsAt: { lte: now },
       endsAt: { gt: now },
       // Duels are listed in their own section below; never let a user-created
-      // duel hijack the official "today's prompt" card.
+      // duel hijack the official battle card.
       NOT: { text: { startsWith: "⚔ duel:" } },
     },
     orderBy: { startsAt: "desc" },
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
 
   if (!prompt) {
     // Only tease prompts that are actually near. Far-future drafts (e.g. the
-    // 2030 campus seed pack) must never masquerade as today's battle.
+    // 2030 campus seed pack) must never masquerade as the live battle.
     const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     const upcoming = await prisma.battlePrompt.findFirst({
       where: {

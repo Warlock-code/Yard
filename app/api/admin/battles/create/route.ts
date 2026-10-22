@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
 import { createNotification } from "@/lib/notifications"
-import { newBattleText } from "@/lib/battle-countdown"
+import { BATTLE_DURATION_HOURS, BATTLE_DURATION_MS, newBattleText } from "@/lib/battle-countdown"
 
 const VALID_CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
   const {
     text,
     campus,
-    durationHours,
     type = "SINGLE",
     totalRounds = 1,
     entryType = "TEXT",
@@ -37,7 +36,8 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
   const startsAt = scheduleTime ? new Date(scheduleTime) : now
-  const endsAt = new Date(startsAt.getTime() + (durationHours || 24) * 60 * 60 * 1000)
+  // Official battles always run for exactly 72 hours (3 days) from their start.
+  const endsAt = new Date(startsAt.getTime() + BATTLE_DURATION_MS)
 
   let season: { id: string } | null = null
   if (seasonId) {
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       type,
       totalRounds,
       entryType,
-      durationHours,
+      durationHours: BATTLE_DURATION_HOURS,
       schedule,
       scheduleTime,
       scheduleDays,

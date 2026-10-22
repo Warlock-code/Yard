@@ -632,9 +632,9 @@ export default function AdminPage() {
     try {
       await adminFetch("/api/admin/battles/create", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: promptText, campus, durationHours: 24 }),
+        body: JSON.stringify({ text: promptText, campus }),
       })
-      alert("battle created.")
+      alert("3-day battle created.")
       setPromptText(""); setCampus("")
     } catch (e: unknown) { alert(errMsg(e, "failed to create battle.")) }
     finally { setBusyId(null) }
@@ -1537,14 +1537,14 @@ export default function AdminPage() {
               {section === "Battles" && (
                 <div className="grid lg:grid-cols-5 gap-4">
                   <Card className="lg:col-span-3">
-                    <CardHeader title="create battle prompt" sub="campus + prompt → active for 7 days" />
+                    <CardHeader title="create battle prompt" sub="campus + prompt → active for 3 days" />
                     <div className="p-5 space-y-3">
                       <input value={promptText} onChange={(e) => setPromptText(e.target.value)} placeholder="prompt — e.g. best jollof on campus?" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm placeholder:text-white/25 focus:outline-none focus:border-[#baff39]/60" />
                       <select value={campus} onChange={(e) => setCampus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#baff39]/60">
                         <option value="">select school</option>
                         {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <button disabled={busyId === "battle"} onClick={handleCreateBattle} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "battle" ? "creating…" : "create battle (7 days)"}</button>
+                      <button disabled={busyId === "battle"} onClick={handleCreateBattle} className="w-full rounded-xl bg-[#baff39] text-black font-black py-3 text-sm hover:bg-[#d4ff70] disabled:opacity-50 transition-colors">{busyId === "battle" ? "creating…" : "create battle (3 days)"}</button>
                     </div>
                   </Card>
                   <Card className="lg:col-span-2">

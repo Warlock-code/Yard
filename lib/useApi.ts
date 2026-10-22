@@ -178,7 +178,7 @@ export const api = {
     return apiGet<{ posts: AdminPost[] }>(`/api/admin/posts${params ? `?${params}` : ""}`)
   },
   deleteAdminPost: (postId: string) => apiDelete(`/api/admin/posts/${postId}`),
-  createBattle: (data: { text: string; campus: string; durationHours: number }) =>
+  createBattle: (data: { text: string; campus: string }) =>
     apiPost<{ prompt: BattlePrompt }>("/api/admin/battles/create", data),
   getProfile: (ghostId: string) => apiGet<{ user: MeResponse["user"]; posts: FeedResponse["posts"] }>(`/api/users/${ghostId}`),
   updateAvatar: (emoji: string) => apiPost<{ avatarEmoji: string }>("/api/profile/avatar", { emoji }),

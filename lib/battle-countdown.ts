@@ -1,6 +1,10 @@
 // Pure helpers for battle notifications (no imports — safe to unit-test).
 // Used by the admin create route (instant alert) and the daily cron (countdowns).
 
+/** Official battles run for exactly 3 days (72 hours) from their start. */
+export const BATTLE_DURATION_HOURS = 72
+export const BATTLE_DURATION_MS = BATTLE_DURATION_HOURS * 60 * 60 * 1000
+
 const HOUR_MS = 60 * 60 * 1000
 const MAX_TEXT = 80
 
@@ -24,7 +28,7 @@ export type BattleTiming = {
   now?: Date
 }
 
-/** Daily countdown copy. Null when there's nothing to count down to. */
+/** Battle countdown copy. Null when there's nothing to count down to. */
 export function battleCountdownText(input: BattleTiming): { title: string; body: string } | null {
   const now = input.now ?? new Date()
   const name = `"${shortText(input.text)}"`
