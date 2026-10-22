@@ -150,13 +150,8 @@ function ReportButton({ postId }: { postId: string }) {
     setReporting(true)
     setError("")
     try {
-      const result = await apiPost<{ hidden: boolean; reportsNeeded: number }>("/api/reports", { postId, reason: reason.trim() })
-      if (result.hidden) {
-        alert("post reported. it is now hidden pending review.")
-      } else {
-        const remaining = result.reportsNeeded ?? 1
-        alert(`post reported. it is hidden from your feed; ${remaining} more report${remaining === 1 ? "" : "s"} will hide it for everyone pending review.`)
-      }
+      await apiPost("/api/reports", { postId, reason: reason.trim() })
+      alert("post reported. it will be hidden pending review.")
       setReporting(false)
       setReason("")
     } catch (err: unknown) {

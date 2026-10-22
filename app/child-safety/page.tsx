@@ -18,7 +18,7 @@ export default function ChildSafetyPage() {
         </section>
         <section>
           <h2 className="font-semibold text-white mb-1">our process</h2>
-          <p>every report is triaged, and reported content is hidden from the reporter&apos;s feed immediately. it is hidden from public view when it reaches our auto-hide threshold or is flagged as an urgent violation while under review. confirmed violations result in content removal, account termination, and referral to appropriate authorities.</p>
+          <p>every report is triaged, and reported content is hidden from public view immediately while under review. confirmed violations result in content removal, account termination, and referral to appropriate authorities.</p>
         </section>
       </div>
     </main>
