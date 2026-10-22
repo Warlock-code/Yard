@@ -4,8 +4,7 @@ import { signToken, verifyToken } from "@/lib/auth"
 import { rateLimitWithInfo } from "@/lib/rateLimit"
 import { verifyEmailSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
-import { REFERRAL_CONFIG } from "@/lib/referral-config"
-import { creditUser, CREDIT_CONFIG } from "@/lib/credits"
+import { completeReferralReward } from "@/lib/referral-rewards"
 
 export async function POST(req: NextRequest) {
   try {
@@ -84,137 +83,22 @@ export async function POST(req: NextRequest) {
     data: { emailVerified: true, verifyCode: null },
   })
 
-  // Apply referral reward if user was referred. Fail-open: referral money
-  // must never break verification (user is already verified above).
+  // Legacy fallback: new signups are auto-verified and paid immediately by
+  // /api/auth/signup. Keep this for older verification-code accounts.
+  // completeReferralReward is idempotent, so a repeated call never double-pays.
   if (user.referredBy) {
     try {
-    const referrer = await prisma.user.findUnique({
-      where: { inviteCode: user.referredBy },
-      select: { id: true, ghostId: true, inviteCode: true },
-    })
-
-    if (referrer && referrer.id !== userId) {
-      // Check daily cap for referrer
-      const dayStart = new Date()
-      dayStart.setHours(0, 0, 0, 0)
-      const dayEnd = new Date(dayStart)
-      dayEnd.setDate(dayEnd.getDate() + 1)
-
-      const todaysRewarded = await prisma.referral.count({
-        where: {
-          referrerId: referrer.id,
-          rewardStatus: "completed",
-          createdAt: { gte: dayStart, lt: dayEnd },
-        },
-      })
-
-      if (todaysRewarded < REFERRAL_CONFIG.DAILY_CAP) {
-        // Referral boost: pay 200cr any time and your NEXT completed referral
-        // pays 2x (1,000cr referrer / 500cr referee). Unused boosts stack.
-        let boostMult = 1
-        try {
-          const [boosts, usedBoosts] = await Promise.all([
-            prisma.creditTransaction.count({ where: { userId: referrer.id, type: "REFERRAL_BOOST" } }),
-            prisma.creditTransaction.count({
-              where: { userId: referrer.id, type: "REFERRAL", metadata: { path: ["boosted"], equals: true } },
-            }),
-          ])
-          if (boosts > usedBoosts) boostMult = 2
-        } catch {
-          boostMult = 1
-        }
-        const referrerReward = CREDIT_CONFIG.EARN.REFERRAL_REFERRER * boostMult
-        const refereeReward = CREDIT_CONFIG.EARN.REFERRAL_REFEREE * boostMult
-        // Check velocity flag (unusually high referral rate)
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - 7)
-        const weekReferrals = await prisma.referral.count({
-          where: {
-            referrerId: referrer.id,
-            createdAt: { gte: weekStart },
-          },
-        })
-
-        const shouldFlag = weekReferrals >= REFERRAL_CONFIG.VELOCITY_THRESHOLD
-
-        // Credit referrer
-        await creditUser(referrer.id, "REFERRAL", referrerReward, `referral_${userId}`, {
-          refereeId: userId,
-          type: "referrer",
-          ...(boostMult > 1 ? { boosted: true } : {}),
-        })
-        // Credit referee (new user)
-        await creditUser(userId, "REFERRAL", refereeReward, `referral_${referrer.id}`, {
-          referrerId: referrer.id,
-          type: "referee",
-          ...(boostMult > 1 ? { boosted: true } : {}),
-        })
-        // Update referral record (updateMany: no-throw if the signup-time
-        // row is missing for any reason — credits above still stand).
-        await prisma.referral.updateMany({
-          where: { referredId: userId },
-          data: {
-            status: "completed",
-            rewardStatus: shouldFlag ? "flagged" : "completed",
-            rewardAmount: referrerReward,
-            completedAt: new Date(),
-          },
-        })
-
-        // Milestone tiers: 5 verified refs → free PLUS month, 10 → free PRIME.
-        // Idempotent per milestone via notification dedupe.
-        try {
-          const verifiedCount = await prisma.referral.count({
-            where: { referrerId: referrer.id, rewardStatus: "completed" },
-          })
-          const milestone = verifiedCount >= 10 ? "PRIME" : verifiedCount >= 5 ? "PLUS" : null
-          if (milestone) {
-            const seen = await prisma.notification.findFirst({
-              where: { userId: referrer.id, type: `referral_milestone_${milestone.toLowerCase()}` },
-              select: { id: true },
-            })
-            if (!seen) {
-              const cur = await prisma.user.findUnique({
-                where: { id: referrer.id },
-                select: { tierExpiresAt: true },
-              })
-              const base = Math.max(Date.now(), cur?.tierExpiresAt?.getTime() ?? 0)
-              await prisma.user.update({
-                where: { id: referrer.id },
-                data: { tier: milestone as "PLUS" | "PRIME", tierExpiresAt: new Date(base + 31 * 24 * 60 * 60 * 1000) },
-              })
-              const { createNotification } = await import("@/lib/notifications")
-              await createNotification({
-                userId: referrer.id,
-                type: `referral_milestone_${milestone.toLowerCase()}`,
-                title: milestone === "PRIME" ? "👑 10 verified invites — PRIME unlocked!" : "★ 5 verified invites — PLUS unlocked!",
-                body: `your invite link did the work. 30 days of ${milestone.toLowerCase()} on the house.`,
-                href: "/lair",
-              }).catch(() => {})
-            }
-          }
-        } catch {
-          // milestone failure never blocks verification
-        }
-
-        if (shouldFlag) {
-          // Create report for admin review
-          await prisma.report.create({
-            data: {
-              reporterId: referrer.id,
-              reason: `High referral velocity: ${weekReferrals} referrals in 7 days`,
-              status: "open",
-            },
-          })
-        }
-      } else {
-        // Daily cap reached - mark referral as pending but don't reward
-        await prisma.referral.updateMany({
-          where: { referredId: userId },
-          data: { status: "completed", rewardStatus: "none", rewardAmount: 0 },
+      const reward = await completeReferralReward(userId)
+      if (
+        reward.status !== "completed" &&
+        reward.status !== "flagged" &&
+        reward.status !== "already_completed"
+      ) {
+        console.warn("[verify-email] referral reward not applied", {
+          userId,
+          status: reward.status,
         })
       }
-    }
     } catch (err) {
       console.error("[verify-email] referral reward failed (verification kept)", err)
     }

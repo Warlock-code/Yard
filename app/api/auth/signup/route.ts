@@ -7,6 +7,7 @@ import { getProgramKey } from "@/lib/program"
 import { signupSchema, validateRequest } from "@/lib/validation"
 import { auditLog } from "@/lib/auditLog"
 import { generateInviteCode } from "@/lib/share"
+import { completeReferralReward } from "@/lib/referral-rewards"
 
 export async function POST(req: NextRequest) {
   try {
@@ -97,8 +98,9 @@ export async function POST(req: NextRequest) {
     )
   } catch (createErr: unknown) {
     // Handle race where email/ghostId/inviteCode collision happens between check and create
-    if (createErr instanceof Error && (createErr as any).code === "P2002") {
-      const target = (createErr as any).meta?.target as string[] | undefined
+    const prismaError = createErr as { code?: string; meta?: { target?: string[] } }
+    if (createErr instanceof Error && prismaError.code === "P2002") {
+      const target = prismaError.meta?.target
       if (target?.includes("email")) {
         return NextResponse.json({ error: "account already exists." }, { status: 400 })
       }
@@ -109,6 +111,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (referrer && validatedReferralCode && referrer.id !== user.id) {
+    let referralRecorded = false
     try {
       await prisma.$transaction([
         prisma.referral.create({
@@ -122,10 +125,33 @@ export async function POST(req: NextRequest) {
           data: { referralCount: { increment: 1 } },
         }),
       ])
+      referralRecorded = true
       await auditLog("user.referral", referrer.id, user.id, { referralCode: validatedReferralCode, inviteeId: user.id, ipAddress: ip })
     } catch (e) {
       console.error("[signup] referral transaction failed", e)
       // Don't fail signup if referral fails; user is already created
+    }
+
+    // New accounts are auto-verified, so this is the primary referral payout
+    // path (the legacy verify-email route is never called). Fail-open: a
+    // failed payout must never break signup. completeReferralReward is
+    // idempotent, and /api/referral/stats can repair any row left pending.
+    if (referralRecorded) {
+      try {
+        const reward = await completeReferralReward(user.id)
+        if (
+          reward.status !== "completed" &&
+          reward.status !== "flagged" &&
+          reward.status !== "already_completed"
+        ) {
+          console.warn("[signup] referral reward not applied", {
+            userId: user.id,
+            status: reward.status,
+          })
+        }
+      } catch (e) {
+        console.error("[signup] referral reward failed (signup kept)", e)
+      }
     }
   }
 

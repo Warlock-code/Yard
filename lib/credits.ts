@@ -55,7 +55,11 @@ export async function trackFeatureEvent(input: {  userId?: string | null
   }
 }
 
-export async function creditUser(
+// Transaction-aware credit primitive. Callers that need to update a related
+// row atomically (e.g. referral payout) can use the same transaction instead
+// of nesting a second $transaction.
+export async function creditUserTx(
+  tx: Prisma.TransactionClient,
   userId: string,
   type: string,
   amount: number,
@@ -65,42 +69,48 @@ export async function creditUser(
   if (amount === 0) throw new Error("Amount cannot be zero")
   if (type === "WITHDRAWAL") throw new Error("Withdrawals are not available. Credits are spendable in-app only.")
 
-  const result = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { creditsBalance: true },
-    })
-    if (!user) throw new Error("User not found")
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { creditsBalance: true },
+  })
+  if (!user) throw new Error("User not found")
 
-    const newBalance = user.creditsBalance + amount
-    if (newBalance < 0) throw new Error("Insufficient credits")
+  const newBalance = user.creditsBalance + amount
+  if (newBalance < 0) throw new Error("Insufficient credits")
 
-    const transaction = await tx.creditTransaction.create({
-      data: {
-        userId,
-        type,
-        amount,
-        balanceAfter: newBalance,
-        reference,
-        metadata: metadata as Prisma.InputJsonValue,
-      },
-    })
-
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        creditsBalance: newBalance,
-        ...(amount > 0 && type !== "PURCHASE" && type !== "ADMIN_MINT" && type !== "ADMIN_REFUND"
-          ? { creditsEarned: { increment: amount } }
-          : {}),
-        ...(type === "PURCHASE" ? { creditsPurchased: { increment: amount } } : {}),
-      },
-    })
-
-    return { newBalance, transactionId: transaction.id }
+  const transaction = await tx.creditTransaction.create({
+    data: {
+      userId,
+      type,
+      amount,
+      balanceAfter: newBalance,
+      reference,
+      metadata: metadata as Prisma.InputJsonValue,
+    },
   })
 
-  return result
+  await tx.user.update({
+    where: { id: userId },
+    data: {
+      creditsBalance: newBalance,
+      ...(amount > 0 && type !== "PURCHASE" && type !== "ADMIN_MINT" && type !== "ADMIN_REFUND"
+        ? { creditsEarned: { increment: amount } }
+        : {}),
+      ...(type === "PURCHASE" ? { creditsPurchased: { increment: amount } } : {}),
+    },
+  })
+
+  return { newBalance, transactionId: transaction.id }
+}
+
+export async function creditUser(
+  userId: string,
+  type: string,
+  amount: number,
+  reference?: string,
+  metadata?: Record<string, unknown>
+): Promise<{ newBalance: number; transactionId: string }> {
+  return prisma.$transaction((tx) => creditUserTx(tx, userId, type, amount, reference, metadata))
 }
 
 export async function purchaseCredits(

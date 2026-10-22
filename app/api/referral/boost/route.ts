@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic"
 
 // Referral boost — pay 200cr and your NEXT completed referral pays 2x
 // (1,400cr to you, 600cr to them; reuses EARN.REFERRAL_* at completion).
-// Unused boosts stack. Applied in verify-email at completion time.
+// Unused boosts stack. Applied by lib/referral-rewards at completion time
+// (signup is the primary path now; verify-email remains a legacy fallback).
 // Milestones (applied there too): 5 verified refs → free PLUS 30d,
 // 10 verified → free PRIME 30d (tier + tierExpiresAt). Abuse guards:
 // Referral.referredId is UNIQUE (one reward per referredId, enforced by the
