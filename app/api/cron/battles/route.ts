@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { recordBattleWin } from "@/lib/champions"
 import { creditUser, activeStreakMult, trackFeatureEvent, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
-import { sendPush } from "@/lib/sendPush"
 import { createNotification } from "@/lib/notifications"
 import { BATTLE_DURATION_HOURS, BATTLE_DURATION_MS } from "@/lib/battle-countdown"
 
@@ -568,18 +567,14 @@ async function battlePotStats(promptId: string): Promise<{ pot: number; rake: nu
   }
 }
 
-/** Winner's 75% cut of the entry-fee pot (see battlePotStats). */
-async function battlePotShare(promptId: string) {
-  return (await battlePotStats(promptId)).winnerShare
-}
-
 /** Winner prize: free boosts (non-cash) + in-app/push/socket win alert.
  * Idempotent per prompt — reruns never double-grant. */
 async function grantWinPrize(userId: string, promptId: string, promptText: string, boosts: number) {
   // /battles/[id] does not exist (404) — completed battles live at the
-  // existing /battles/history page. Match both old and new hrefs so reruns
-  // after the href migration never double-grant.
-  const href = `/battles/history`
+  // existing /battles/history page. Keep the prompt id in the query string so
+  // the idempotency check is per battle instead of per user. Also match the
+  // old per-prompt href so reruns after the href migration never double-grant.
+  const href = `/battles/history?battle=${promptId}`
   const legacyHref = `/battles/${promptId}`
   const existing = await prisma.notification.findFirst({
     where: { userId, type: "battle_win", href: { in: [href, legacyHref] } },

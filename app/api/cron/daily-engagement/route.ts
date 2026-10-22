@@ -14,10 +14,11 @@ export async function GET(req: NextRequest) {
   const now = Date.now()
   const results: Record<string, unknown> = {}
 
-  // NOTE: battle finalization (/api/cron/battles, hourly) and board prizes
-  // (/api/cron/leaderboard, daily 00:05 UTC) run on their own Vercel
+  // NOTE: battle finalization (/api/cron/battles, daily 00:00 UTC) and board
+  // prizes (/api/cron/leaderboard, daily 00:05 UTC) run on their own Vercel
   // schedules and must stay standalone — this route no longer invokes them.
-  // Their references are period-scoped, so each schedule owns its payouts.
+  // Their payouts are guarded, so each schedule owns its own work.
+  // Vercel Hobby only permits daily cron expressions.
 
   // 1. Return reminder
   let sent = 0
