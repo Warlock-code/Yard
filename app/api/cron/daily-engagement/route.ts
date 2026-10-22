@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "unauthorized." }, { status: 401 })
   }
 
@@ -41,15 +42,23 @@ export async function GET(req: NextRequest) {
       take: 200,
     })
 
-    for (const user of users) {
-      void createNotification({
-        userId: user.id,
-        type: "return_reminder",
-        title: "the yard misses you",
-        body: "new gist dropped while you were away — check the feed.",
-        href: "/feed",
-      }).catch(() => {})
-      sent += 1
+    // Send in bounded batches and await each batch. Fire-and-forget work can
+    // be cut off when the serverless function returns, losing the push.
+    const CHUNK = 10
+    for (let i = 0; i < users.length; i += CHUNK) {
+      const batch = users.slice(i, i + CHUNK)
+      const results = await Promise.allSettled(
+        batch.map((user) =>
+          createNotification({
+            userId: user.id,
+            type: "return_reminder",
+            title: "the yard misses you",
+            body: "new gist dropped while you were away — check the feed.",
+            href: "/feed",
+          })
+        )
+      )
+      sent += results.filter((r) => r.status === "fulfilled" && r.value).length
     }
   } catch {
     // ignore

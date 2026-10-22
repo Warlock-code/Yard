@@ -45,12 +45,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // inherit the post's reportability).
   const { creditUser, toCreditErrorResponse, trackFeatureEvent, CREDIT_CONFIG } = await import("@/lib/credits")
   const myReplies = await prisma.comment.count({ where: { postId: id, userId: user.id } })
+  const feeStamp = Date.now()
+  const replyReference = `reply_${user.id}_${id}_${feeStamp}`
+  const mentionReference = `mention_${user.id}_${id}_${feeStamp}`
+  let replyFeeCharged = false
+  let mentionFeeCharged = false
   if (myReplies >= 3) {
     try {
-      await creditUser(user.id, "REPLY", -CREDIT_CONFIG.SPEND.REPLY_EXTRA, `reply_${user.id}_${id}_${Date.now()}`, {
+      await creditUser(user.id, "REPLY", -CREDIT_CONFIG.SPEND.REPLY_EXTRA, replyReference, {
         postId: id,
         parentId: parentId || null,
       })
+      replyFeeCharged = true
     } catch (err) {
       return toCreditErrorResponse(err, "replies cost 20cr after your first 3.")
     }
@@ -58,14 +64,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const hasMention = /(^|\s)@[a-z0-9_]{3,24}/.test(text)
   if (hasMention) {
     try {
-      await creditUser(user.id, "MENTION", -CREDIT_CONFIG.SPEND.ANON_MENTION, `mention_${user.id}_${id}_${Date.now()}`, {
+      await creditUser(user.id, "MENTION", -CREDIT_CONFIG.SPEND.ANON_MENTION, mentionReference, {
         postId: id,
       })
+      mentionFeeCharged = true
     } catch (err) {
       // Reply fee already taken above (if any) — refund it so a failed
       // mention never leaves a half-paid reply behind.
-      if (myReplies >= 3) {
-        await creditUser(user.id, "REPLY", CREDIT_CONFIG.SPEND.REPLY_EXTRA, `reply_${user.id}_${id}_${Date.now()}_refund`, {
+      if (replyFeeCharged) {
+        await creditUser(user.id, "REPLY", CREDIT_CONFIG.SPEND.REPLY_EXTRA, `${replyReference}_refund`, {
           refund: true,
         }).catch(() => {})
       }
@@ -87,7 +94,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       parentId: parentId || null,
     },
     include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, campus: true } } },
+  }).catch(async (err: unknown) => {
+    // Never keep reply/mention fees when the comment row itself failed.
+    if (mentionFeeCharged) {
+      await creditUser(user.id, "MENTION", CREDIT_CONFIG.SPEND.ANON_MENTION, `${mentionReference}_refund`, {
+        refund: true,
+      }).catch(() => {})
+    }
+    if (replyFeeCharged) {
+      await creditUser(user.id, "REPLY", CREDIT_CONFIG.SPEND.REPLY_EXTRA, `${replyReference}_refund`, {
+        refund: true,
+      }).catch(() => {})
+    }
+    console.error("[comments] create failed", err)
+    return null
   })
+  if (!comment) {
+    return NextResponse.json({ error: "couldn't post reply. try again." }, { status: 500 })
+  }
 
   await prisma.post.update({
     where: { id },

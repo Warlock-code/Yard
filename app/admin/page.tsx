@@ -303,7 +303,7 @@ export default function AdminPage() {
     loadAnnouncements()
   }, [section])
 
-  // Battle drafts (dormant UPCOMING prompts — hall packs, exam szn).
+  // Battle drafts (dormant UPCOMING prompts created by an admin/API call).
   // Loading flag is set in go() to avoid set-state-in-effect.
   useEffect(() => {
     if (section !== "Battles") return
@@ -1563,7 +1563,7 @@ export default function AdminPage() {
               {section === "Battles" && (
                 <div className="mt-4">
                   <Card>
-                    <CardHeader title="dormant drafts" sub={`${battleDrafts.length} ready to launch · hall packs + exam szn`} right={
+                    <CardHeader title="scheduled drafts" sub={`${battleDrafts.length} admin-created · launch when ready`} right={
                       <button
                         onClick={async () => {
                           setBattleDraftsLoading(true)
@@ -1578,7 +1578,7 @@ export default function AdminPage() {
                     <div className="p-4 space-y-2.5">
                       {battleDraftsLoading && <p className="text-xs text-white/40">loading drafts…</p>}
                       {!battleDraftsLoading && battleDrafts.length === 0 && (
-                        <EmptyState icon="⚔" title="no dormant drafts" sub="create one above or re-run scripts/seed-campus-battles.js." />
+                        <EmptyState icon="⚔" title="no scheduled drafts" sub="create a battle above. only admins can create official battles." />
                       )}
                       {battleDrafts.map((d) => (
                         <div key={d.id} className="rounded-xl border border-white/10 bg-black/30 p-3.5 flex items-start gap-3">

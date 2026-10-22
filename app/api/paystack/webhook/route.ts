@@ -100,24 +100,21 @@ export async function POST(req: NextRequest) {
         if (isValidRenewal && matched) {
           const user = await prisma.user.findUnique({ where: { email } })
           if (user) {
+            // Create the renewal as PENDING, then let the shared fulfillment
+            // claim it and extend the tier in one transaction. Creating it as
+            // success first meant a failure after the row insert left a paid
+            // renewal that every retry skipped forever.
             await prisma.transaction.create({
               data: {
                 userId: user.id,
                 kind: matched.kind,
                 reference,
                 amount,
-                status: "success",
+                status: "pending",
                 metadata: { tier: matched.kind, paystackSubscriptionCode: subCode, renewal: true, autoDeduct: true },
               },
             })
-            await prisma.$transaction(async (db) => {
-              const current = await db.user.findUnique({ where: { id: user.id }, select: { tierExpiresAt: true } })
-              const base = Math.max(Date.now(), current?.tierExpiresAt?.getTime() ?? 0)
-              await db.user.update({
-                where: { id: user.id },
-                data: { tier: matched.tier, tierExpiresAt: new Date(base + matched.days * 24 * 60 * 60 * 1000) },
-              })
-            })
+            await fulfillPaidTransaction(reference)
           }
         }
       }

@@ -181,8 +181,9 @@ export default function LairPage() {
   }, [load, loadStorage, loadReferral])
 
   async function handleLogout() {
-    document.cookie = "yard_token=; Max-Age=0; path=/"
+    await apiPost("/api/auth/logout", {}).catch(() => {})
     router.push("/login")
+    router.refresh()
   }
 
   async function handleRename() {

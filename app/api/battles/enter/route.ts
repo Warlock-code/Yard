@@ -103,17 +103,19 @@ export async function POST(req: NextRequest) {
     }
     entry = await prisma.battleEntry.create({ data: entryData })
   } catch (error: unknown) {
+    // Any failure after the fee was taken must return the fee. This covers
+    // the unique-entry race (P2002) and transient DB failures alike.
+    if (entryPaid) {
+      await creditUser(user.id, "BATTLE_ENTRY", fee, `${promptId}_refund`, {
+        promptId,
+        refund: true,
+      }).catch(() => {})
+    }
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      // Entry raced after the fee was taken — refund so nobody pays for nothing.
-      if (entryPaid) {
-        await creditUser(user.id, "BATTLE_ENTRY", fee, `${promptId}_refund`, {
-          promptId,
-          refund: true,
-        }).catch(() => {})
-      }
       return NextResponse.json({ error: "you already entered this battle." }, { status: 409 })
     }
-    throw error
+    console.error("[battles/enter] entry failed", error)
+    return NextResponse.json({ error: "couldn't join the battle. try again." }, { status: 500 })
   }
 
   await prisma.battleStats.upsert({

@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 export const fetchCache = "force-no-store"
 
-// Dormant battle drafts (UPCOMING with a future startsAt — e.g. the seeded
-// campus packs). Launching is a separate, deliberate tap from creating.
+// Dormant battle drafts (UPCOMING with a future startsAt). Admins create
+// official battles; launching a scheduled draft is a separate deliberate tap.
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "not authorized." }, { status: 403 })

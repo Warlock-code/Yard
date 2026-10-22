@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/getCurrentUser"
 import { isAdmin } from "@/lib/getAdmin"
 import { getTreasuryStats, mintCreditsAdmin, burnCreditsAdmin, refundCreditsAdmin } from "@/lib/credits"
 
@@ -12,8 +11,9 @@ async function trackFeatureEventSafe(userId: string, type: string, metadata: Rec
 }
 
 export async function GET(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  if (!user || !isAdmin(req)) {
+  // Admin console login sets only the signed admin cookie, not a normal user
+  // session. The admin cookie is the authorization boundary here.
+  if (!isAdmin(req)) {
     return NextResponse.json({ error: "admin only" }, { status: 403 })
   }
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   // Analytics beacon — live-safe, never breaks the main flow.
   try {
     await prisma.analyticsEvent.create({
-      data: { userId: user.id, type: "admin_credits_view", metadata: { action: action ?? "none" } },
+      data: { userId: null, type: "admin_credits_view", metadata: { action: action ?? "none" } },
     }).catch(() => {})
   } catch {}
 
@@ -180,11 +180,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser(req)
-  if (!user || !isAdmin(req)) {
+  if (!isAdmin(req)) {
     return NextResponse.json({ error: "admin only" }, { status: 403 })
   }
 
+  // The admin console has no normal-user session. Use a stable actor id for
+  // the ledger/audit metadata instead of requiring a user login.
+  const adminId = "admin"
   const body = await req.json().catch(() => ({}))
   const { action } = body
 
@@ -193,10 +195,10 @@ export async function POST(req: NextRequest) {
     if (!userId || !amount || !reason) {
       return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
     }
-    const result = await mintCreditsAdmin(userId, amount, reason, user.id)
+    const result = await mintCreditsAdmin(userId, amount, reason, adminId)
     try {
       await prisma.analyticsEvent.create({
-        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "mint", targetId: userId, amount } },
+        data: { userId: adminId, type: "admin_credits_adjust", metadata: { action: "mint", targetId: userId, amount } },
       }).catch(() => {})
     } catch {}
     return NextResponse.json({ success: true, ...result })
@@ -207,10 +209,10 @@ export async function POST(req: NextRequest) {
     if (!userId || !amount || !reason) {
       return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
     }
-    const result = await burnCreditsAdmin(userId, amount, reason, user.id)
+    const result = await burnCreditsAdmin(userId, amount, reason, adminId)
     try {
       await prisma.analyticsEvent.create({
-        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "burn", targetId: userId, amount } },
+        data: { userId: adminId, type: "admin_credits_adjust", metadata: { action: "burn", targetId: userId, amount } },
       }).catch(() => {})
     } catch {}
     return NextResponse.json({ success: true, ...result })
@@ -223,10 +225,10 @@ export async function POST(req: NextRequest) {
     if (!userId || !amount || !reason) {
       return NextResponse.json({ error: "userId, amount, reason required" }, { status: 400 })
     }
-    const result = await refundCreditsAdmin(userId, amount, reason, user.id)
+    const result = await refundCreditsAdmin(userId, amount, reason, adminId)
     try {
       await prisma.analyticsEvent.create({
-        data: { userId: user.id, type: "admin_credits_adjust", metadata: { action: "refund_credits", targetId: userId, amount } },
+        data: { userId: adminId, type: "admin_credits_adjust", metadata: { action: "refund_credits", targetId: userId, amount } },
       }).catch(() => {})
     } catch {}
     return NextResponse.json({ success: true, ...result })
@@ -251,7 +253,7 @@ export async function POST(req: NextRequest) {
     const credits = typeof meta.credits === "number" && Number.isSafeInteger(meta.credits) ? meta.credits : 0
     if ((tx.kind === "credits" || tx.kind === "bundle_plus" || tx.kind === "bundle_prime") && credits > 0) {
       try {
-        await burnCreditsAdmin(tx.userId, credits, `Refund ${reference}: ${reason}`, user.id)
+        await burnCreditsAdmin(tx.userId, credits, `Refund ${reference}: ${reason}`, adminId)
       } catch (err) {
         return NextResponse.json(
           { error: err instanceof Error ? err.message : "user already spent the credits — adjust manually." },
@@ -261,9 +263,9 @@ export async function POST(req: NextRequest) {
     }
     await prisma.transaction.update({
       where: { reference },
-      data: { status: "refunded", metadata: { ...(meta as Record<string, unknown>), refundReason: reason, refundedBy: user.id, refundedAt: new Date().toISOString() } },
+      data: { status: "refunded", metadata: { ...(meta as Record<string, unknown>), refundReason: reason, refundedBy: adminId, refundedAt: new Date().toISOString() } },
     }).catch(() => {})
-    await trackFeatureEventSafe(user.id, "refund", { reference, kind: tx.kind })
+    await trackFeatureEventSafe(adminId, "refund", { reference, kind: tx.kind })
     return NextResponse.json({ success: true })
   }
 

@@ -15,11 +15,15 @@ async function grantBoardPrize(
   boosts: number,
   period: "weekly" | "monthly",
   campus: string,
-  periodStart: Date,
+  periodRef: string,
 ) {
   const type = period === "weekly" ? "leaderboard_weekly" : "leaderboard_monthly"
+  // Previous periods paid the same user with the old shared /leaderboard href.
+  // A period-specific href makes reruns idempotent without treating a winner
+  // from last week/month as already paid this period.
+  const href = `/leaderboard?period=${encodeURIComponent(periodRef)}`
   const existing = await prisma.notification.findFirst({
-    where: { userId, type, createdAt: { gte: periodStart } },
+    where: { userId, type, href },
     select: { id: true },
   })
   if (existing) return false
@@ -32,7 +36,7 @@ async function grantBoardPrize(
     type,
     title: rank === 1 ? `👑 you rule ${campus}` : `🏆 ${period} board #${rank}`,
     body: `you placed #${rank} on the ${campus} ${period} board — +${boosts} free boosts added.`,
-    href: "/leaderboard",
+    href,
   }).catch(() => {})
   return true
 }
@@ -41,7 +45,8 @@ export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "unauthorized." }, { status: 401 })
   }
 
@@ -120,10 +125,14 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
 
     const finalReward = Math.round(reward * multiplier)
 
-    const prizeGranted = await grantBoardPrize(user.id, i + 1, WEEKLY_BOOSTS[i] ?? 1, "weekly", campus, weekStart)
-    if (!prizeGranted) continue
-    
-    if (finalReward > 0) {
+    // Credits and boosts have separate idempotency markers. A repeat winner
+    // must still receive this period's credits even though last period's
+    // notification already exists. The credit reference is the period ledger.
+    const creditAlreadyPaid = finalReward > 0 && Boolean(await prisma.creditTransaction.findFirst({
+      where: { userId: user.id, type: "LEADERBOARD", reference: periodRef },
+      select: { id: true },
+    }))
+    if (finalReward > 0 && !creditAlreadyPaid) {
       await creditUser(user.id, "LEADERBOARD", finalReward, periodRef, {
         campus,
         rank: i + 1,
@@ -131,9 +140,18 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
         score: user.score,
         tier,
       })
+    }
+    if (finalReward > 0) {
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
-    } else if (tier === "FREE") {
-      // FREE shadow: what PLUS (1x) would have paid. Display-only.
+    }
+
+    // Board prize every week regardless of credit config (non-cash).
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, WEEKLY_BOOSTS[i] ?? 1, "weekly", campus, periodRef)
+    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: WEEKLY_BOOSTS[i] ?? 1, campus })
+
+    // FREE shadow: what PLUS (1x) would have paid. Display-only, once per
+    // period (tied to the boost prize marker).
+    if (finalReward === 0 && tier === "FREE" && prizeGranted) {
       const shadow = Math.round(reward * 1)
       if (shadow > 0) {
         const { logMissedEarnings } = await import("@/lib/missedEarnings")
@@ -146,9 +164,6 @@ async function processWeeklyLeaderboard(campus: string, now: Date) {
         }).catch(() => {})
       }
     }
-
-    // Board prize every week regardless of credit config (non-cash).
-    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: WEEKLY_BOOSTS[i] ?? 1, campus })
   }
 
   return rewards
@@ -202,10 +217,11 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
 
     const finalReward = Math.round(reward * multiplier)
 
-    const prizeGranted = await grantBoardPrize(user.id, i + 1, MONTHLY_BOOSTS[i] ?? 2, "monthly", campus, monthStart)
-    if (!prizeGranted) continue
-    
-    if (finalReward > 0) {
+    const creditAlreadyPaid = finalReward > 0 && Boolean(await prisma.creditTransaction.findFirst({
+      where: { userId: user.id, type: "LEADERBOARD", reference: periodRef },
+      select: { id: true },
+    }))
+    if (finalReward > 0 && !creditAlreadyPaid) {
       await creditUser(user.id, "LEADERBOARD", finalReward, periodRef, {
         campus,
         rank: i + 1,
@@ -213,8 +229,16 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
         score: user.score,
         tier,
       })
+    }
+    if (finalReward > 0) {
       rewards.push({ userId: user.id, rank: i + 1, reward: finalReward, campus })
-    } else if (tier === "FREE") {
+    }
+
+    // Board prize every month regardless of credit config (non-cash).
+    const prizeGranted = await grantBoardPrize(user.id, i + 1, MONTHLY_BOOSTS[i] ?? 2, "monthly", campus, periodRef)
+    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: MONTHLY_BOOSTS[i] ?? 2, campus })
+
+    if (finalReward === 0 && tier === "FREE" && prizeGranted) {
       const shadow = Math.round(reward * 1)
       if (shadow > 0) {
         const { logMissedEarnings } = await import("@/lib/missedEarnings")
@@ -227,9 +251,6 @@ async function processMonthlyLeaderboard(campus: string, now: Date) {
         }).catch(() => {})
       }
     }
-
-    // Board prize every month regardless of credit config (non-cash).
-    if (prizeGranted) rewards.push({ userId: user.id, rank: i + 1, boosts: MONTHLY_BOOSTS[i] ?? 2, campus })
   }
 
   return rewards

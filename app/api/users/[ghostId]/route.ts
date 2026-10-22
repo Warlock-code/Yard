@@ -6,6 +6,7 @@ import { evalProfileAvatarNudge } from "@/lib/nudges"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getReadablePostWhere } from "@/lib/programAccess"
 import { getChampionTrophies } from "@/lib/champions"
+import { recordProfileView } from "@/lib/profileViews"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ ghostId: string }> }) {
   const viewer = await getCurrentUser(req)
@@ -18,35 +19,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   })
   if (!user) return NextResponse.json({ error: "ghost not found." }, { status: 404 })
 
-  // Who-viewed ledger (PLUS/PRIME read it via /api/profile/views).
+  // Await the ledger and the push so serverless requests do not end before
+  // the write/fan-out completes. Both are best-effort and never block the
+  // profile response on failure.
   if (viewer.id !== user.id) {
-    import("@/lib/profileViews")
-      .then((m) => m.recordProfileView(viewer.id, user.id))
-      .catch(() => {})
-  }
+    await recordProfileView(viewer.id, user.id).catch(() => {})
 
-  if (viewer.id !== user.id) {
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000)
     const recentView = await prisma.notification.findFirst({
       where: { userId: user.id, type: "profile_view", actorName: viewer.ghostId, createdAt: { gt: sixHoursAgo } },
       select: { id: true },
     })
     if (!recentView) {
-      createNotification({
+      await createNotification({
         userId: user.id,
         type: "profile_view",
         title: "someone checked your lair",
         body: `${viewer.ghostId} viewed your profile`,
         href: `/u/${viewer.ghostId}`,
         actorName: viewer.ghostId,
-      }).then(() => {
-        // Smart nudge: profile getting views + default avatar -> upsell avatar (fire-and-forget)
-        evalProfileAvatarNudge(user.id).catch(() => {})
       }).catch(() => {})
-    } else {
-      // Even on deduped views, re-evaluate — traffic may have crossed threshold
-      evalProfileAvatarNudge(user.id).catch(() => {})
     }
+    // Re-evaluate on every view, including deduped ones — traffic may have
+    // crossed the nudge threshold.
+    await evalProfileAvatarNudge(user.id).catch(() => {})
   }
 
   const visiblePosts: Prisma.PostWhereInput = {

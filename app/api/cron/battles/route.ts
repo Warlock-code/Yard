@@ -4,84 +4,22 @@ import { recordBattleWin } from "@/lib/champions"
 import { creditUser, activeStreakMult, trackFeatureEvent, CREDIT_CONFIG } from "@/lib/credits"
 import { getEffectiveTier } from "@/lib/tier"
 import { createNotification } from "@/lib/notifications"
-import { BATTLE_DURATION_HOURS, BATTLE_DURATION_MS } from "@/lib/battle-countdown"
+import { BATTLE_DURATION_MS } from "@/lib/battle-countdown"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "unauthorized." }, { status: 401 })
   }
 
   const now = new Date()
-  const scheduledDrafts = await prisma.aiDraft.findMany({
-    where: { status: "scheduled_battle" },
-  })
 
-  const created: string[] = []
-  const errors: string[] = []
-
-  for (const draft of scheduledDrafts) {
-    try {
-      const scheduleData = JSON.parse(draft.text)
-      const { campus, text, type, totalRounds, entryType, schedule, scheduleTime, scheduleDays, seasonId } = scheduleData
-
-      let nextStart: Date
-      const scheduleTimeDate = new Date(scheduleTime)
-      const today = new Date()
-      today.setHours(scheduleTimeDate.getHours(), scheduleTimeDate.getMinutes(), 0, 0)
-
-      if (today <= now) {
-        if (schedule === "daily") {
-          nextStart = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-        } else if (schedule === "weekly") {
-          nextStart = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-        } else {
-          continue
-        }
-      } else {
-        nextStart = today
-      }
-
-      const dayOfWeek = nextStart.getDay()
-      if (!scheduleDays.includes(dayOfWeek)) {
-        continue
-      }
-
-      const nextEnd = new Date(nextStart.getTime() + BATTLE_DURATION_MS)
-
-      await prisma.battlePrompt.create({
-        data: {
-          text,
-          campus,
-          type,
-          status: "UPCOMING",
-          startsAt: nextStart,
-          endsAt: nextEnd,
-          totalRounds,
-          roundNumber: 1,
-          entryType,
-          seasonId,
-        },
-      })
-
-      await prisma.aiDraft.update({
-        where: { id: draft.id },
-        data: {
-          text: JSON.stringify({
-            ...scheduleData,
-            durationHours: BATTLE_DURATION_HOURS,
-            scheduleTime: nextStart.toISOString(),
-          }),
-        },
-      })
-
-      created.push(`${campus} - ${text.slice(0, 30)}... at ${nextStart.toISOString()}`)
-    } catch (err) {
-      errors.push(`${draft.id}: ${err instanceof Error ? err.message : "Unknown error"}`)
-    }
-  }
+  // Official battles are created by an admin only. This cron activates an
+  // admin-created UPCOMING prompt when its start time arrives; it never
+  // creates battle prompts automatically from AI drafts.
 
   const upcomingPrompts = await prisma.battlePrompt.findMany({
     where: { status: "UPCOMING", startsAt: { lte: now } },
@@ -189,22 +127,31 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        const nextRoundPrompt = await prisma.battlePrompt.create({
-          data: {
-            text: `${prompt.text} (Round ${prompt.roundNumber + 1})`,
-            campus: prompt.campus,
-            type: "BRACKET",
-            status: "ACTIVE",
-            startsAt: now,
-            // Every bracket round gets its own full 3-day window.
-            endsAt: new Date(now.getTime() + BATTLE_DURATION_MS),
-            totalRounds: prompt.totalRounds,
-            roundNumber: prompt.roundNumber + 1,
-            parentPromptId: prompt.id,
-            entryType: prompt.entryType,
-            seasonId: prompt.seasonId,
-          },
+        // A retry after a partial settlement must not create a second
+        // identical next round.
+        let nextRoundPrompt = await prisma.battlePrompt.findFirst({
+          where: { parentPromptId: prompt.id },
+          select: { id: true, text: true, campus: true, roundNumber: true },
         })
+        if (!nextRoundPrompt) {
+          nextRoundPrompt = await prisma.battlePrompt.create({
+            data: {
+              text: `${prompt.text} (Round ${prompt.roundNumber + 1})`,
+              campus: prompt.campus,
+              type: "BRACKET",
+              status: "ACTIVE",
+              startsAt: now,
+              // Every bracket round gets its own full 3-day window.
+              endsAt: new Date(now.getTime() + BATTLE_DURATION_MS),
+              totalRounds: prompt.totalRounds,
+              roundNumber: prompt.roundNumber + 1,
+              parentPromptId: prompt.id,
+              entryType: prompt.entryType,
+              seasonId: prompt.seasonId,
+            },
+            select: { id: true, text: true, campus: true, roundNumber: true },
+          })
+        }
 
         await prisma.battlePrompt.update({
           where: { id: prompt.id },
@@ -227,11 +174,6 @@ export async function GET(req: NextRequest) {
       })
 
       if (winner) {
-        await prisma.battlePrompt.update({
-          where: { id: prompt.id },
-          data: { status: "COMPLETED", winnerEntryId: winner.id },
-        })
-
         await prisma.battleEntry.update({
           where: { id: winner.id },
           data: { wonRound: true },
@@ -299,6 +241,14 @@ export async function GET(req: NextRequest) {
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
           await updateBattleStats(entry.userId, false)
         }
+
+        // Mark complete only after every prize, notification, trophy and
+        // ledger write has succeeded. A transient failure leaves the battle
+        // ACTIVE so the next run retries instead of silently dropping payouts.
+        await prisma.battlePrompt.update({
+          where: { id: prompt.id },
+          data: { status: "COMPLETED", winnerEntryId: winner.id },
+        })
       } else {
         await prisma.battlePrompt.update({
           where: { id: prompt.id },
@@ -313,11 +263,6 @@ export async function GET(req: NextRequest) {
       })
 
       if (winner) {
-        await prisma.battlePrompt.update({
-          where: { id: prompt.id },
-          data: { status: "COMPLETED", winnerEntryId: winner.id },
-        })
-
         await prisma.battleEntry.update({
           where: { id: winner.id },
           data: { wonRound: true },
@@ -385,6 +330,11 @@ export async function GET(req: NextRequest) {
         for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
           await updateBattleStats(entry.userId, false)
         }
+
+        await prisma.battlePrompt.update({
+          where: { id: prompt.id },
+          data: { status: "COMPLETED", winnerEntryId: winner.id },
+        })
       } else {
         await prisma.battlePrompt.update({
           where: { id: prompt.id },
@@ -406,11 +356,10 @@ export async function GET(req: NextRequest) {
     })
 
     if (winner) {
-      await prisma.battlePrompt.update({
-        where: { id: prompt.id },
-        data: { status: "COMPLETED", winnerEntryId: winner.id },
+      await prisma.battleEntry.update({
+        where: { id: winner.id },
+        data: { wonRound: true },
       })
-      await recordBattleWin(winner.userId, prompt.campus)
       await grantWinPrize(winner.userId, prompt.id, prompt.text, 2)
       // VOTING-close win: same pot-share prize as a single win.
       // FREE never earns real credits — shadow MISSED row only.
@@ -464,6 +413,16 @@ export async function GET(req: NextRequest) {
           }
         }
       }
+
+      await recordBattleWin(winner.userId, prompt.campus)
+      await updateBattleStats(winner.userId, true)
+      for (const entry of await prisma.battleEntry.findMany({ where: { promptId: prompt.id, userId: { not: winner.userId } } })) {
+        await updateBattleStats(entry.userId, false)
+      }
+      await prisma.battlePrompt.update({
+        where: { id: prompt.id },
+        data: { status: "COMPLETED", winnerEntryId: winner.id },
+      })
     } else {
       await prisma.battlePrompt.update({ where: { id: prompt.id }, data: { status: "COMPLETED" } })
     }
@@ -478,7 +437,7 @@ export async function GET(req: NextRequest) {
     await createStartingSoonNotifications(prompt)
   }
 
-  return NextResponse.json({ created, errors, processed: scheduledDrafts.length })
+  return NextResponse.json({ success: true })
 }
 
 async function createNotificationsForRoundStart(prompt: { id: string; text: string; campus: string; roundNumber: number }, winners: { id: string; userId: string }[]) {
@@ -555,10 +514,15 @@ function battleWindowEnd(prompt: { createdAt: Date; startsAt: Date; endsAt: Date
 async function battlePotStats(promptId: string): Promise<{ pot: number; rake: number; winnerShare: number }> {
   try {
     const fees = await prisma.creditTransaction.findMany({
-      where: { reference: promptId, type: { in: ["BATTLE_ENTRY", "DUEL_ENTRY"] }, amount: { lt: 0 } },
+      where: {
+        type: { in: ["BATTLE_ENTRY", "DUEL_ENTRY"] },
+        OR: [{ reference: promptId }, { reference: `${promptId}_refund` }],
+      },
       select: { amount: true },
     })
-    const pot = fees.reduce((s, f) => s + Math.abs(f.amount), 0)
+    // Negative rows are entry fees; positive rows are duplicate-entry
+    // refunds. Net them so a refunded fee cannot inflate the winner's pot.
+    const pot = Math.max(0, fees.reduce((s, f) => s + f.amount, 0))
     const rake = Math.floor((pot * CREDIT_CONFIG.BATTLE.RAKE_PCT) / 100)
     const winnerShare = Math.floor((pot * CREDIT_CONFIG.BATTLE.WINNER_PCT) / 100)
     return { pot, rake, winnerShare }
@@ -595,6 +559,19 @@ async function grantWinPrize(userId: string, promptId: string, promptText: strin
 }
 
 async function updateBattleStats(userId: string, won: boolean) {
+  // The entry route already counts the battle/entry. Settlement must only
+  // record the result, otherwise every battle is counted twice.
+  const current = await prisma.battleStats.findUnique({
+    where: { userId },
+    select: { totalBattles: true, totalEntries: true, totalWins: true, currentStreak: true, bestStreak: true },
+  })
+
+  const totalBattles = Math.max(current?.totalBattles ?? 0, current?.totalEntries ?? 0, 1)
+  const totalWins = (current?.totalWins ?? 0) + (won ? 1 : 0)
+  const currentStreak = won ? (current?.currentStreak ?? 0) + 1 : 0
+  const bestStreak = Math.max(current?.bestStreak ?? 0, currentStreak)
+  const winRate = totalBattles > 0 ? (totalWins / totalBattles) * 100 : 0
+
   await prisma.battleStats.upsert({
     where: { userId },
     create: {
@@ -608,14 +585,10 @@ async function updateBattleStats(userId: string, won: boolean) {
       lastBattleAt: new Date(),
     },
     update: {
-      totalBattles: { increment: 1 },
-      totalEntries: { increment: 1 },
-      totalWins: { increment: won ? 1 : 0 },
-      currentStreak: won ? { increment: 1 } : 0,
-      bestStreak: won ? { increment: 1 } : { increment: 0 },
-      winRate: won
-        ? { increment: (100 - 0) / 1 }
-        : { decrement: 0 },
+      totalWins,
+      currentStreak,
+      bestStreak,
+      winRate,
       lastBattleAt: new Date(),
     },
   })
