@@ -17,23 +17,38 @@ type SenderUser = {
   pushToken?: string | null
 }
 
+type MentionAudience = {
+  visibility?: string | null
+  programKey?: string | null
+}
+
 export async function notifyMentions({
   text,
   senderUser,
   href,
   excludeUserId,
+  audience,
 }: {
   text: string
   senderUser: SenderUser
   href: string
   excludeUserId?: string | null
+  audience?: MentionAudience
 }) {
   try {
     const handles = extractMentionHandles(text)
     if (handles.length === 0) return
 
+    // A mention on a class post must not notify (or push the post text to)
+    // someone outside that class. Legacy class posts without a programKey
+    // get no mention delivery rather than a campus-wide leak.
+    const classAudience = audience?.visibility === "program"
     const users = await prisma.user.findMany({
-      where: { ghostId: { in: handles } },
+      where: {
+        ghostId: { in: handles },
+        status: "ACTIVE",
+        ...(classAudience ? { programKey: audience?.programKey || "__no_class__" } : {}),
+      },
       select: { id: true, ghostId: true, pushToken: true },
     })
 

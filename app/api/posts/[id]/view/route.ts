@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
+import { getReadablePostWhere } from "@/lib/programAccess"
 
 export async function POST(
   req: NextRequest,
@@ -11,7 +12,10 @@ export async function POST(
 
   const { id: postId } = await params
 
-  const post = await prisma.post.findUnique({ where: { id: postId } })
+  const post = await prisma.post.findFirst({
+    where: { id: postId, AND: [await getReadablePostWhere(user)] },
+    select: { id: true },
+  })
   if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })
 
   try {

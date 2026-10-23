@@ -112,7 +112,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  emitVoteUpdate(post.campus, post.id, post.yeahs)
+  // Class post activity stays off the campus-wide socket channel.
+  if (post.visibility === "school") {
+    emitVoteUpdate(post.campus, post.id, post.yeahs)
+  }
 
   // Smart nudge: post heating up -> "boost it for 24h with credits" (fire-and-forget)
   evalHotPostNudge(post.id).catch(() => {})

@@ -79,7 +79,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }).catch(() => {})
   }
 
-  emitCommentVote(comment.post.campus, updated.postId, updated.id, updated.yeahs)
+  // Keep class post activity out of the campus-wide socket room.
+  if (comment.post.visibility === "school") {
+    emitCommentVote(comment.post.campus, updated.postId, updated.id, updated.yeahs)
+  }
 
   // Top-reply crown: best-effort, never fails the vote.
   evalTopReplyNudge(updated.id).catch(() => {})

@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       id: true,
       text: true,
       imageUrl: true,
+      visibility: true,
       createdAt: true,
       user: { select: { ghostId: true, avatarEmoji: true } },
     },
@@ -25,6 +26,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) {
     return {
       title: "Post Not Found | Yard",
+    }
+  }
+
+  // Class posts are private. Never put their text, author, or image into a
+  // public link preview or search index — anyone with the URL can fetch it.
+  if (post.visibility !== "school") {
+    return {
+      title: "Yard — Class post",
+      description: "A post shared inside a Yard class.",
+      robots: { index: false, follow: false },
+      openGraph: {
+        title: "Yard — Class post",
+        description: "A post shared inside a Yard class.",
+      },
+      twitter: {
+        card: "summary",
+        title: "Yard — Class post",
+        description: "A post shared inside a Yard class.",
+      },
     }
   }
 

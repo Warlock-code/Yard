@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { createNotification } from "@/lib/notifications"
 import { getEffectiveTier } from "@/lib/tier"
+import { getReadablePostWhere } from "@/lib/programAccess"
 import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
 
 export const dynamic = "force-dynamic"
@@ -26,8 +27,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `max ${CREDIT_CONFIG.SPEND.TIP_MAX_PER_USER_DAILY} credits per person per day.` }, { status: 400 })
   }
 
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
+  const post = await prisma.post.findFirst({
+    where: { id: postId, AND: [await getReadablePostWhere(user)] },
     select: { id: true, userId: true },
   })
   if (!post) return NextResponse.json({ error: "post not found." }, { status: 404 })

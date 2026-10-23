@@ -288,9 +288,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (text) {
-    await notifyMentions({ text, senderUser: user, href: `/post/${post.id}`, excludeUserId: user.id }).catch(() => {})
+    await notifyMentions({
+      text,
+      senderUser: user,
+      href: `/post/${post.id}`,
+      excludeUserId: user.id,
+      audience: { visibility: post.visibility, programKey: post.programKey },
+    }).catch(() => {})
     for (const p of createdPosts) {
-      await processPostHashtags(p.id, text, p.campus).catch(() => {})
+      // Hashtags are a campus-wide discovery surface. Class posts stay out
+      // of it so their topic tags cannot surface outside the class.
+      if (p.visibility === "school") {
+        await processPostHashtags(p.id, text, p.campus).catch(() => {})
+      }
     }
   }
 
@@ -301,24 +311,29 @@ export async function POST(req: NextRequest) {
 
   if (postWithUser) {
     const authorTrophies = await getChampionTrophies([{ id: user.id, campus: user.campus }]).catch(() => new Map<string, number>())
-    emitNewPost(postWithUser.campus, {
-      id: postWithUser.id,
-      text: postWithUser.text,
-      imageUrl: postWithUser.imageUrl,
-      type: postWithUser.type,
-      yeahs: postWithUser.yeahs,
-      commentsCount: postWithUser.commentsCount,
-      boosted: postWithUser.boosted,
-      createdAt: postWithUser.createdAt.toISOString(),
-      user: {
-        id: postWithUser.user.id,
-        ghostId: postWithUser.user.ghostId,
-        avatarEmoji: postWithUser.user.avatarEmoji,
-        tier: postWithUser.user.tier,
-        championTrophies: authorTrophies.get(user.id) ?? 0,
-      },
-      campus: postWithUser.campus,
-    })
+    // Class posts must not enter the campus-wide socket room. Until there is
+    // a class-scoped socket room, class feeds refresh normally instead of
+    // receiving live new-post events.
+    if (postWithUser.visibility === "school") {
+      emitNewPost(postWithUser.campus, {
+        id: postWithUser.id,
+        text: postWithUser.text,
+        imageUrl: postWithUser.imageUrl,
+        type: postWithUser.type,
+        yeahs: postWithUser.yeahs,
+        commentsCount: postWithUser.commentsCount,
+        boosted: postWithUser.boosted,
+        createdAt: postWithUser.createdAt.toISOString(),
+        user: {
+          id: postWithUser.user.id,
+          ghostId: postWithUser.user.ghostId,
+          avatarEmoji: postWithUser.user.avatarEmoji,
+          tier: postWithUser.user.tier,
+          championTrophies: authorTrophies.get(user.id) ?? 0,
+        },
+        campus: postWithUser.campus,
+      })
+    }
   }
 
   return NextResponse.json({ post, posts: createdPosts })
@@ -655,7 +670,18 @@ export async function GET(req: NextRequest) {
     if (!cursor) {
       const cotdCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
       const cotdRows = await prisma.post.findMany({
-        where: { isCOTD: true, cotdDate: { gt: cotdCutoff }, archived: false, ...notReported },
+        where: {
+          AND: [
+            readableWhere,
+            scopeWhere,
+            {
+              isCOTD: true,
+              cotdDate: { gt: cotdCutoff },
+              archived: false,
+              ...notReported,
+            },
+          ],
+        },
         orderBy: [{ cotdDate: "desc" }],
         take: 1,
         include: { user: { select: { id: true, ghostId: true, avatarEmoji: true, tier: true, tierExpiresAt: true, campus: true } } },

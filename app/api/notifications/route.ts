@@ -56,7 +56,11 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
     take: limit,
   })
-  const unreadCount = await prisma.notification.count({ where: { userId: user.id, readAt: null } })
+  // Do not count notifications whose class post the viewer can no longer
+  // read — otherwise the badge reveals activity they are not allowed to see.
+  const unreadCount = await prisma.notification.count({
+    where: { ...visibleNotifications, readAt: null },
+  })
 
   const enriched = fetched.map((notification) => ({
     ...notification,

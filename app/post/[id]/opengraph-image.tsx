@@ -27,10 +27,13 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         text: true,
         type: true,
         yeahs: true,
+        visibility: true,
         user: { select: { ghostId: true } },
       },
     })
-    if (post) {
+    // This route is public and cannot see the viewer. Class posts always get
+    // a neutral card so their text, author, and heat count never leak.
+    if (post && post.visibility === "school") {
       ghostId = post.user.ghostId
       text = post.text || ""
       yeahs = post.yeahs

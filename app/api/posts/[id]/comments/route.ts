@@ -154,30 +154,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  await notifyMentions({ text, senderUser: user, href: `/post/${post?.id ?? id}`, excludeUserId: user.id }).catch(() => {})
+  await notifyMentions({
+    text,
+    senderUser: user,
+    href: `/post/${post?.id ?? id}`,
+    excludeUserId: user.id,
+    audience: { visibility: post.visibility, programKey: post.programKey },
+  }).catch(() => {})
 
   // Heating-up nudge: best-effort, never fails the comment.
   evalReplyVelocityNudge(id).catch(() => {})
 
   await attachChampionTrophiesDeep(comment)
-  emitCommentAdded(post.campus, comment.postId, {
-    postId: comment.postId,
-    comment: {
-      id: comment.id,
+  // Class post comments must not be broadcast into the campus-wide socket
+  // room, where non-classmates could read the text.
+  if (post.visibility === "school") {
+    emitCommentAdded(post.campus, comment.postId, {
       postId: comment.postId,
-      text: comment.text,
-      ghostId: comment.ghostId,
-      user: {
-        ghostId: comment.user.ghostId,
-        avatarEmoji: comment.user.avatarEmoji,
-        tier: comment.user.tier,
-        championTrophies: (comment.user as { championTrophies?: number }).championTrophies ?? 0,
+      comment: {
+        id: comment.id,
+        postId: comment.postId,
+        text: comment.text,
+        ghostId: comment.ghostId,
+        user: {
+          ghostId: comment.user.ghostId,
+          avatarEmoji: comment.user.avatarEmoji,
+          tier: comment.user.tier,
+          championTrophies: (comment.user as { championTrophies?: number }).championTrophies ?? 0,
+        },
+        parentId: comment.parentId,
+        yeahs: 0,
+        createdAt: comment.createdAt.toISOString(),
       },
-      parentId: comment.parentId,
-      yeahs: 0,
-      createdAt: comment.createdAt.toISOString(),
-    },
-  })
+    })
+  }
 
   return NextResponse.json({ comment: { ...comment, yeahs: 0 } })
 }

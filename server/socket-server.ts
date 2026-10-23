@@ -100,9 +100,9 @@ async function initializeSocket() {
       const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { id: true, campus: true, tier: true },
+        select: { id: true, campus: true, tier: true, status: true },
       })
-      if (!user) return next(new Error("User not found"))
+      if (!user || user.status !== "ACTIVE") return next(new Error("User not found"))
 
       socket.userId = user.id
       socket.campus = user.campus
