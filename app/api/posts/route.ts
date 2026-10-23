@@ -569,12 +569,18 @@ export async function GET(req: NextRequest) {
   if (!cursor) {
     try {
       const adInterval = AD_INTERVAL_BY_TIER[effectiveTier]
+      // Legacy ads without an expiry stay eligible for at most 7 days from
+      // creation, so old test ads cannot live in the feed forever.
+      const legacyAdCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
       const ads = await prisma.post.findMany({
         where: {
           isAd: true,
           archived: false,
           ...notReported,
-          OR: [{ adExpiresAt: null }, { adExpiresAt: { gt: now } }],
+          OR: [
+            { adExpiresAt: { gt: now } },
+            { adExpiresAt: null, createdAt: { gt: legacyAdCutoff } },
+          ],
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 20,
@@ -662,8 +668,8 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch {}
-  // Confession of the day: the live COTD post (isCOTD + cotdDate < 24h)
-  // leads the first page with a cotd flag for its distinct card. Deduped
+  // Confession of the day: the live SCHOOL COTD post (isCOTD + cotdDate <
+  // 24h) leads the first page with a cotd flag for its distinct card. Deduped
   // against announcements/pins/page rows. Live-safe pre-migration.
   let cotdId: string | null = null
   try {
@@ -678,6 +684,7 @@ export async function GET(req: NextRequest) {
               isCOTD: true,
               cotdDate: { gt: cotdCutoff },
               archived: false,
+              visibility: "school",
               ...notReported,
             },
           ],

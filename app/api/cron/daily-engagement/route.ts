@@ -68,8 +68,9 @@ export async function GET(req: NextRequest) {
 
   // 2. Generate AI post
   try {
+    // AI style examples must never include class-only or archived posts.
     const recent = await prisma.post.findMany({
-      where: { text: { not: null } },
+      where: { text: { not: null }, visibility: "school", archived: false },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { text: true },
@@ -163,19 +164,27 @@ export async function GET(req: NextRequest) {
 
   results.battleCountdowns = { sent: countdownSent }
 
-  // 4. Confession of the day — top post of the last 24h by yeahs is
+  // 4. Confession of the day — top SCHOOL post of the last 24h by yeahs is
   // featured 24h (isCOTD flag + cotdDate, rendered as a distinct card at
-  // the top of the feed) + 500cr (PLUS/PRIME; FREE shadow). Stale flags
+  // the top of the feed) + 500cr (PLUS/PRIME; FREE shadow). COTD stays global
+  // for now, but class-only posts are never eligible. Stale/non-school flags
   // (>24h) are cleared first so only one COTD is ever live. Idempotent via
   // cotd:<postId> notifications.
   try {
     const dayAgo = new Date(now - 24 * 60 * 60 * 1000)
     await prisma.post.updateMany({
-      where: { isCOTD: true, cotdDate: { lt: dayAgo } },
+      where: {
+        isCOTD: true,
+        OR: [
+          { visibility: { not: "school" } },
+          { cotdDate: null },
+          { cotdDate: { lt: dayAgo } },
+        ],
+      },
       data: { isCOTD: false },
     }).catch(() => {})
     const top = await prisma.post.findFirst({
-      where: { createdAt: { gte: dayAgo }, archived: false },
+      where: { createdAt: { gte: dayAgo }, archived: false, visibility: "school" },
       orderBy: [{ yeahs: "desc" }, { commentsCount: "desc" }],
       select: { id: true, userId: true, yeahs: true, text: true },
     })
