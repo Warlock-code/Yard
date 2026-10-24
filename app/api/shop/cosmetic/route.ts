@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
-import { creditUser, toCreditErrorResponse, trackFeatureEvent } from "@/lib/credits"
+import { creditUser, toCreditErrorResponse } from "@/lib/credits"
 import { AVATARS, isAvatarBuyable, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { getEffectiveTier } from "@/lib/tier"
-import { userLevelInfo, levelUnlockLevel } from "@/lib/levels"
+import { calculateLevel, requiredLevelForAvatar } from "@/lib/levels"
+import { userLevelInfo } from "@/lib/userLevel"
 
 const COSMETICS = AVATARS
 
@@ -18,23 +19,32 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
   try {
     const info = await userLevelInfo(user.id)
+    const progress = calculateLevel(info.xp)
     return NextResponse.json({
-      myLevel: info.level.level,
-      myXp: info.xp,
-      items: COSMETICS.map((c) => ({
-        id: c.id,
-        name: c.name,
-        emoji: c.emoji,
-        rarity: c.rarity,
-        creditCost: Math.round(c.pricePesewas / 100),
-        owned: user.ownedCosmetics.includes(c.id),
-        tierIncluded: isAvatarUnlockedForTier(getEffectiveTier(user), c.id),
-        levelUnlock: levelUnlockLevel(c.id),
-        levelUnlocked: info.avatarIds.includes(c.id),
-      })),
+      myLevel: progress.currentLevel,
+      myXp: progress.currentXp,
+      levelName: progress.levelName,
+      nextLevelXp: progress.nextLevelXp,
+      nextLevelName: progress.nextLevelName,
+      progressPct: progress.progressPct,
+      items: COSMETICS.map((c) => {
+        const requiredLevel = requiredLevelForAvatar(c.id) ?? 1
+        return {
+          id: c.id,
+          name: c.name,
+          emoji: c.emoji,
+          rarity: c.rarity,
+          creditCost: Math.round(c.pricePesewas / 100),
+          owned: user.ownedCosmetics.includes(c.id),
+          tierIncluded: isAvatarUnlockedForTier(getEffectiveTier(user), c.id),
+          levelUnlock: requiredLevel,
+          levelUnlocked: progress.currentLevel >= requiredLevel,
+          requiredLevel,
+        }
+      }),
     })
   } catch {
-    return NextResponse.json({ myLevel: 1, myXp: 0, items: [] })
+    return NextResponse.json({ myLevel: 1, myXp: 0, levelName: "Newbie", nextLevelXp: 100, nextLevelName: "Rising Ghost", progressPct: 0, items: [] })
   }
 }
 
@@ -60,31 +70,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "included with your plan — find it in owned." }, { status: 400 })
   }
 
-  // Ghost-level grants: reaching the unlock level makes the avatar FREE
-  // (pushed to ownedCosmetics, no charge, no ledger row — no credits move,
-  // same as tier-included grants). Purchases are never removed.
-  const levelInfo = await userLevelInfo(user.id).catch(() => null)
-  if (levelInfo && levelInfo.avatarIds.includes(cosmeticId)) {
-    try {
-      const fresh = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { ownedCosmetics: true },
-      })
-      if (!(fresh?.ownedCosmetics || []).includes(cosmeticId)) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { ownedCosmetics: { push: cosmeticId } },
-        })
-      }
-      await trackFeatureEvent({
-        userId: user.id,
-        type: "level_unlock",
-        metadata: { cosmeticId, level: levelInfo.level.level },
-      }).catch(() => {})
-      return NextResponse.json({ success: true, granted: true, level: levelInfo.level.level, message: "unlocked by ghost level!" })
-    } catch {
-      return NextResponse.json({ error: "unlock failed. try again." }, { status: 500 })
-    }
+  // Ghost-level gate: the ladder unlocks the right to BUY a rarity tier —
+  // it does not grant free items. Fail closed if the level lookup fails.
+  const levelInfo = await userLevelInfo(user.id)
+  const requiredLevel = requiredLevelForAvatar(cosmeticId) ?? 1
+  if (levelInfo.progress.currentLevel < requiredLevel) {
+    return NextResponse.json(
+      { error: `unlocks at level ${requiredLevel}.`, requiredLevel, myLevel: levelInfo.progress.currentLevel },
+      { status: 403 }
+    )
   }
 
   const useCredits = body.useCredits === true

@@ -10,6 +10,7 @@ import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
 import SmartNudge from "@/app/components/SmartNudge"
+import HowToLevelUpButton from "@/app/components/HowToLevelUp"
 
 type Post = {
   id: string
@@ -35,7 +36,16 @@ type Profile = {
   isOwn: boolean
   championTrophies?: number
   xp?: number
-  ghostLevel?: { level: number; title: string; emoji: string }
+  ghostLevel?: {
+    level: number
+    title: string
+    emoji: string
+    xp: number
+    nextLevelXp: number
+    nextLevelName: string
+    progressPct: number
+    isMaxLevel: boolean
+  }
 }
 
 export default function ProfileClient({ ghostId }: { ghostId: string }) {
@@ -153,12 +163,39 @@ export default function ProfileClient({ ghostId }: { ghostId: string }) {
           {profile.tier === "PLUS" && <span className="badge badge-plus">✓ plus</span>}
           {profile.tier === "PRIME" && <span className="badge badge-prime">👑 prime</span>}
           <ChampionTrophies trophies={profile.championTrophies} />
-          {profile.ghostLevel && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-white/70" title={`${profile.xp ?? 0} xp`}>
-              {profile.ghostLevel.emoji} {profile.ghostLevel.title}
-            </span>
-          )}
         </div>
+        {profile.ghostLevel && (() => {
+          const level = profile.ghostLevel
+          const pct = Math.min(100, Math.max(0, level.progressPct))
+          return (
+            <div className="w-full max-w-xs mt-3">
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-white/70" title={`${level.xp} xp`}>
+                  {level.emoji} Level {level.level} · {level.title}
+                </span>
+                <HowToLevelUpButton />
+              </div>
+              <div
+                className="mt-2 h-2.5 overflow-hidden rounded-full border border-white/10 bg-white/[0.06]"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(pct)}
+                aria-label={`Level ${level.level} progress toward ${level.isMaxLevel ? "max level" : level.nextLevelName}`}
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#baff39] via-emerald-300 to-sky-400 shadow-[0_0_14px_rgba(186,255,57,0.45)] transition-[width] duration-700 ease-out"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-center text-[11px] text-white/40">
+                {level.isMaxLevel
+                  ? `${level.xp.toLocaleString()} XP · max level reached`
+                  : `${level.xp.toLocaleString()} / ${level.nextLevelXp.toLocaleString()} XP to ${level.nextLevelName}`}
+              </p>
+            </div>
+          )
+        })()}
         {!profile.isOwn && <NameRevealButton ghostId={profile.ghostId} />}
         {profile.isOwn && <ProfileViewers />}
 

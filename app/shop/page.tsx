@@ -6,8 +6,10 @@ import { apiGet, apiPost } from "@/lib/useApi"
 import { openPaystackCheckout } from "@/lib/purchaseGate"
 import { AVATARS, getAvatarPriceForTier, getRarityColor, isAvatarBuyable, isAvatarUnlockedForTier } from "@/lib/avatars"
 import { THEMES, isThemeBuyable, isThemeUnlocked, type ThemeId } from "@/lib/themes"
-import { getAllPacks } from "@/lib/credit-config"
+import { calculateLevel, requiredLevelForAvatarRarity, THEME_UNLOCK_LEVEL, IDENTITY_UNLOCK_LEVEL } from "@/lib/levels"
+import { getAllPacks, CREDIT_CONFIG } from "@/lib/credit-config"
 import type { CreditPack } from "@/lib/credit-config"
+import HowToLevelUpButton from "@/app/components/HowToLevelUp"
 
 const CATEGORIES = [
   { key: "credits", label: "credits", icon: "💳" },
@@ -22,11 +24,13 @@ const CATEGORIES = [
 
 function ThemesPicker({
   tier,
+  myLevel,
   ownedCosmetics,
   buyingId,
   onBuy,
 }: {
   tier: "FREE" | "PLUS" | "PRIME"
+  myLevel: number
   ownedCosmetics: string[]
   buyingId: string | null
   onBuy: (value: ThemeId) => void
@@ -58,6 +62,8 @@ function ThemesPicker({
         {visibleThemes.map((theme) => {
           const isPaid = theme.pricePesewas > 0
           const isBuying = buyingId === theme.id
+          const levelMet = myLevel >= THEME_UNLOCK_LEVEL
+          const priceCredits = Math.round(theme.pricePesewas / 100)
 
           return (
             <div key={theme.id} className="card p-4 text-center">
@@ -69,13 +75,17 @@ function ThemesPicker({
               <p className="text-xs mb-3 text-white/40">
                 {isPaid ? theme.description : `${theme.requiresTier === "PRIME" ? "prime" : "plus"} perk`}
               </p>
-              {isPaid ? (
+              {!levelMet ? (
+                <button className="w-full text-sm btn-primary disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed" disabled>
+                  🔓 Unlocks at Level {THEME_UNLOCK_LEVEL}
+                </button>
+              ) : isPaid ? (
                 <button
                   className="w-full text-sm btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={buyingId !== null}
                   onClick={() => onBuy(theme.id)}
                 >
-                  {isBuying ? "..." : `buy — ${theme.pricePesewas / 100} credits`}
+                  {isBuying ? "..." : `Buy for ${priceCredits} credits`}
                 </button>
               ) : (
                 <button className="w-full text-sm btn-ghost opacity-50 cursor-not-allowed" disabled>
@@ -185,7 +195,7 @@ export default function ShopPage() {
   const [needBanner, setNeedBanner] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
   const [me, setMe] = useState<{ tier: "FREE" | "PLUS" | "PRIME"; ownedCosmetics: string[]; freeBoosts: number; creditsBalance: number } | null>(null)
-  const [levelInfo, setLevelInfo] = useState<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] } | null>(null)
+  const [levelInfo, setLevelInfo] = useState<{ myLevel: number; myXp: number } | null>(null)
   useEffect(() => {
     // Landed here from an insufficient-credits redirect? Say why.
     try {
@@ -200,7 +210,7 @@ export default function ShopPage() {
       }
     }).catch(() => {})
     apiGet<{ balance: number }>("/api/credits/balance").then((d) => setMe(prev => prev ? { ...prev, creditsBalance: d.balance } : null)).catch(() => {})
-    apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
+    apiGet<{ myLevel: number; myXp: number }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, myXp: d.myXp ?? 0 })).catch(() => {})
   }, [])
 
   async function buy(endpoint: string, key: string, body: Record<string, unknown> = {}) {
@@ -287,9 +297,12 @@ export default function ShopPage() {
 
   return (
     <main className="min-h-screen max-w-lg mx-auto pb-28 px-4">
-      <div className="pt-5 pb-3">
-        <h1 className="text-2xl font-black">the shop</h1>
-        <p className="text-white/40 text-sm">gear up your ghost.</p>
+      <div className="pt-5 pb-3 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black">the shop</h1>
+          <p className="text-white/40 text-sm">gear up your ghost.</p>
+        </div>
+        <HowToLevelUpButton className="mt-1" />
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
@@ -312,6 +325,41 @@ export default function ShopPage() {
           <p className="text-white/50 text-xs mt-1">top up below — credits land instantly and work everywhere in the app.</p>
         </div>
       )}
+
+      {levelInfo && (() => {
+        const progress = calculateLevel(levelInfo.myXp)
+        const pct = Math.min(100, Math.max(0, progress.progressPct))
+        return (
+          <div className="card p-3 mb-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-bold">
+                {progress.emoji} Level {progress.currentLevel} · {progress.levelName}
+              </span>
+              <span className="text-[11px] text-white/40">
+                {progress.isMaxLevel ? "max level" : `${progress.xpToNextLevel.toLocaleString()} XP to go`}
+              </span>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.06] border border-white/10"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(pct)}
+              aria-label={`Level ${progress.currentLevel} progress`}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#baff39] via-emerald-300 to-sky-400 transition-[width] duration-700 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-[11px] text-white/40">
+              {progress.isMaxLevel
+                ? `${progress.currentXp.toLocaleString()} XP · max level reached`
+                : `${progress.currentXp.toLocaleString()} / ${progress.nextLevelXp.toLocaleString()} XP to ${progress.nextLevelName}`}
+            </p>
+          </div>
+        )
+      })()}
 
       {me && (
         <div className="card p-3 mb-3 flex items-center justify-between">
@@ -477,6 +525,7 @@ export default function ShopPage() {
         const visibleAvatars = AVATARS.filter(
           (c) => isAvatarBuyable(c) && !(me?.ownedCosmetics?.includes(c.id) || (me && isAvatarUnlockedForTier(me.tier, c.id)))
         )
+        const myLevel = levelInfo?.myLevel ?? 1
         if (visibleAvatars.length === 0) {
           return (
             <div className="card p-5 mt-2 text-center">
@@ -494,36 +543,32 @@ export default function ShopPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
               {visibleAvatars.map((c) => {
                 const price = me ? getAvatarPriceForTier(me.tier, c) : c.pricePesewas
+                const priceCredits = Math.round(price / 100)
                 const rarityClass = getRarityColor(c.rarity)
-                const lvl = levelInfo?.items.find((i) => i.id === c.id)
-                const claimable = !!lvl?.levelUnlocked
-                const lockedLevel = !claimable ? lvl?.levelUnlock ?? null : null
+                const requiredLevel = requiredLevelForAvatarRarity(c.rarity)
+                const levelMet = myLevel >= requiredLevel
                 return (
                   <div key={c.id} className="card p-4 text-center">
                     <p className="text-3xl mb-2">{c.emoji}</p>
                     <p className="font-semibold text-sm">{c.name}</p>
                     <p className={`text-xs uppercase ${rarityClass}`}>{c.rarity}</p>
                     <p className="text-xs mb-3 text-white/40">
-                      {claimable ? "🔓 free at your level" : lockedLevel ? `🔓 unlocked at level ${lockedLevel}` : `${price / 100} credits`}
+                      {levelMet ? `${priceCredits} credits` : `🔒 Level ${requiredLevel} required`}
                     </p>
-                    {claimable ? (
+                    {levelMet ? (
                       <button
-                        className="w-full text-sm btn-primary"
+                        className="w-full text-sm btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={loading === c.id}
-                        onClick={async () => {
-                          await buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })
-                          apiGet<{ myLevel: number; items: { id: string; levelUnlock: number | null; levelUnlocked: boolean }[] }>("/api/shop/cosmetic").then((d) => setLevelInfo({ myLevel: d.myLevel, items: d.items })).catch(() => {})
-                        }}
+                        onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
                       >
-                        {loading === c.id ? "..." : "claim free 🎁"}
+                        {loading === c.id ? "..." : `Buy for ${priceCredits} credits`}
                       </button>
                     ) : (
                       <button
-                        className="w-full text-sm btn-primary disabled:opacity-50"
-                        disabled={loading === c.id || lockedLevel !== null}
-                        onClick={() => buyWithCredits("/api/shop/cosmetic", c.id, { cosmeticId: c.id, useCredits: true })}
+                        className="w-full text-sm btn-primary disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
+                        disabled
                       >
-                        {loading === c.id ? "..." : `buy — ${price / 100} credits`}
+                        🔓 Unlocks at Level {requiredLevel}
                       </button>
                     )}
                   </div>
@@ -534,15 +579,54 @@ export default function ShopPage() {
         )
       })()}
 
-      {category === "identity" && (
-        <div className="card p-4 mt-2">
-          <p className="font-semibold text-sm mb-1">✏️ custom ghost name</p>
-          <p className="text-white/40 text-xs mb-3">500 credits — credits only. change it from your lair page.</p>
-          <button className="btn-ghost" onClick={() => router.push("/lair")}>
-            go to lair
-          </button>
-        </div>
-      )}
+      {category === "identity" && (() => {
+        const myLevel = levelInfo?.myLevel ?? 1
+        const levelMet = myLevel >= IDENTITY_UNLOCK_LEVEL
+        const ownsBanner = !!me?.ownedCosmetics?.includes("profile:banner")
+        const nameCost = CREDIT_CONFIG.SPEND.CUSTOM_NAME
+        const bannerCost = CREDIT_CONFIG.SPEND.PROFILE_BANNER
+        return (
+          <div className="space-y-3 mt-2">
+            {!levelMet && (
+              <div className="card p-3 border-white/10 bg-white/[0.03]">
+                <p className="text-xs text-white/50">
+                  🔒 identity items unlock at Level {IDENTITY_UNLOCK_LEVEL} — keep posting and earning XP.
+                </p>
+              </div>
+            )}
+            <div className="card p-4">
+              <p className="font-semibold text-sm mb-1">✏️ custom ghost name</p>
+              <p className="text-white/40 text-xs mb-3">{nameCost} credits — credits only. change it from your lair page.</p>
+              <button
+                className={levelMet ? "btn-primary w-full text-sm" : "btn-primary w-full text-sm disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"}
+                disabled={!levelMet}
+                onClick={() => router.push("/lair")}
+              >
+                {levelMet ? `Buy for ${nameCost} credits` : `🔓 Unlocks at Level ${IDENTITY_UNLOCK_LEVEL}`}
+              </button>
+            </div>
+            <div className="card p-4">
+              <p className="font-semibold text-sm mb-1">🖼️ profile banner</p>
+              <p className="text-white/40 text-xs mb-3">{bannerCost} credits — permanent identity flair.</p>
+              {!levelMet ? (
+                <button className="btn-primary w-full text-sm disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed" disabled>
+                  🔓 Unlocks at Level {IDENTITY_UNLOCK_LEVEL}
+                </button>
+              ) : ownsBanner ? (
+                <button className="btn-ghost w-full text-sm" disabled>✓ owned</button>
+              ) : (
+                <button
+                  className="btn-primary w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading === "banner"}
+                  onClick={() => buyWithCredits("/api/shop/profile-customization", "banner", { item: "banner" })}
+                >
+                  {loading === "banner" ? "..." : `Buy for ${bannerCost} credits`}
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {category === "themes" && !me && (
         <div className="card p-5 mt-2 animate-pulse"><div className="h-4 w-24 bg-white/10 rounded mb-2" /><div className="h-3 w-full bg-white/5 rounded" /></div>
@@ -550,6 +634,7 @@ export default function ShopPage() {
       {category === "themes" && me && (
         <ThemesPicker
           tier={me.tier}
+          myLevel={levelInfo?.myLevel ?? 1}
           ownedCosmetics={me.ownedCosmetics || []}
           buyingId={loading}
           onBuy={(themeId) => buyWithCredits("/api/shop/theme", themeId, { themeId, useCredits: true })}

@@ -75,9 +75,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
   ])
 
   // Ghost levels (XP) — free engagement driver. Post/vote/comment/battle
-  // activity earns XP; levels unlock avatar grants + perks next to the ghost
-  // name. Levels + thresholds live in lib/levels.ts (single source of truth).
-  const { xpForActivity, levelForXp } = await import("@/lib/levels")
+  // activity earns XP; the Status Ladder gates cosmetics + perks. Levels,
+  // thresholds, and progress live in lib/levels.ts (single source of truth).
+  const { xpForActivity, calculateLevel } = await import("@/lib/levels")
   const xp = xpForActivity({
     postCount,
     yeahs: yeahsAgg._sum.yeahs || 0,
@@ -86,7 +86,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ ghos
     referralCount: user.referralCount,
     followersCount,
   })
-  const ghostLevel = levelForXp(xp)
+  const progress = calculateLevel(xp)
+  const ghostLevel = {
+    level: progress.currentLevel,
+    title: progress.levelName,
+    emoji: progress.emoji,
+    xp: progress.currentXp,
+    nextLevelXp: progress.nextLevelXp,
+    nextLevelName: progress.nextLevelName,
+    progressPct: progress.progressPct,
+    isMaxLevel: progress.isMaxLevel,
+  }
 
   // Never expose the internal cuid: the response carries only the public
   // ghost identity (ghostId, avatar, tier, campus) plus public social stats.

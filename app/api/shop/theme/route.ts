@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { initializePaystack } from "@/lib/paystack"
 import { creditUser, toCreditErrorResponse } from "@/lib/credits"
 import { THEME_MAP, isThemeId, isThemeBuyable, themeCosmeticId } from "@/lib/themes"
+import { THEME_UNLOCK_LEVEL } from "@/lib/levels"
+import { userLevelInfo } from "@/lib/userLevel"
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
@@ -24,6 +26,16 @@ export async function POST(req: NextRequest) {
   const cosmeticId = themeCosmeticId(theme.id)
   if (user.ownedCosmetics.includes(cosmeticId)) {
     return NextResponse.json({ error: "already owned." }, { status: 400 })
+  }
+
+  // Every theme is part of the Status Ladder — Level 4 is required before
+  // checkout or a credits deduction can happen.
+  const levelInfo = await userLevelInfo(user.id)
+  if (levelInfo.progress.currentLevel < THEME_UNLOCK_LEVEL) {
+    return NextResponse.json(
+      { error: `themes unlock at level ${THEME_UNLOCK_LEVEL}.`, requiredLevel: THEME_UNLOCK_LEVEL, myLevel: levelInfo.progress.currentLevel },
+      { status: 403 }
+    )
   }
 
   const useCredits = body.useCredits === true

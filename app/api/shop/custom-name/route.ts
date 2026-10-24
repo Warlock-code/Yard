@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { creditUser, toCreditErrorResponse, CREDIT_CONFIG } from "@/lib/credits"
+import { IDENTITY_UNLOCK_LEVEL } from "@/lib/levels"
+import { userLevelInfo } from "@/lib/userLevel"
 
 // Ghost name changes are credits-only (500 credits). Real money is only
 // for buying credits + subscription — no Paystack checkout here.
@@ -13,6 +15,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}))
   const rawName = typeof body.newName === "string" ? body.newName.trim().toLowerCase() : ""
+
+  // Identity items are part of the Status Ladder — names unlock at level 5.
+  const levelInfo = await userLevelInfo(user.id)
+  if (levelInfo.progress.currentLevel < IDENTITY_UNLOCK_LEVEL) {
+    return NextResponse.json(
+      { error: `custom names unlock at level ${IDENTITY_UNLOCK_LEVEL}.`, requiredLevel: IDENTITY_UNLOCK_LEVEL, myLevel: levelInfo.progress.currentLevel },
+      { status: 403 }
+    )
+  }
+
   // Explicit opt-in so stale cached clients (old paystack flow) can never
   // trigger a surprise credits charge — they get a clear error instead.
   if (body.useCredits !== true) {

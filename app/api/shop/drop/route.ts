@@ -15,6 +15,8 @@ import {
 import { getWeeklyDrop } from "@/lib/credit-config"
 import { AVATAR_MAP, isAvatarBuyable } from "@/lib/avatars"
 import { THEME_MAP, isThemeBuyable, themeCosmeticId, type ThemeId } from "@/lib/themes"
+import { requiredLevelForAvatarRarity, THEME_UNLOCK_LEVEL } from "@/lib/levels"
+import { userLevelInfo } from "@/lib/userLevel"
 
 export const dynamic = "force-dynamic"
 
@@ -49,12 +51,14 @@ export async function POST(req: NextRequest) {
   // Resolve the grant target + honor static limited flags on the underlying
   // item (expired one-off limiteds stay dead even inside the rotation).
   let grantId: string
+  let requiredLevel: number
   if (drop.kind === "avatar") {
     const item = AVATAR_MAP[drop.cosmeticId]
     if (!item || !isAvatarBuyable(item)) {
       return NextResponse.json({ error: "this drop is no longer available." }, { status: 410 })
     }
     grantId = item.id
+    requiredLevel = requiredLevelForAvatarRarity(item.rarity)
   } else {
     if (!drop.cosmeticId.startsWith("theme_")) {
       return NextResponse.json({ error: "this drop is no longer available." }, { status: 410 })
@@ -65,10 +69,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "this drop is no longer available." }, { status: 410 })
     }
     grantId = themeCosmeticId(themeId)
+    requiredLevel = THEME_UNLOCK_LEVEL
   }
 
   if ((user.ownedCosmetics || []).includes(grantId)) {
     return NextResponse.json({ success: true, alreadyOwned: true })
+  }
+
+  // Drops are subject to the same Status Ladder gates as the catalog.
+  const levelInfo = await userLevelInfo(user.id)
+  if (levelInfo.progress.currentLevel < requiredLevel) {
+    return NextResponse.json(
+      { error: `unlocks at level ${requiredLevel}.`, requiredLevel, myLevel: levelInfo.progress.currentLevel },
+      { status: 403 }
+    )
   }
 
   const reference = `drop_${drop.id}_${user.id}_${Date.now()}`

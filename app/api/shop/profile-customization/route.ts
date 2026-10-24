@@ -11,7 +11,8 @@ import {
   trackFeatureEvent,
   CREDIT_CONFIG,
 } from "@/lib/credits"
-import { userLevelInfo, goldNameFlag, profilePerkActive } from "@/lib/levels"
+import { goldNameFlag, profilePerkActive, IDENTITY_UNLOCK_LEVEL } from "@/lib/levels"
+import { userLevelInfo } from "@/lib/userLevel"
 
 export const dynamic = "force-dynamic"
 
@@ -44,13 +45,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid item. choose banner, color_name, frame, gold_name, or bundle." }, { status: 400 })
   }
 
+  // Identity items share the Level 5 gate. Gold name is a Level 6 perk and
+  // is checked separately below.
+  const levelInfo = await userLevelInfo(user.id)
+  if (item !== "gold_name" && levelInfo.progress.currentLevel < IDENTITY_UNLOCK_LEVEL) {
+    return NextResponse.json(
+      { error: `identity items unlock at level ${IDENTITY_UNLOCK_LEVEL}.`, requiredLevel: IDENTITY_UNLOCK_LEVEL, myLevel: levelInfo.progress.currentLevel },
+      { status: 403 }
+    )
+  }
+
   // Legend perk: gold name color free for 30 days (level 6+ only). No
   // credits move, so no ledger row — same as tier grants. Time-boxed via a
   // `profile:color_name:gold:{expiry}` flag; renderers must honor expiry via
   // profilePerkActive() in lib/levels.ts.
   if (item === "gold_name") {
-    const info = await userLevelInfo(user.id).catch(() => null)
-    if (!info || !info.perks.includes("gold_name_30d")) {
+    if (!levelInfo.perks.includes("gold_name_30d")) {
       return NextResponse.json({ error: "reach legend (level 6) to claim the gold name." }, { status: 403 })
     }
     if (profilePerkActive(user.ownedCosmetics || [], "profile:color_name")) {

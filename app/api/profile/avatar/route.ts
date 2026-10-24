@@ -11,19 +11,14 @@ const DEFAULT_AVATAR_EMOJI = "👻"
 
 /** Free-with-tier avatars must match `lib/avatars.ts`'s `common` rarity set
  *  (via `getTierAvatars`), so what a user can equip is consistent with what
- *  the Shop/Owned pages advertise as unlocked-for-your-tier. Level grants
- *  (lib/levels.ts) stack on top — pass levelAvatarIds when known. */
+ *  the Shop/Owned pages advertise as unlocked-for-your-tier. Level-gated
+ *  cosmetics still need to be bought before they can be equipped. */
 function unlockedSet(
-  user: { tier: AccountTier; tierExpiresAt: Date | null; ownedCosmetics: string[] },
-  levelAvatarIds: string[] = []
+  user: { tier: AccountTier; tierExpiresAt: Date | null; ownedCosmetics: string[] }
 ) {
   const set = new Set<string>([DEFAULT_AVATAR_EMOJI])
   const effectiveTier = getEffectiveTier(user)
   for (const avatarId of getTierAvatars(effectiveTier)) {
-    const emoji = AVATAR_EMOJI_MAP[avatarId]
-    if (emoji) set.add(emoji)
-  }
-  for (const avatarId of levelAvatarIds) {
     const emoji = AVATAR_EMOJI_MAP[avatarId]
     if (emoji) set.add(emoji)
   }
@@ -34,23 +29,12 @@ function unlockedSet(
   return set
 }
 
-// Ghost-level avatar grants (best-effort — equip still works if this fails,
-// just without level items).
-async function userLevelAvatarIds(userId: string): Promise<string[]> {
-  try {
-    const { userLevelInfo } = await import("@/lib/levels")
-    return (await userLevelInfo(userId)).avatarIds
-  } catch {
-    return []
-  }
-}
-
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
   const { emoji } = await req.json()
-  if (!unlockedSet(user, await userLevelAvatarIds(user.id)).has(emoji)) {
+  if (!unlockedSet(user).has(emoji)) {
     return NextResponse.json({ error: "not unlocked yet." }, { status: 403 })
   }
 
@@ -62,5 +46,5 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req)
   if (!user) return NextResponse.json({ error: "not authenticated." }, { status: 401 })
 
-  return NextResponse.json({ available: Array.from(unlockedSet(user, await userLevelAvatarIds(user.id))) })
+  return NextResponse.json({ available: Array.from(unlockedSet(user)) })
 }
