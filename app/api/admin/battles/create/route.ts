@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { isAdmin } from "@/lib/getAdmin"
 import { createNotification } from "@/lib/notifications"
 import { BATTLE_DURATION_HOURS, BATTLE_DURATION_MS, newBattleText } from "@/lib/battle-countdown"
+import { CAMPUSES } from "@/lib/schoolEmails"
 
-const VALID_CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
+const VALID_CAMPUSES = CAMPUSES
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0

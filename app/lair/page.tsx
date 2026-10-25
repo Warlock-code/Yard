@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGet, apiPost } from "@/lib/useApi"
+import { clearCache } from "@/lib/client-cache"
 import OptimizedImage from "@/app/components/OptimizedImage"
 import Avatar from "@/app/components/Avatar"
 import ChampionTrophies from "@/app/components/ChampionTrophies"
@@ -182,6 +183,7 @@ export default function LairPage() {
 
   async function handleLogout() {
     await apiPost("/api/auth/logout", {}).catch(() => {})
+    clearCache()
     router.push("/login")
     router.refresh()
   }

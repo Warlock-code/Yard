@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { CAMPUSES } from "@/lib/schoolEmails"
 
 type Stats = {
   userCount: number
@@ -47,8 +48,6 @@ const NAV: { key: SectionKey; label: string; icon: string; desc: string; group: 
 ]
 
 const GROUPS = ["general", "manage", "moderation", "finance"]
-
-const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 
 function ghs(pesewas: number) {
   return `gh₵${(pesewas / 100).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

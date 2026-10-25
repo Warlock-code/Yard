@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiPost } from "@/lib/useApi"
-import { prewarmAppData } from "@/lib/client-cache"
+import { prewarmAppData, clearCache } from "@/lib/client-cache"
 import { Suspense } from "react"
 import IOSInstallPrompt from "@/app/components/IOSInstallPrompt"
 import { signalContentReady } from "@/app/components/BootGate"
@@ -56,6 +56,8 @@ function SignupForm() {
       
       // Token is set via httpOnly cookie by the API
       router.push("/feed")
+      // Drop any pre-signup/previous-session cache before warming this account.
+      clearCache()
       prewarmAppData()
       router.refresh()
     } catch (err: unknown) {

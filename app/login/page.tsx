@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { prewarmAppData } from "@/lib/client-cache"
+import { prewarmAppData, clearCache } from "@/lib/client-cache"
 import { signalContentReady } from "@/app/components/BootGate"
 
 
@@ -44,6 +44,8 @@ export default function LoginPage() {
         throw new Error(data.error || "something went wrong.")
       }
       router.push("/feed")
+      // Never reuse a previous account's cached campus feed/me after login.
+      clearCache()
       // Warm feed + me in background so /feed opens instantly
       prewarmAppData()
     } catch (err: unknown) {

@@ -53,9 +53,27 @@ export function setCached(key: string, data: unknown, ttlMs: number) {
   if (typeof window !== "undefined") lsSet(key, data, ttlMs)
 }
 
+// Wipe every cached response for the current browser. Called on login,
+// signup, and logout so one account's campus feed can never paint for the
+// next account sharing the device.
+export function clearCache() {
+  mem.clear()
+  prewarmedAt = 0
+  if (typeof window === "undefined") return
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i)
+      if (key?.startsWith(LS_PREFIX)) localStorage.removeItem(key)
+    }
+  } catch {}
+}
+
 export const cacheKeys = {
   me: "me",
-  feed: (mode: string) => `feed:${mode}`,
+  // Campus is part of the key: a KNUST feed and a Legon feed must never
+  // share a cache slot, even for the 30s stale-while-revalidate window.
+  feed: (mode: string, campus?: string | null) =>
+    campus ? `feed:${mode}:${campus}` : `feed:${mode}`,
   battles: "battles",
   leaderboard: "leaderboard",
   notificationsCount: "notif_count",
@@ -114,29 +132,39 @@ export function prewarmAppData() {
       if (document.hidden) return
       // Skip anything the foreground page already cached — the page's own
       // fetch is authoritative on cold boot, prewarm is only a backstop.
-      const needsMe = getCached(cacheKeys.me) === null
-      const needsFeed = getCached(cacheKeys.feed("campus")) === null
+      const cachedMe = getCached<{ user?: { campus?: string } }>(cacheKeys.me)
+      const needsMe = cachedMe === null
+      const cachedCampus = cachedMe?.user?.campus
+      const cachedFeedKey = cacheKeys.feed("campus", cachedCampus)
+      const needsFeed = !!cachedCampus && getCached(cachedFeedKey) === null
       const needsNotif = getCached(cacheKeys.notificationsCount) === null
       if (!needsMe && !needsFeed && !needsNotif) return
       prewarmedAt = Date.now()
+      let campus = cachedCampus
       if (needsMe) {
         const meRes = await fetchDeduped("GET /api/auth/me", () =>
           fetch("/api/auth/me", { credentials: "include" })
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null)
         )
-        if (meRes && (meRes as { user?: unknown })?.user) setCached(cacheKeys.me, meRes, TTL.me)
+        if (meRes && (meRes as { user?: { campus?: string } })?.user) {
+          setCached(cacheKeys.me, meRes, TTL.me)
+          campus = (meRes as { user?: { campus?: string } }).user?.campus
+        }
       }
-      // Warm campus feed + lightweight counts in parallel; never throws
+      // Warm campus feed + lightweight counts in parallel; never throws.
+      // The feed key includes the authenticated campus, so a previous
+      // account's cached feed can never be reused for a different school.
+      const feedKey = cacheKeys.feed("campus", campus)
       await Promise.allSettled([
-        needsFeed
+        campus && getCached(feedKey) === null
           ? fetchDeduped("GET /api/posts?mode=campus", () =>
               fetch("/api/posts?mode=campus", { credentials: "include" })
                 .then((r) => (r.ok ? r.json() : null))
                 .catch(() => null)
             ).then((d) => {
               const data = d as { posts?: unknown } | null
-              if (data?.posts) setCached(cacheKeys.feed("campus"), data, TTL.feed)
+              if (data?.posts) setCached(feedKey, data, TTL.feed)
             })
           : Promise.resolve(),
         needsNotif

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/getCurrentUser"
 import { getEffectiveTier } from "@/lib/tier"
+import { CAMPUSES } from "@/lib/schoolEmails"
 import {
   creditUser,
   toCreditErrorResponse,
@@ -11,7 +12,6 @@ import {
 
 export const dynamic = "force-dynamic"
 
-const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
 const PLUS_QUOTA = 5 // PLUS schedules 5 at a time; PRIME unlimited
 
 // Post scheduling — PLUS 5 queued, PRIME unlimited, FREE pays 300cr per 10.

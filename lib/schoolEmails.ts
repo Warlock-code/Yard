@@ -55,6 +55,11 @@ export const CAMPUS_DOMAINS: Record<string, string> = {
   "st.aamusted.edu.gh": "AAMUSTED",
 }
 
+// Every campus the app accepts at signup is also a valid cross-campus/feed
+// target. Deriving the list from the domain map keeps the two in sync: adding
+// a school domain automatically makes that campus postable.
+export const CAMPUSES: string[] = [...new Set(Object.values(CAMPUS_DOMAINS))].sort((a, b) => a.localeCompare(b))
+
 export function getCampusFromEmail(email: string): string | null {
   const normalized = email.trim().toLowerCase()
   const atIdx = normalized.lastIndexOf("@")

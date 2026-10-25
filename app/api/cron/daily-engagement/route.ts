@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
 import { battleCountdownText } from "@/lib/battle-countdown"
+import { CAMPUSES } from "@/lib/schoolEmails"
 
 export const dynamic = "force-dynamic"
 
@@ -467,7 +468,7 @@ export async function GET(req: NextRequest) {
         }
         const targets =
           s.campusTarget === "all"
-            ? ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
+            ? [...CAMPUSES]
             : typeof s.campusTarget === "string" && s.campusTarget
               ? [s.campusTarget]
               : null

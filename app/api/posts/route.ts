@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/getCurrentUser"
 import { notifyMentions } from "@/lib/mentions"
 import { capAuthorRepetition, rankFeedCandidates } from "@/lib/feedRanking"
 import { getProgramPostWhere, getReadablePostWhere } from "@/lib/programAccess"
+import { CAMPUSES } from "@/lib/schoolEmails"
 import { emitNewPost } from "@/lib/socket-client"
 import { processPostHashtags } from "@/lib/search"
 import { attachChampionTrophies, getChampionTrophies } from "@/lib/champions"
@@ -22,8 +23,6 @@ const AD_INTERVAL_BY_TIER: Record<"FREE" | "PLUS" | "PRIME", number> = {
   PLUS: 8,
   PRIME: 50,
 }
-const CAMPUSES = ["University of Ghana", "KNUST", "UCC", "GCTU", "UPSA"]
-
 function weekStartUTC(now = new Date()) {
   const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   const shift = (day.getUTCDay() + 6) % 7
@@ -396,6 +395,9 @@ export async function GET(req: NextRequest) {
   let scopeWhere: Prisma.PostWhereInput
 
   if (mode === "campus") {
+    // Strict campus isolation: a KNUST viewer only ever gets KNUST school
+    // posts (plus their own class posts, which are campus-scoped inside
+    // programWhereBase). Never widen this to the global "all" feed.
     const programWhere = programWhereBase
     scopeWhere = {
       OR: [

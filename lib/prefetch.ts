@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { prewarmAppData, setCached, cacheKeys, TTL } from "@/lib/client-cache"
+import { prewarmAppData, setCached, getCached, cacheKeys, TTL } from "@/lib/client-cache"
 
 const ROUTES_TO_PREFETCH = [
   "/feed",
@@ -88,9 +88,12 @@ export function prefetchDataFor(href: string) {
   if (typeof window === "undefined") return
   try {
     if (href === "/feed" || href.startsWith("/feed")) {
+      const campus = getCached<{ user?: { campus?: string } }>(cacheKeys.me)?.user?.campus
+      const key = cacheKeys.feed("campus", campus)
+      if (!campus || getCached(key) !== null) return
       fetch("/api/posts?mode=campus", { credentials: "include" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (d?.posts) setCached(cacheKeys.feed("campus"), d, TTL.feed) })
+        .then((d) => { if (d?.posts) setCached(key, d, TTL.feed) })
         .catch(() => {})
     } else if (href === "/battles") {
       fetch("/api/battles", { credentials: "include" })
